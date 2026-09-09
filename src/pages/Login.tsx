@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { LaboraLogoFull } from '@/components/LaboraLogo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -77,10 +78,12 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 py-10">
+      <LaboraLogoFull />
+
+      <Card className="w-full max-w-md rounded-2xl border-none shadow-elevation">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Labora Vistoria</CardTitle>
+          <CardTitle className="text-xl">Bem-vindo de volta</CardTitle>
           <CardDescription>Gestão de vistorias e inspeções de SST</CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,7 +126,7 @@ export default function Login() {
                     {submitting ? 'Entrando...' : 'Entrar'}
                   </Button>
 
-                  <div className="rounded-md border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
+                  <div className="rounded-xl border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
                     <p className="font-medium text-foreground">Credenciais para teste rápido:</p>
                     <p className="mt-1">
                       E-mail: <code className="text-foreground font-mono">admin@labora.com</code>

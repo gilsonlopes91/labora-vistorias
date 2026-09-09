@@ -1,7 +1,7 @@
 /* Global styles - Theme, font, utilities, animations and global components */
 
-/* CHANGE THE FONT BELOW TO WHATEVER YOU WANT */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+/* Identidade visual: Labora Engenharia e SST — fonte Inter, paleta verde/oliva */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,103 +9,103 @@
 
 @layer base {
   :root {
-    /* Change the colors to match the design system */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Paleta Labora — fundo claro, verde oliva como destaque, texto verde-escuro quase preto */
+    --background: 0 0% 95%;
+    --foreground: 120 10% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 120 10% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 120 10% 14%;
 
-    --primary: 222.2 84% 4.9%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 85 33% 40%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 98%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 120 10% 14%;
 
-    --muted: 210 40% 98%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 21 12% 38%;
 
-    --accent: 210 40% 98%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 85 32% 93%;
+    --accent-foreground: 85 45% 24%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 87%;
+    --input: 0 0% 87%;
+    --ring: 85 33% 40%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 100%;
 
-    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-foreground: 120 10% 14%;
 
-    --sidebar-primary: 222.2 84% 4.9%;
+    --sidebar-primary: 85 33% 40%;
 
     --sidebar-primary-foreground: 0 0% 100%;
 
-    --sidebar-accent: 210 40% 98%;
+    --sidebar-accent: 85 32% 93%;
 
-    --sidebar-accent-foreground: 222.2 84% 4.9%;
+    --sidebar-accent-foreground: 85 45% 24%;
 
-    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-border: 0 0% 90%;
 
-    --sidebar-ring: 222.2 84% 4.9%;
+    --sidebar-ring: 85 33% 40%;
 
-    --chart-1: 34 100% 44%;
-    --chart-2: 189 100% 38%;
-    --chart-3: 209 100% 32%;
-    --chart-4: 42 100% 50%;
-    --chart-5: 33 100% 50%;
+    --chart-1: 85 33% 40%;
+    --chart-2: 21 15% 30%;
+    --chart-3: 85 45% 58%;
+    --chart-4: 40 25% 45%;
+    --chart-5: 120 10% 30%;
   }
 
   .dark {
-    /* Change the colors to match the design system consistent with the dark mode */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Variante escura — fundo verde quase preto (identidade Labora) */
+    --background: 120 10% 10%;
+    --foreground: 0 0% 94%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 120 10% 13%;
+    --card-foreground: 0 0% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 120 10% 13%;
+    --popover-foreground: 0 0% 94%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
+    --primary: 85 38% 52%;
+    --primary-foreground: 120 10% 10%;
 
-    --secondary: 222.2 84% 4.9%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 120 10% 16%;
+    --secondary-foreground: 0 0% 94%;
 
-    --muted: 222.2 84% 4.9%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 120 10% 16%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 222.2 84% 4.9%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 120 10% 18%;
+    --accent-foreground: 85 40% 65%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 94%;
 
-    --border: 222.2 84% 4.9%;
-    --input: 222.2 84% 4.9%;
-    --ring: 214.3 31.8% 91.4%;
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 222.2 84% 4.9%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222.2 84% 4.9%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222.2 84% 4.9%;
-    --sidebar-ring: 222.2 84% 4.9%;
+    --border: 120 10% 20%;
+    --input: 120 10% 20%;
+    --ring: 85 38% 52%;
+    --sidebar-background: 120 10% 11%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 85 38% 52%;
+    --sidebar-primary-foreground: 120 10% 10%;
+    --sidebar-accent: 120 10% 18%;
+    --sidebar-accent-foreground: 85 40% 65%;
+    --sidebar-border: 120 10% 20%;
+    --sidebar-ring: 85 38% 52%;
 
-    --chart-1: 270 100% 44%;
-    --chart-2: 164 100% 38%;
-    --chart-3: 43 100% 32%;
-    --chart-4: 340 100% 50%;
-    --chart-5: 10 100% 50%;
+    --chart-1: 85 38% 52%;
+    --chart-2: 21 20% 45%;
+    --chart-3: 85 45% 65%;
+    --chart-4: 40 25% 55%;
+    --chart-5: 0 0% 70%;
   }
 
   /* NEVER REMOVE THIS */

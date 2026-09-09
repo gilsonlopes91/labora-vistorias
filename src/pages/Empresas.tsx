@@ -216,7 +216,7 @@ export default function Empresas() {
       {loading ? (
         <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
       ) : empresas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
           <Building2 className="mb-3 h-10 w-10 text-muted-foreground" />
           <p className="mb-4 text-sm text-muted-foreground">Nenhuma empresa cadastrada ainda.</p>
           <Button onClick={openCreate}>
@@ -225,7 +225,7 @@ export default function Empresas() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-2xl border-none bg-card shadow-subtle">
           <Table>
             <TableHeader>
               <TableRow>

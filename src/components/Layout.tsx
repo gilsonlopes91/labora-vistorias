@@ -1,7 +1,8 @@
-/* Layout — barra lateral minimalista + área de conteúdo, presente em todas as páginas protegidas. */
+/* Layout — barra lateral com a identidade da Labora + área de conteúdo, presente em todas as páginas protegidas. */
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { LogOut, Building2, Home, ClipboardCheck, CalendarClock } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { LaboraLogo } from '@/components/LaboraLogo'
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +16,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Início', icon: Home },
@@ -38,6 +40,8 @@ export default function Layout() {
       item.to === location.pathname || (item.to !== '/' && location.pathname.startsWith(item.to)),
   )?.label
 
+  const initials = (user?.name || user?.email || 'LV').slice(0, 2).toUpperCase()
+
   if (!isAuthenticated) {
     return <Outlet />
   }
@@ -46,13 +50,16 @@ export default function Layout() {
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-1 py-1">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-foreground text-[10px] font-bold text-background">
-              LV
+          <div className="flex items-center gap-2 px-1 py-2">
+            <LaboraLogo className="h-7 w-7 shrink-0" />
+            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+              <div className="truncate text-sm font-bold uppercase leading-tight tracking-wide">
+                Labora
+              </div>
+              <div className="truncate text-[10px] uppercase leading-tight tracking-widest text-muted-foreground">
+                Vistoria
+              </div>
             </div>
-            <span className="truncate text-sm font-medium group-data-[collapsible=icon]:hidden">
-              Labora Vistoria
-            </span>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -86,15 +93,22 @@ export default function Layout() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-          {user?.email && (
-            <div className="truncate px-2 pb-1 pt-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-              {user.email}
-            </div>
-          )}
+          <div className="flex items-center gap-2 px-2 pb-1 pt-2 group-data-[collapsible=icon]:justify-center">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="bg-primary text-[10px] text-primary-foreground">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            {user?.email && (
+              <span className="truncate text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                {user.email}
+              </span>
+            )}
+          </div>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-card px-3">
           <SidebarTrigger />
           {currentLabel && (
             <span className="text-sm font-medium text-muted-foreground">{currentLabel}</span>
