@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T00:56:25.316Z",
+  "generatedAt": "2026-09-09T01:01:45.742Z",
   "collections": [
     {
       "name": "users",
@@ -87,6 +87,660 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "organizacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && dono_id = @request.auth.id",
+        "view": "@request.auth.id != '' && dono_id = @request.auth.id",
+        "create": null,
+        "update": "@request.auth.id != '' && dono_id = @request.auth.id",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dono_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_organizacoes_dono ON organizacoes (dono_id)"
+      ]
+    },
+    {
+      "name": "empresas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "view": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "create": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "update": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_fantasia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "porte",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "MEI",
+            "ME",
+            "EPP",
+            "Demais / Não se enquadra"
+          ]
+        },
+        {
+          "name": "grau_risco",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_funcionarios",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_empresas_organizacao ON empresas (organizacao_id)"
+      ]
+    },
+    {
+      "name": "tipos_vistoria",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id.dono_id = @request.auth.id)",
+        "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id.dono_id = @request.auth.id)",
+        "create": "@request.auth.id != '' && organizacao_id != '' && organizacao_id.dono_id = @request.auth.id",
+        "update": "@request.auth.id != '' && organizacao_id != '' && organizacao_id.dono_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && organizacao_id != '' && organizacao_id.dono_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nr_referencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_tipos_vistoria_organizacao ON tipos_vistoria (organizacao_id)"
+      ]
+    },
+    {
+      "name": "itens_checklist",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id)",
+        "view": "@request.auth.id != '' && (tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id)",
+        "create": "@request.auth.id != '' && tipo_vistoria_id.organizacao_id != '' && tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id",
+        "update": "@request.auth.id != '' && tipo_vistoria_id.organizacao_id != '' && tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && tipo_vistoria_id.organizacao_id != '' && tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "tipo_vistoria_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "tipos_vistoria"
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "secao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "item_ref",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "grau",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "S",
+            "M"
+          ]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_itens_checklist_tipo ON itens_checklist (tipo_vistoria_id, ordem)"
+      ]
+    },
+    {
+      "name": "vistorias",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "view": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "create": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "update": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "tipo_vistoria_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "tipos_vistoria"
+        },
+        {
+          "name": "tecnico_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_agendada",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_realizada",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "agendada",
+            "em_andamento",
+            "concluida",
+            "cancelada"
+          ]
+        },
+        {
+          "name": "observacoes_gerais",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "client_uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_vistorias_client_uuid ON vistorias (client_uuid)",
+        "CREATE INDEX idx_vistorias_organizacao ON vistorias (organizacao_id)",
+        "CREATE INDEX idx_vistorias_empresa ON vistorias (empresa_id)",
+        "CREATE INDEX idx_vistorias_data_agendada ON vistorias (data_agendada)"
+      ]
+    },
+    {
+      "name": "respostas_vistoria",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && vistoria_id.organizacao_id.dono_id = @request.auth.id",
+        "view": "@request.auth.id != '' && vistoria_id.organizacao_id.dono_id = @request.auth.id",
+        "create": "@request.auth.id != '' && vistoria_id.organizacao_id.dono_id = @request.auth.id",
+        "update": "@request.auth.id != '' && vistoria_id.organizacao_id.dono_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && vistoria_id.organizacao_id.dono_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "vistoria_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vistorias"
+        },
+        {
+          "name": "item_checklist_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "itens_checklist"
+        },
+        {
+          "name": "situacao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "C",
+            "N/C",
+            "N/A"
+          ]
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_funcionarios_irregulares",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_multa_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_multa_max",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "client_uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_respostas_client_uuid ON respostas_vistoria (client_uuid)",
+        "CREATE INDEX idx_respostas_vistoria ON respostas_vistoria (vistoria_id)",
+        "CREATE INDEX idx_respostas_item ON respostas_vistoria (item_checklist_id)"
+      ]
+    },
+    {
+      "name": "tabela_multas_nr28",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "faixa_funcionarios",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "01 a 10",
+            "11 a 25",
+            "26 a 50",
+            "51 a 100",
+            "101 a 250",
+            "251 a 500",
+            "501 a 1000",
+            "Mais de 1000"
+          ]
+        },
+        {
+          "name": "faixa_ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "grau",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "S",
+            "M"
+          ]
+        },
+        {
+          "name": "valor_min_ufir",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_max_ufir",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_tabela_multas_lookup ON tabela_multas_nr28 (faixa_ordem, grau, tipo)"
+      ]
+    },
+    {
+      "name": "parametros_sistema",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "chave",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_numero",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_parametros_chave ON parametros_sistema (chave)"
+      ]
     }
   ]
 }
