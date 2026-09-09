@@ -10,7 +10,7 @@
 @layer base {
   :root {
     /* Paleta Labora — fundo claro, verde oliva como destaque, texto verde-escuro quase preto */
-    --background: 0 0% 95%;
+    --background: 0 0% 97%;
     --foreground: 120 10% 14%;
 
     --card: 0 0% 100%;
