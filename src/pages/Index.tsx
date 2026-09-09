@@ -108,7 +108,7 @@ const Index = () => {
         {user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
       </h1>
       <p className="mb-8 text-sm text-muted-foreground">
-        Bem-vindo ao Labora Vistoria — gestão de vistorias e inspeções de SST.
+        Bem-vindo ao LABORA auditoria — gestão de auditorias, vistorias e inspeções de SST.
       </p>
 
       <p className="mb-3 text-sm font-medium text-foreground">O que você gostaria de fazer?</p>

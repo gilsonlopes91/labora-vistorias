@@ -55,12 +55,10 @@ export default function Layout() {
             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 p-0.5">
               <LaboraLogo className="h-8 w-8" />
             </div>
-            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <div className="truncate text-sm font-bold uppercase leading-tight tracking-wide">
-                Labora
-              </div>
-              <div className="truncate text-[10px] uppercase leading-tight tracking-widest text-muted-foreground">
-                Vistoria
+            <div className="min-w-0 flex flex-col items-center text-center group-data-[collapsible=icon]:hidden">
+              <div className="truncate text-sm font-bold leading-tight tracking-wide">LABORA</div>
+              <div className="truncate text-[10px] leading-tight tracking-widest text-muted-foreground">
+                auditoria
               </div>
             </div>
           </div>
