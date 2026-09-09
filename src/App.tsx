@@ -8,6 +8,9 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import Index from './pages/Index'
 import Login from './pages/Login'
 import Empresas from './pages/Empresas'
+import Vistorias from './pages/Vistorias'
+import VistoriaDetalhe from './pages/VistoriaDetalhe'
+import Agenda from './pages/Agenda'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -36,6 +39,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Empresas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vistorias"
+              element={
+                <ProtectedRoute>
+                  <Vistorias />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vistorias/:id"
+              element={
+                <ProtectedRoute>
+                  <VistoriaDetalhe />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/agenda"
+              element={
+                <ProtectedRoute>
+                  <Agenda />
                 </ProtectedRoute>
               }
             />

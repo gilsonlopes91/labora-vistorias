@@ -1,13 +1,26 @@
-/* Layout Component - cabeçalho com navegação, visível em todas as páginas protegidas */
+/* Layout — barra lateral minimalista + área de conteúdo, presente em todas as páginas protegidas. */
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Building2, LayoutDashboard } from 'lucide-react'
+import { LogOut, Building2, Home, ClipboardCheck, CalendarClock } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Início', icon: LayoutDashboard },
+  { to: '/', label: 'Início', icon: Home },
   { to: '/empresas', label: 'Empresas', icon: Building2 },
+  { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
+  { to: '/agenda', label: 'Agenda', icon: CalendarClock },
 ]
 
 export default function Layout() {
@@ -20,50 +33,77 @@ export default function Layout() {
     navigate('/login', { replace: true })
   }
 
+  const currentLabel = NAV_ITEMS.find(
+    (item) =>
+      item.to === location.pathname || (item.to !== '/' && location.pathname.startsWith(item.to)),
+  )?.label
+
+  if (!isAuthenticated) {
+    return <Outlet />
+  }
+
   return (
-    <main className="flex min-h-screen flex-col">
-      {isAuthenticated && (
-        <header className="border-b bg-background">
-          <div className="container mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-6">
-              <span className="text-lg font-bold">Labora Vistoria</span>
-              <nav className="flex items-center gap-1">
-                {NAV_ITEMS.map((item) => {
-                  const active = location.pathname === item.to
-                  const Icon = item.icon
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                        active
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  )
-                })}
-              </nav>
+    <SidebarProvider>
+      <Sidebar collapsible="icon" className="border-r">
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-1 py-1">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-foreground text-[10px] font-bold text-background">
+              LV
             </div>
-            <div className="flex items-center gap-3">
-              {user?.email && (
-                <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>
-              )}
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                <LogOut className="mr-1.5 h-4 w-4" />
-                Sair
-              </Button>
-            </div>
+            <span className="truncate text-sm font-medium group-data-[collapsible=icon]:hidden">
+              Labora Vistoria
+            </span>
           </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarMenu>
+              {NAV_ITEMS.map((item) => {
+                const active =
+                  item.to === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.to)
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                      <Link to={item.to}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleSignOut} tooltip="Sair">
+                <LogOut />
+                <span>Sair</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          {user?.email && (
+            <div className="truncate px-2 pb-1 pt-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+              {user.email}
+            </div>
+          )}
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+          <SidebarTrigger />
+          {currentLabel && (
+            <span className="text-sm font-medium text-muted-foreground">{currentLabel}</span>
+          )}
         </header>
-      )}
-      <div className="flex-1">
-        <Outlet />
-      </div>
-    </main>
+        <div className="flex-1">
+          <Outlet />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
