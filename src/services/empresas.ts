@@ -1,6 +1,7 @@
+import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 
-export interface Empresa {
+export interface Empresa extends RecordModel {
   id: string
   organizacao_id: string
   razao_social: string
