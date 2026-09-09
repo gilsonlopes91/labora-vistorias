@@ -1,10 +1,11 @@
+import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import type { Empresa } from '@/services/empresas'
 import type { TipoVistoria } from '@/services/tiposVistoria'
 
 export type StatusVistoria = 'agendada' | 'em_andamento' | 'concluida' | 'cancelada'
 
-export interface Vistoria {
+export interface Vistoria extends RecordModel {
   id: string
   organizacao_id: string
   empresa_id: string

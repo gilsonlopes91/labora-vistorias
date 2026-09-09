@@ -51,8 +51,10 @@ export default function Layout() {
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-1 py-2">
-            <LaboraLogo className="h-7 w-7 shrink-0" />
+          <div className="flex items-center gap-2.5 px-1 py-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 p-0.5">
+              <LaboraLogo className="h-8 w-8" />
+            </div>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <div className="truncate text-sm font-bold uppercase leading-tight tracking-wide">
                 Labora
