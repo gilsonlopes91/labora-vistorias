@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import Empresas from './pages/Empresas'
 import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
+import ModelosVistoria from './pages/ModelosVistoria'
 import Agenda from './pages/Agenda'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
@@ -55,6 +56,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <VistoriaDetalhe />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/modelos"
+              element={
+                <ProtectedRoute>
+                  <ModelosVistoria />
                 </ProtectedRoute>
               }
             />

@@ -6,6 +6,7 @@ import {
   ArrowRight,
   CalendarClock,
   ClipboardCheck,
+  ListChecks,
   Plus,
   FileSpreadsheet,
 } from 'lucide-react'
@@ -85,6 +86,13 @@ const Index = () => {
       cta: 'Ver vistorias',
     },
     {
+      to: '/modelos',
+      icon: ListChecks,
+      title: 'Modelos',
+      description: 'Tipos de vistoria/auditoria e seus checklists',
+      cta: 'Ver modelos',
+    },
+    {
       to: '/agenda',
       icon: CalendarClock,
       title: 'Agenda',
@@ -130,7 +138,7 @@ const Index = () => {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {areas.map((card) => (
           <Link key={card.to} to={card.to}>
             <Card className="h-full rounded-2xl border-none shadow-subtle transition-shadow hover:shadow-elevation">
