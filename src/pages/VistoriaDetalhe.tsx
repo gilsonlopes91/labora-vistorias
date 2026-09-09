@@ -53,12 +53,22 @@ const STATUS_BORDER: Record<Situacao, string> = {
   'N/A': 'border-l-4 border-l-muted-foreground/40',
 }
 
+const OBSERVACAO_PLACEHOLDER: Record<Situacao, string> = {
+  C: 'Observação (opcional)',
+  'N/C': 'Observação sobre a não conformidade (opcional)',
+  'N/A': 'Observação (opcional)',
+}
+
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 // Ordena pelo número real do item da norma (1.4.2 antes de 1.4.10), não pela
 // ordem de cadastro no banco.
 const compararItemRef = (a: ItemChecklist, b: ItemChecklist) =>
   (a.item_ref || '').localeCompare(b.item_ref || '', undefined, { numeric: true })
+
+// O campo geoPoint do PocketBase vem com {lat:0, lon:0} quando nunca foi
+// preenchido — não é uma coordenada real, então trata como "sem localização".
+const temLocalizacaoValida = (loc?: GeoLocalizacao) => !!loc && (loc.lat !== 0 || loc.lon !== 0)
 
 function obterLocalizacaoAtual(): Promise<GeoLocalizacao> {
   return new Promise((resolve, reject) => {
@@ -309,7 +319,7 @@ export default function VistoriaDetalhe() {
       </div>
 
       {/* Progresso — fica visível ao rolar a página pra baixo entre os itens. */}
-      <div className="sticky top-0 z-10 mb-6 rounded-lg border bg-background/95 px-4 py-2.5 shadow-subtle backdrop-blur">
+      <div className="sticky top-0 z-10 mb-3 rounded-lg border bg-background/95 px-4 py-2.5 shadow-subtle backdrop-blur">
         <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
           <span>
             {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
@@ -318,6 +328,19 @@ export default function VistoriaDetalhe() {
           <span className="text-muted-foreground">{progressoPct}%</span>
         </div>
         <Progress value={progressoPct} className="h-1.5" />
+      </div>
+
+      {/* Legenda das situações possíveis do checklist. */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <span>
+          <span className="font-semibold text-emerald-600">C</span> — Conforme
+        </span>
+        <span>
+          <span className="font-semibold text-destructive">N/C</span> — Não conforme
+        </span>
+        <span>
+          <span className="font-semibold text-foreground">N/A</span> — Não se aplica
+        </span>
       </div>
 
       <Card className="mb-6">
@@ -435,14 +458,12 @@ export default function VistoriaDetalhe() {
                               {currency.format(resposta.valor_multa_max || 0)}
                             </div>
                           )}
-                        {resposta.situacao === 'N/C' && (
-                          <Textarea
-                            placeholder="Observação sobre a não conformidade (opcional)"
-                            defaultValue={resposta.observacao}
-                            onBlur={(e) => handleObservacaoBlur(item, e.target.value)}
-                            className="mb-2 text-sm"
-                          />
-                        )}
+                        <Textarea
+                          placeholder={OBSERVACAO_PLACEHOLDER[resposta.situacao]}
+                          defaultValue={resposta.observacao}
+                          onBlur={(e) => handleObservacaoBlur(item, e.target.value)}
+                          className="mb-2 text-sm"
+                        />
 
                         <div className="flex flex-wrap items-center gap-2">
                           <input
@@ -452,20 +473,27 @@ export default function VistoriaDetalhe() {
                             multiple
                             id={`foto-${item.id}`}
                             className="hidden"
-                            onChange={(e) => handleFotoChange(item, e.target.files)}
+                            onChange={(e) => {
+                              handleFotoChange(item, e.target.files)
+                              e.target.value = ''
+                            }}
                           />
                           <label
                             htmlFor={`foto-${item.id}`}
                             className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
                           >
                             <Camera className="h-3.5 w-3.5" />
-                            {uploadingItemId === item.id ? 'Enviando...' : 'Adicionar foto'}
+                            {uploadingItemId === item.id
+                              ? 'Enviando...'
+                              : resposta.foto?.length
+                                ? 'Adicionar mais fotos'
+                                : 'Adicionar foto'}
                           </label>
-                          {resposta.localizacao && (
+                          {temLocalizacaoValida(resposta.localizacao) && (
                             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                               <MapPin className="h-3 w-3" />
-                              {resposta.localizacao.lat.toFixed(5)},{' '}
-                              {resposta.localizacao.lon.toFixed(5)}
+                              {resposta.localizacao!.lat.toFixed(5)},{' '}
+                              {resposta.localizacao!.lon.toFixed(5)}
                             </span>
                           )}
                         </div>
