@@ -28,7 +28,10 @@ migrate(
           maxSelect: 1,
         },
         { name: 'grau_risco', type: 'number', min: 1, max: 4, onlyInt: true },
-        { name: 'numero_funcionarios', type: 'number', required: true, min: 0, onlyInt: true },
+        // sem "required": um número (mesmo com min:0) é tratado como "vazio" pelo
+        // validador quando o valor é exatamente 0 — deixamos opcional para não
+        // travar o cadastro de uma empresa com 0 funcionários informados ainda.
+        { name: 'numero_funcionarios', type: 'number', min: 0, onlyInt: true },
         { name: 'endereco', type: 'text', max: 300 },
         { name: 'contato_nome', type: 'text', max: 150 },
         { name: 'contato_telefone', type: 'text', max: 30 },

@@ -26,7 +26,9 @@ migrate(
           ],
           maxSelect: 1,
         },
-        { name: 'faixa_ordem', type: 'number', required: true, min: 0, max: 7, onlyInt: true },
+        // sem "required": um number com min:0 é tratado como "vazio" pelo validador
+        // quando o valor é exatamente 0 (é o caso da primeira faixa, ordem 0).
+        { name: 'faixa_ordem', type: 'number', min: 0, max: 7, onlyInt: true },
         { name: 'grau', type: 'number', required: true, min: 1, max: 4, onlyInt: true },
         { name: 'tipo', type: 'select', required: true, values: ['S', 'M'], maxSelect: 1 },
         { name: 'valor_min_ufir', type: 'number', required: true },
