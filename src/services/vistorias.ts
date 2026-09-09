@@ -15,6 +15,7 @@ export interface Vistoria extends RecordModel {
   data_realizada?: string
   status?: StatusVistoria
   observacoes_gerais?: string
+  fotos_georreferenciadas?: boolean
   client_uuid: string
   created: string
   updated: string
@@ -31,6 +32,7 @@ export interface VistoriaInput {
   data_agendada: string
   status?: StatusVistoria
   observacoes_gerais?: string
+  fotos_georreferenciadas?: boolean
   client_uuid: string
 }
 

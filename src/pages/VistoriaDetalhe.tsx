@@ -1,10 +1,10 @@
 /* Execução da vistoria: checklist item a item, com cálculo automático de multa. */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Camera, MapPin } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
@@ -18,8 +18,10 @@ import {
   getRespostasByVistoria,
   createResposta,
   updateResposta,
+  fotoUrl,
   type RespostaVistoria,
   type Situacao,
+  type GeoLocalizacao,
 } from '@/services/respostasVistoria'
 
 import { Button } from '@/components/ui/button'
@@ -35,6 +37,8 @@ import {
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { Progress } from '@/components/ui/progress'
 
 const STATUS_LABEL: Record<StatusVistoria, string> = {
   agendada: 'Agendada',
@@ -43,17 +47,43 @@ const STATUS_LABEL: Record<StatusVistoria, string> = {
   cancelada: 'Cancelada',
 }
 
+const STATUS_BORDER: Record<Situacao, string> = {
+  C: 'border-l-4 border-l-emerald-500',
+  'N/C': 'border-l-4 border-l-red-500',
+  'N/A': 'border-l-4 border-l-muted-foreground/40',
+}
+
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+// Ordena pelo número real do item da norma (1.4.2 antes de 1.4.10), não pela
+// ordem de cadastro no banco.
+const compararItemRef = (a: ItemChecklist, b: ItemChecklist) =>
+  (a.item_ref || '').localeCompare(b.item_ref || '', undefined, { numeric: true })
+
+function obterLocalizacaoAtual(): Promise<GeoLocalizacao> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocalização não suportada neste dispositivo'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  })
+}
 
 export default function VistoriaDetalhe() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
 
   const [vistoria, setVistoria] = useState<Vistoria | null>(null)
   const [itens, setItens] = useState<ItemChecklist[]>([])
   const [respostas, setRespostas] = useState<Record<string, RespostaVistoria>>({})
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
+  const [savingGeo, setSavingGeo] = useState(false)
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -108,6 +138,39 @@ export default function VistoriaDetalhe() {
     }
   }
 
+  const handleFotoChange = async (item: ItemChecklist, fileList: FileList | null) => {
+    if (!vistoria || !fileList || fileList.length === 0) return
+    const fotos = Array.from(fileList)
+    setUploadingItemId(item.id)
+    try {
+      let localizacao: GeoLocalizacao | undefined
+      if (vistoria.fotos_georreferenciadas) {
+        try {
+          localizacao = await obterLocalizacaoAtual()
+        } catch {
+          toast.warning(
+            'Não foi possível obter a localização — a foto foi salva sem georreferenciamento.',
+          )
+        }
+      }
+      const existing = respostas[item.id]
+      const updated = existing
+        ? await updateResposta(existing.id, { fotos, localizacao })
+        : await createResposta({
+            vistoria_id: vistoria.id,
+            item_checklist_id: item.id,
+            client_uuid: crypto.randomUUID(),
+            fotos,
+            localizacao,
+          })
+      setRespostas((prev) => ({ ...prev, [item.id]: updated }))
+    } catch (error) {
+      toast.error('Não foi possível salvar a foto', { description: getErrorMessage(error) })
+    } finally {
+      setUploadingItemId(null)
+    }
+  }
+
   const handleStatusChange = async (status: StatusVistoria) => {
     if (!vistoria) return
     setSavingStatus(true)
@@ -122,6 +185,25 @@ export default function VistoriaDetalhe() {
     }
   }
 
+  const handleToggleGeo = async (checked: boolean) => {
+    if (!vistoria) return
+    setSavingGeo(true)
+    try {
+      const updated = await updateVistoria(vistoria.id, { fotos_georreferenciadas: checked })
+      setVistoria((prev) =>
+        prev ? { ...prev, fotos_georreferenciadas: updated.fotos_georreferenciadas } : prev,
+      )
+    } catch (error) {
+      toast.error('Não foi possível atualizar a opção de georreferenciamento', {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setSavingGeo(false)
+    }
+  }
+
+  const itensOrdenados = useMemo(() => [...itens].sort(compararItemRef), [itens])
+
   const resumo = useMemo(() => {
     let conforme = 0
     let naoConforme = 0
@@ -129,7 +211,7 @@ export default function VistoriaDetalhe() {
     let semResposta = 0
     let multaMin = 0
     let multaMax = 0
-    for (const item of itens) {
+    for (const item of itensOrdenados) {
       const r = respostas[item.id]
       if (!r?.situacao) {
         semResposta++
@@ -144,17 +226,21 @@ export default function VistoriaDetalhe() {
       }
     }
     return { conforme, naoConforme, naoAplica, semResposta, multaMin, multaMax }
-  }, [itens, respostas])
+  }, [itensOrdenados, respostas])
+
+  const progressoPct = itensOrdenados.length
+    ? Math.round(((itensOrdenados.length - resumo.semResposta) / itensOrdenados.length) * 100)
+    : 0
 
   const grupos = useMemo(() => {
     const map = new Map<string, ItemChecklist[]>()
-    for (const item of itens) {
+    for (const item of itensOrdenados) {
       const key = item.secao || 'Disposições gerais'
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(item)
     }
     return Array.from(map.entries())
-  }, [itens])
+  }, [itensOrdenados])
 
   if (loading) {
     return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
@@ -181,7 +267,7 @@ export default function VistoriaDetalhe() {
         Voltar para vistorias
       </Link>
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">
             {empresa?.nome_fantasia || empresa?.razao_social || 'Vistoria'}
@@ -193,22 +279,45 @@ export default function VistoriaDetalhe() {
             )}
           </p>
         </div>
-        <Select
-          value={vistoria.status || 'agendada'}
-          onValueChange={(v) => handleStatusChange(v as StatusVistoria)}
-          disabled={savingStatus}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(STATUS_LABEL) as StatusVistoria[]).map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5" />
+            Fotos georreferenciadas
+            <Switch
+              checked={!!vistoria.fotos_georreferenciadas}
+              onCheckedChange={handleToggleGeo}
+              disabled={savingGeo}
+            />
+          </label>
+          <Select
+            value={vistoria.status || 'agendada'}
+            onValueChange={(v) => handleStatusChange(v as StatusVistoria)}
+            disabled={savingStatus}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(STATUS_LABEL) as StatusVistoria[]).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Progresso — fica visível ao rolar a página pra baixo entre os itens. */}
+      <div className="sticky top-0 z-10 mb-6 rounded-lg border bg-background/95 px-4 py-2.5 shadow-subtle backdrop-blur">
+        <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
+          <span>
+            {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
+            respondidos
+          </span>
+          <span className="text-muted-foreground">{progressoPct}%</span>
+        </div>
+        <Progress value={progressoPct} className="h-1.5" />
       </div>
 
       <Card className="mb-6">
@@ -227,7 +336,9 @@ export default function VistoriaDetalhe() {
           </div>
           <div>
             <div className="text-2xl font-semibold">{resumo.semResposta}</div>
-            <div className="text-xs text-muted-foreground">Sem resposta ({itens.length} itens)</div>
+            <div className="text-xs text-muted-foreground">
+              Sem resposta ({itensOrdenados.length} itens)
+            </div>
           </div>
         </CardContent>
         {resumo.naoConforme > 0 && (
@@ -258,8 +369,11 @@ export default function VistoriaDetalhe() {
             <div className="space-y-3">
               {itensGrupo.map((item) => {
                 const resposta = respostas[item.id]
+                const borderClass = resposta?.situacao
+                  ? STATUS_BORDER[resposta.situacao]
+                  : 'border-l-4 border-l-transparent'
                 return (
-                  <Card key={item.id}>
+                  <Card key={item.id} className={borderClass}>
                     <CardHeader className="pb-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -312,20 +426,68 @@ export default function VistoriaDetalhe() {
                         </ToggleGroup>
                       </div>
                     </CardHeader>
-                    {resposta?.situacao === 'N/C' && (
+                    {resposta?.situacao && (
                       <CardContent className="pt-0">
-                        {(resposta.valor_multa_min || resposta.valor_multa_max) && (
-                          <div className="mb-2 text-sm font-medium text-destructive">
-                            Multa estimada: {currency.format(resposta.valor_multa_min || 0)} a{' '}
-                            {currency.format(resposta.valor_multa_max || 0)}
+                        {resposta.situacao === 'N/C' &&
+                          (resposta.valor_multa_min || resposta.valor_multa_max) && (
+                            <div className="mb-2 text-sm font-medium text-destructive">
+                              Multa estimada: {currency.format(resposta.valor_multa_min || 0)} a{' '}
+                              {currency.format(resposta.valor_multa_max || 0)}
+                            </div>
+                          )}
+                        {resposta.situacao === 'N/C' && (
+                          <Textarea
+                            placeholder="Observação sobre a não conformidade (opcional)"
+                            defaultValue={resposta.observacao}
+                            onBlur={(e) => handleObservacaoBlur(item, e.target.value)}
+                            className="mb-2 text-sm"
+                          />
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            multiple
+                            id={`foto-${item.id}`}
+                            className="hidden"
+                            onChange={(e) => handleFotoChange(item, e.target.files)}
+                          />
+                          <label
+                            htmlFor={`foto-${item.id}`}
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
+                          >
+                            <Camera className="h-3.5 w-3.5" />
+                            {uploadingItemId === item.id ? 'Enviando...' : 'Adicionar foto'}
+                          </label>
+                          {resposta.localizacao && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <MapPin className="h-3 w-3" />
+                              {resposta.localizacao.lat.toFixed(5)},{' '}
+                              {resposta.localizacao.lon.toFixed(5)}
+                            </span>
+                          )}
+                        </div>
+
+                        {resposta.foto && resposta.foto.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {resposta.foto.map((filename) => (
+                              <a
+                                key={filename}
+                                href={fotoUrl(resposta, filename)}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <img
+                                  src={fotoUrl(resposta, filename)}
+                                  alt="Foto da vistoria"
+                                  className="h-16 w-16 rounded-md border object-cover"
+                                />
+                              </a>
+                            ))}
                           </div>
                         )}
-                        <Textarea
-                          placeholder="Observação sobre a não conformidade (opcional)"
-                          defaultValue={resposta.observacao}
-                          onBlur={(e) => handleObservacaoBlur(item, e.target.value)}
-                          className="text-sm"
-                        />
                       </CardContent>
                     )}
                   </Card>
