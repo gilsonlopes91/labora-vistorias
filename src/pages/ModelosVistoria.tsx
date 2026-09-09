@@ -112,12 +112,17 @@ export default function ModelosVistoria() {
                           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {secao}
                           </p>
-                          <ul className="space-y-1.5">
+                          <ul className="space-y-2">
                             {itens.map((item) => (
-                              <li key={item.id} className="flex items-start gap-2 text-sm">
-                                <span className="mt-0.5 shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                  {item.codigo}
-                                </span>
+                              <li key={item.id} className="flex items-start gap-3 text-sm">
+                                <div className="mt-0.5 flex w-[4.5rem] shrink-0 flex-col items-start gap-0.5">
+                                  <span className="text-[11px] font-semibold text-foreground">
+                                    {item.item_ref}
+                                  </span>
+                                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    {item.codigo}
+                                  </span>
+                                </div>
                                 <span>{item.descricao}</span>
                               </li>
                             ))}

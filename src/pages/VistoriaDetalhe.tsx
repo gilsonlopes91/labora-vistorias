@@ -263,18 +263,24 @@ export default function VistoriaDetalhe() {
                     <CardHeader className="pb-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <CardTitle className="text-sm font-medium leading-snug">
-                            {item.descricao}
-                          </CardTitle>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span>Item {item.item_ref}</span>
-                            <span>·</span>
-                            <span>Código {item.codigo}</span>
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className="border-primary/40 font-mono text-xs text-primary"
+                            >
+                              Item {item.item_ref}
+                            </Badge>
                             {item.grau && (
                               <Badge variant="outline" className="text-xs">
                                 Grau {item.grau} · {item.tipo === 'S' ? 'Severidade' : 'Moderada'}
                               </Badge>
                             )}
+                          </div>
+                          <CardTitle className="text-sm font-medium leading-snug">
+                            {item.descricao}
+                          </CardTitle>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Código {item.codigo}
                           </div>
                           {item.observacao && (
                             <p className="mt-1 text-xs italic text-muted-foreground">
