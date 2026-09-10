@@ -2,11 +2,16 @@
  * seção (com fotos já com marca d'água) e assinatura do responsável técnico.
  * Roda inteiramente no navegador (jsPDF), sem precisar de backend. */
 import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import * as autoTableModule from 'jspdf-autotable'
 
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
+
+// jspdf-autotable interopera de formas diferentes conforme o bundler (CJS x ESM);
+// cobrimos os dois formatos possíveis pra função sempre ser resolvida em runtime.
+const autoTable = ((autoTableModule as unknown as { default?: unknown }).default ??
+  autoTableModule) as (doc: jsPDF, options: Record<string, unknown>) => void
 
 export interface ResumoVistoria {
   conforme: number
