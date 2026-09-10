@@ -66,10 +66,14 @@ export const getRespostasByVistoria = (vistoriaId: string) =>
   })
 
 export const createResposta = (data: RespostaCreateInput) =>
-  pb.collection('respostas_vistoria').create<RespostaVistoria>(toFormData(data))
+  pb
+    .collection('respostas_vistoria')
+    .create<RespostaVistoria>(toFormData(data as unknown as Record<string, unknown>))
 
 export const updateResposta = (id: string, data: RespostaUpdateInput) =>
-  pb.collection('respostas_vistoria').update<RespostaVistoria>(id, toFormData(data))
+  pb
+    .collection('respostas_vistoria')
+    .update<RespostaVistoria>(id, toFormData(data as unknown as Record<string, unknown>))
 
 export const fotoUrl = (resposta: RespostaVistoria, filename: string) =>
   pb.files.getURL(resposta, filename)

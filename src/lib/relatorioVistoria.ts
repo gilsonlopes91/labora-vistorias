@@ -2,16 +2,57 @@
  * seção (com fotos já com marca d'água) e assinatura do responsável técnico.
  * Roda inteiramente no navegador (jsPDF), sem precisar de backend. */
 import { jsPDF } from 'jspdf'
-import * as autoTableModule from 'jspdf-autotable'
+import autoTablePlugin, { applyPlugin, type UserOptions } from 'jspdf-autotable'
 
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
 
-// jspdf-autotable interopera de formas diferentes conforme o bundler (CJS x ESM);
-// cobrimos os dois formatos possíveis pra função sempre ser resolvida em runtime.
-const autoTable = ((autoTableModule as unknown as { default?: unknown }).default ??
-  autoTableModule) as (doc: jsPDF, options: Record<string, unknown>) => void
+// Garante o registro do plugin no protótipo do jsPDF
+if (typeof applyPlugin === 'function') {
+  applyPlugin(jsPDF)
+} else if (typeof autoTablePlugin === 'function') {
+  ;(autoTablePlugin as unknown as (jsPdfClass: unknown) => void)(jsPDF)
+}
+
+function executarAutoTable(doc: jsPDF, options: UserOptions): void {
+  const docComAutoTable = doc as unknown as {
+    autoTable?: (options: UserOptions) => void
+  }
+  if (typeof docComAutoTable.autoTable === 'function') {
+    docComAutoTable.autoTable(options)
+    return
+  }
+
+  const pluginAny = autoTablePlugin as unknown as
+    | ((d: jsPDF, opts: UserOptions) => void)
+    | {
+        default?: (d: jsPDF, opts: UserOptions) => void
+        autoTable?: (d: jsPDF, opts: UserOptions) => void
+      }
+    | undefined
+
+  const fnDireta =
+    typeof pluginAny === 'function'
+      ? pluginAny
+      : typeof pluginAny?.default === 'function'
+        ? pluginAny.default
+        : typeof pluginAny?.autoTable === 'function'
+          ? pluginAny.autoTable
+          : (jsPDF as unknown as { API?: { autoTable?: (opts: UserOptions) => void } })?.API
+              ?.autoTable
+
+  if (typeof fnDireta === 'function') {
+    if (fnDireta.length <= 1) {
+      fnDireta.call(doc, options)
+    } else {
+      ;(fnDireta as (d: jsPDF, opts: UserOptions) => void)(doc, options)
+    }
+    return
+  }
+
+  throw new Error('Plugin jspdf-autotable não pôde ser inicializado')
+}
 
 export interface ResumoVistoria {
   conforme: number
@@ -113,7 +154,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const dataAgendada = dados.vistoria.data_agendada
     ? new Date(dados.vistoria.data_agendada).toLocaleDateString('pt-BR')
     : '-'
-  autoTable(doc, {
+  executarAutoTable(doc, {
     startY: y,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 2 },
@@ -135,7 +176,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.text('Resumo', margin, y)
   y += 4
 
-  autoTable(doc, {
+  executarAutoTable(doc, {
     startY: y + 6,
     head: [['Conforme', 'Não conforme', 'Não se aplica', 'Sem resposta']],
     body: [
