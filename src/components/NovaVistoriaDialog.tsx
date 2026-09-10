@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 
+import { toPocketBaseDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getEmpresas, type Empresa } from '@/services/empresas'
@@ -99,7 +100,7 @@ export default function NovaVistoriaDialog({
         organizacao_id: org.id,
         empresa_id: values.empresa_id,
         tipo_vistoria_id: values.tipo_vistoria_id,
-        data_agendada: values.data_agendada,
+        data_agendada: toPocketBaseDate(values.data_agendada),
         status: 'agendada',
         client_uuid: crypto.randomUUID(),
       })

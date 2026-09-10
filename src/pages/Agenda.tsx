@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { CalendarClock } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
+import { parseLocalDate, formatLocalDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getVistorias, type Vistoria, type StatusVistoria } from '@/services/vistorias'
 import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
@@ -53,17 +54,21 @@ export default function Agenda() {
   })
 
   const diasComVistoria = useMemo(
-    () => vistorias.filter((v) => v.data_agendada).map((v) => new Date(v.data_agendada)),
+    () =>
+      vistorias.map((v) => parseLocalDate(v.data_agendada)).filter((d): d is Date => d !== null),
     [vistorias],
   )
 
   const vistoriasDoDia = useMemo(
     () =>
-      vistorias.filter((v) => v.data_agendada && isSameDay(new Date(v.data_agendada), selected)),
+      vistorias.filter((v) => {
+        const d = parseLocalDate(v.data_agendada)
+        return d !== null && isSameDay(d, selected)
+      }),
     [vistorias, selected],
   )
 
-  const defaultDateForDialog = format(selected, 'yyyy-MM-dd')
+  const defaultDateForDialog = formatLocalDate(selected)
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">

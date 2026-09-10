@@ -1,11 +1,12 @@
 /* Execução da vistoria: checklist item a item, com cálculo automático de multa. */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { ArrowLeft, AlertTriangle, Camera, MapPin, UserCog, FileCheck2 } from 'lucide-react'
 
+import { formatBrazilianDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
@@ -465,9 +466,7 @@ export default function VistoriaDetalhe() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {tipo?.nr_referencia ? `${tipo.nr_referencia} — ${tipo.nome}` : tipo?.nome}
-            {vistoria.data_agendada && (
-              <> · {format(parseISO(vistoria.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}</>
-            )}
+            {vistoria.data_agendada && <> · {formatBrazilianDate(vistoria.data_agendada)}</>}
           </p>
           {vistoria.responsavel_tecnico_nome && (
             <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

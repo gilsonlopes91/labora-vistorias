@@ -4,6 +4,7 @@
 import { jsPDF } from 'jspdf'
 import autoTablePlugin, { applyPlugin as autoTableApplyPlugin } from 'jspdf-autotable'
 
+import { formatBrazilianDate } from '@/lib/date'
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
@@ -157,7 +158,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
 
   // Dados gerais
   const dataAgendada = dados.vistoria.data_agendada
-    ? new Date(dados.vistoria.data_agendada).toLocaleDateString('pt-BR')
+    ? formatBrazilianDate(dados.vistoria.data_agendada)
     : '-'
   const finalYDadosGerais = executarAutoTable(doc, {
     startY: y,

@@ -1,12 +1,11 @@
 /* Lista de vistorias agendadas/realizadas. */
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { ClipboardCheck, Trash2 } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
+import { formatBrazilianDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   getVistorias,
@@ -138,11 +137,7 @@ export default function Vistorias() {
                       v.expand?.tipo_vistoria_id?.nome ||
                       '—'}
                   </TableCell>
-                  <TableCell>
-                    {v.data_agendada
-                      ? format(parseISO(v.data_agendada), 'dd/MM/yyyy', { locale: ptBR })
-                      : '—'}
-                  </TableCell>
+                  <TableCell>{formatBrazilianDate(v.data_agendada)}</TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[v.status || 'agendada']}>
                       {STATUS_LABEL[v.status || 'agendada']}
