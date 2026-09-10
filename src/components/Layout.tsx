@@ -1,6 +1,14 @@
 /* Layout — barra lateral com a identidade da Labora + área de conteúdo, presente em todas as páginas protegidas. */
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Building2, Home, ClipboardCheck, CalendarClock, ListChecks } from 'lucide-react'
+import {
+  LogOut,
+  Building2,
+  Home,
+  ClipboardCheck,
+  CalendarClock,
+  ListChecks,
+  Settings,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
 import {
@@ -24,6 +32,7 @@ const NAV_ITEMS = [
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
   { to: '/modelos', label: 'Modelos', icon: ListChecks },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
+  { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 export default function Layout() {

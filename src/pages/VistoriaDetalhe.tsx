@@ -7,6 +7,8 @@ import { toast } from 'sonner'
 import { ArrowLeft, AlertTriangle, Camera, MapPin } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { aplicarMarcaDagua } from '@/lib/marcaDagua'
+import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png'
 import {
   getVistoria,
   updateVistoria,
@@ -23,8 +25,8 @@ import {
   type Situacao,
   type GeoLocalizacao,
 } from '@/services/respostasVistoria'
+import { getMinhaOrganizacao, urlLogoOrganizacao } from '@/services/organizacoes'
 
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -94,6 +96,9 @@ export default function VistoriaDetalhe() {
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingGeo, setSavingGeo] = useState(false)
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null)
+  // Logo usado na marca d'água das fotos: o da organização, com o da Labora
+  // como padrão pra quem ainda não cadastrou o próprio (ver /configuracoes).
+  const [logoMarcaDagua, setLogoMarcaDagua] = useState<string>(laboraLogoUrl)
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -118,6 +123,17 @@ export default function VistoriaDetalhe() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    getMinhaOrganizacao()
+      .then((org) => {
+        const url = urlLogoOrganizacao(org)
+        if (url) setLogoMarcaDagua(url)
+      })
+      .catch(() => {
+        // sem organização carregada ainda — segue com o logo padrão da Labora
+      })
+  }, [])
 
   const handleSituacaoChange = async (item: ItemChecklist, situacao: Situacao) => {
     if (!vistoria) return
@@ -150,7 +166,7 @@ export default function VistoriaDetalhe() {
 
   const handleFotoChange = async (item: ItemChecklist, fileList: FileList | null) => {
     if (!vistoria || !fileList || fileList.length === 0) return
-    const fotos = Array.from(fileList)
+    const arquivosOriginais = Array.from(fileList)
     setUploadingItemId(item.id)
     try {
       let localizacao: GeoLocalizacao | undefined
@@ -163,6 +179,18 @@ export default function VistoriaDetalhe() {
           )
         }
       }
+
+      const agora = new Date()
+      const fotos = await Promise.all(
+        arquivosOriginais.map((arquivo) =>
+          aplicarMarcaDagua(arquivo, {
+            dataHora: agora,
+            localizacao,
+            logoUrl: logoMarcaDagua,
+          }),
+        ),
+      )
+
       const existing = respostas[item.id]
       const updated = existing
         ? await updateResposta(existing.id, { fotos, localizacao })

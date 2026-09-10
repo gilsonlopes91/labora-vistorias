@@ -12,6 +12,7 @@ import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
 import ModelosVistoria from './pages/ModelosVistoria'
 import Agenda from './pages/Agenda'
+import Configuracoes from './pages/Configuracoes'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -72,6 +73,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Agenda />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/configuracoes"
+              element={
+                <ProtectedRoute>
+                  <Configuracoes />
                 </ProtectedRoute>
               }
             />
