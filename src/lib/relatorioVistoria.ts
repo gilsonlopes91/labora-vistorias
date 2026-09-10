@@ -2,57 +2,16 @@
  * seção (com fotos já com marca d'água) e assinatura do responsável técnico.
  * Roda inteiramente no navegador (jsPDF), sem precisar de backend. */
 import { jsPDF } from 'jspdf'
-import autoTablePlugin, { applyPlugin, type UserOptions } from 'jspdf-autotable'
+import * as autoTableModule from 'jspdf-autotable'
 
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
 
-// Garante o registro do plugin no protótipo do jsPDF
-if (typeof applyPlugin === 'function') {
-  applyPlugin(jsPDF)
-} else if (typeof autoTablePlugin === 'function') {
-  ;(autoTablePlugin as unknown as (jsPdfClass: unknown) => void)(jsPDF)
-}
-
-function executarAutoTable(doc: jsPDF, options: UserOptions): void {
-  const docComAutoTable = doc as unknown as {
-    autoTable?: (options: UserOptions) => void
-  }
-  if (typeof docComAutoTable.autoTable === 'function') {
-    docComAutoTable.autoTable(options)
-    return
-  }
-
-  const pluginAny = autoTablePlugin as unknown as
-    | ((d: jsPDF, opts: UserOptions) => void)
-    | {
-        default?: (d: jsPDF, opts: UserOptions) => void
-        autoTable?: (d: jsPDF, opts: UserOptions) => void
-      }
-    | undefined
-
-  const fnDireta =
-    typeof pluginAny === 'function'
-      ? pluginAny
-      : typeof pluginAny?.default === 'function'
-        ? pluginAny.default
-        : typeof pluginAny?.autoTable === 'function'
-          ? pluginAny.autoTable
-          : (jsPDF as unknown as { API?: { autoTable?: (opts: UserOptions) => void } })?.API
-              ?.autoTable
-
-  if (typeof fnDireta === 'function') {
-    if (fnDireta.length <= 1) {
-      fnDireta.call(doc, options)
-    } else {
-      ;(fnDireta as (d: jsPDF, opts: UserOptions) => void)(doc, options)
-    }
-    return
-  }
-
-  throw new Error('Plugin jspdf-autotable não pôde ser inicializado')
-}
+// jspdf-autotable interopera de formas diferentes conforme o bundler (CJS x ESM);
+// cobrimos os dois formatos possíveis pra função sempre ser resolvida em runtime.
+const autoTable = ((autoTableModule as unknown as { default?: unknown }).default ??
+  autoTableModule) as (doc: jsPDF, options: Record<string, unknown>) => void
 
 export interface ResumoVistoria {
   conforme: number
@@ -119,6 +78,12 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 40
+  const larguraUtil = pageWidth - margin * 2
+  // Coluna da direita, reservada pra situação (C/N/C/N/A) e valor de multa —
+  // fica alinhada em todos os itens, em vez de aparecer solta dentro do texto.
+  const larguraColunaValores = 130
+  const larguraColunaDescricao = larguraUtil - larguraColunaValores - 12
+  const xColunaValores = margin + larguraColunaDescricao + 12
   let y = margin
 
   // Cabeçalho: logo da organização + nome + título do documento
@@ -141,20 +106,26 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.line(margin, y, pageWidth - margin, y)
   y += 22
 
-  // Título do tipo de vistoria
+  // Título do tipo de vistoria — evita repetir "NR-01 — NR-01 — ..." quando o
+  // nome do tipo já começa com a própria referência da norma.
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  const titulo = dados.tipoNrReferencia
-    ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
-    : dados.tipoNome
-  doc.text(titulo, margin, y)
-  y += 22
+  doc.setFontSize(15)
+  const nomeTipoJaTemReferencia =
+    !!dados.tipoNrReferencia &&
+    dados.tipoNome.trim().toLowerCase().startsWith(dados.tipoNrReferencia.trim().toLowerCase())
+  const titulo =
+    dados.tipoNrReferencia && !nomeTipoJaTemReferencia
+      ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
+      : dados.tipoNome
+  const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
+  doc.text(linhasTitulo, margin, y)
+  y += linhasTitulo.length * 17 + 6
 
   // Dados gerais
   const dataAgendada = dados.vistoria.data_agendada
     ? new Date(dados.vistoria.data_agendada).toLocaleDateString('pt-BR')
     : '-'
-  executarAutoTable(doc, {
+  autoTable(doc, {
     startY: y,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 2 },
@@ -176,7 +147,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.text('Resumo', margin, y)
   y += 4
 
-  executarAutoTable(doc, {
+  autoTable(doc, {
     startY: y + 6,
     head: [['Conforme', 'Não conforme', 'Não se aplica', 'Sem resposta']],
     body: [
@@ -231,66 +202,89 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       y = margin
     }
     doc.setFillColor(235, 240, 235)
-    doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+    doc.rect(margin, y - 12, larguraUtil, 18, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     doc.setTextColor(40, 60, 40)
     doc.text(secao.toUpperCase(), margin + 6, y)
     doc.setTextColor(0, 0, 0)
-    y += 20
+    y += 24
 
     for (const item of itensRespondidos) {
       const resposta = dados.respostas[item.id]
       if (!resposta?.situacao) continue
 
-      if (y > pageHeight - 90) {
+      if (y > pageHeight - 100) {
         doc.addPage()
         y = margin
       }
 
+      const yInicioItem = y
+      const temMulta =
+        resposta.situacao === 'N/C' && !!(resposta.valor_multa_min || resposta.valor_multa_max)
+
+      // Coluna esquerda: identificação do item + descrição + observação
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(9)
-      doc.text(`Item ${item.item_ref}  ·  Código ${item.codigo}`, margin, y)
-      const cor = COR_SITUACAO[resposta.situacao]
-      doc.setTextColor(cor[0], cor[1], cor[2])
-      doc.text(resposta.situacao, pageWidth - margin, y, { align: 'right' })
-      doc.setTextColor(0, 0, 0)
-      y += 13
+      doc.text(`Item ${item.item_ref}`, margin, y)
+      y += 12
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(110)
+      doc.text(`Código ${item.codigo}`, margin, y)
+      doc.setTextColor(0)
+      y += 12
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(9)
-      const linhasDescricao = doc.splitTextToSize(item.descricao, pageWidth - margin * 2)
+      const linhasDescricao = doc.splitTextToSize(item.descricao, larguraColunaDescricao)
       doc.text(linhasDescricao, margin, y)
       y += linhasDescricao.length * 11 + 2
-
-      if (resposta.situacao === 'N/C' && (resposta.valor_multa_min || resposta.valor_multa_max)) {
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(8)
-        doc.setTextColor(180, 40, 40)
-        doc.text(
-          `Multa estimada: ${currency.format(resposta.valor_multa_min || 0)} a ${currency.format(resposta.valor_multa_max || 0)}`,
-          margin,
-          y,
-        )
-        doc.setTextColor(0, 0, 0)
-        doc.setFont('helvetica', 'normal')
-        y += 12
-      }
 
       if (resposta.observacao) {
         doc.setFont('helvetica', 'italic')
         doc.setFontSize(8)
         const linhasObs = doc.splitTextToSize(
           `Observação: ${resposta.observacao}`,
-          pageWidth - margin * 2,
+          larguraColunaDescricao,
         )
         doc.text(linhasObs, margin, y)
         y += linhasObs.length * 10 + 2
         doc.setFont('helvetica', 'normal')
       }
 
+      // Coluna direita: situação (C/N/C/N/A) e valor de multa, alinhados
+      let yColunaValores = yInicioItem
+      const cor = COR_SITUACAO[resposta.situacao]
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(cor[0], cor[1], cor[2])
+      doc.text(resposta.situacao, xColunaValores, yColunaValores)
+      doc.setTextColor(0, 0, 0)
+      yColunaValores += 16
+
+      if (temMulta) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8)
+        doc.setTextColor(180, 40, 40)
+        doc.text('Multa estimada', xColunaValores, yColunaValores)
+        yColunaValores += 10
+        const linhasMulta = doc.splitTextToSize(
+          `${currency.format(resposta.valor_multa_min || 0)} a ${currency.format(resposta.valor_multa_max || 0)}`,
+          larguraColunaValores,
+        )
+        doc.text(linhasMulta, xColunaValores, yColunaValores)
+        yColunaValores += linhasMulta.length * 10
+        doc.setTextColor(0, 0, 0)
+        doc.setFont('helvetica', 'normal')
+      }
+
+      // A altura do item é a maior entre as duas colunas
+      y = Math.max(y, yColunaValores) + 6
+
       if (resposta.foto && resposta.foto.length > 0) {
-        const alturaFoto = 85
+        const alturaFoto = 160
+        const larguraMaxFoto = 220
         let x = margin
         if (y + alturaFoto > pageHeight - 60) {
           doc.addPage()
@@ -299,19 +293,19 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         for (const filename of resposta.foto) {
           const imagem = await carregarImagemComoDataUrl(fotoUrl(resposta, filename))
           if (!imagem) continue
-          const largura = Math.min(160, alturaFoto * (imagem.largura / imagem.altura))
+          const largura = Math.min(larguraMaxFoto, alturaFoto * (imagem.largura / imagem.altura))
           if (x + largura > pageWidth - margin) {
             x = margin
-            y += alturaFoto + 8
+            y += alturaFoto + 10
             if (y + alturaFoto > pageHeight - 60) {
               doc.addPage()
               y = margin
             }
           }
           doc.addImage(imagem.dataUrl, 'JPEG', x, y, largura, alturaFoto)
-          x += largura + 8
+          x += largura + 10
         }
-        y += alturaFoto + 12
+        y += alturaFoto + 14
       } else {
         y += 8
       }
