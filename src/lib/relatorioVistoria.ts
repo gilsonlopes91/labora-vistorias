@@ -2,16 +2,50 @@
  * seção (com fotos já com marca d'água) e assinatura do responsável técnico.
  * Roda inteiramente no navegador (jsPDF), sem precisar de backend. */
 import { jsPDF } from 'jspdf'
-import * as autoTableModule from 'jspdf-autotable'
+import autoTablePlugin, { applyPlugin as autoTableApplyPlugin } from 'jspdf-autotable'
 
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
 
-// jspdf-autotable interopera de formas diferentes conforme o bundler (CJS x ESM);
-// cobrimos os dois formatos possíveis pra função sempre ser resolvida em runtime.
-const autoTable = ((autoTableModule as unknown as { default?: unknown }).default ??
-  autoTableModule) as (doc: jsPDF, options: Record<string, unknown>) => void
+type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
+
+function executarAutoTable(doc: jsPDF, options: Record<string, unknown>): number {
+  // 1. Garante que o plugin autoTable esteja registrado no protótipo/API do jsPDF
+  try {
+    if (typeof autoTableApplyPlugin === 'function') {
+      autoTableApplyPlugin(jsPDF)
+    }
+  } catch {
+    // ignora se já tiver sido aplicado
+  }
+
+  // 2. Tenta invocar doc.autoTable(options)
+  const docAny = doc as unknown as {
+    autoTable?: (options: Record<string, unknown>) => unknown
+    lastAutoTable?: { finalY?: number }
+  }
+  if (typeof docAny.autoTable === 'function') {
+    docAny.autoTable(options)
+    return docAny.lastAutoTable?.finalY ?? (typeof options.startY === 'number' ? options.startY : 0)
+  }
+
+  // 3. Tenta invocar a função autoTablePlugin(doc, options)
+  let fn: unknown = autoTablePlugin
+  if (
+    typeof fn !== 'function' &&
+    fn &&
+    typeof (fn as { default?: unknown }).default === 'function'
+  ) {
+    fn = (fn as { default: unknown }).default
+  }
+  if (typeof fn === 'function') {
+    ;(fn as AutoTableFn)(doc, options)
+    return docAny.lastAutoTable?.finalY ?? (typeof options.startY === 'number' ? options.startY : 0)
+  }
+
+  throw new Error('Não foi possível inicializar o gerador de tabelas (autoTable não disponível)')
+}
 
 export interface ResumoVistoria {
   conforme: number
@@ -125,7 +159,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const dataAgendada = dados.vistoria.data_agendada
     ? new Date(dados.vistoria.data_agendada).toLocaleDateString('pt-BR')
     : '-'
-  autoTable(doc, {
+  const finalYDadosGerais = executarAutoTable(doc, {
     startY: y,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 2 },
@@ -138,8 +172,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     ],
     margin: { left: margin, right: margin },
   })
-  // biome-ignore lint: jsPDF-autotable anexa lastAutoTable ao doc em runtime
-  y = (doc as any).lastAutoTable.finalY + 18
+  y = (finalYDadosGerais || y) + 18
 
   // Resumo executivo
   doc.setFont('helvetica', 'bold')
@@ -147,7 +180,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.text('Resumo', margin, y)
   y += 4
 
-  autoTable(doc, {
+  const finalYResumo = executarAutoTable(doc, {
     startY: y + 6,
     head: [['Conforme', 'Não conforme', 'Não se aplica', 'Sem resposta']],
     body: [
@@ -163,8 +196,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     headStyles: { fillColor: [70, 100, 70] },
     margin: { left: margin, right: margin },
   })
-  // biome-ignore lint: jsPDF-autotable anexa lastAutoTable ao doc em runtime
-  y = (doc as any).lastAutoTable.finalY + 16
+  y = (finalYResumo || y) + 16
 
   if (dados.resumo.naoConforme > 0) {
     doc.setFont('helvetica', 'bold')
