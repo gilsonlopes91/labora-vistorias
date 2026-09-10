@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { ArrowLeft, AlertTriangle, Camera, MapPin } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Camera, MapPin, UserCog } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
@@ -26,7 +26,17 @@ import {
   type GeoLocalizacao,
 } from '@/services/respostasVistoria'
 import { getMinhaOrganizacao, urlLogoOrganizacao } from '@/services/organizacoes'
+import {
+  getResponsaveisTecnicos,
+  criarResponsavelTecnico,
+  definirComoPadrao,
+  formatarRegistroRT,
+  TIPOS_REGISTRO_RT,
+  type ResponsavelTecnico,
+  type TipoRegistroRT,
+} from '@/services/responsaveisTecnicos'
 
+import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,6 +51,17 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 const STATUS_LABEL: Record<StatusVistoria, string> = {
   agendada: 'Agendada',
@@ -60,6 +81,8 @@ const OBSERVACAO_PLACEHOLDER: Record<Situacao, string> = {
   'N/C': 'Observação sobre a não conformidade (opcional)',
   'N/A': 'Observação (opcional)',
 }
+
+const NOVO_RESPONSAVEL = '__novo__'
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -100,6 +123,17 @@ export default function VistoriaDetalhe() {
   // como padrão pra quem ainda não cadastrou o próprio (ver /configuracoes).
   const [logoMarcaDagua, setLogoMarcaDagua] = useState<string>(laboraLogoUrl)
 
+  // Finalização da vistoria — escolha do responsável técnico que assina o laudo.
+  const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
+  const [rtDialogAberto, setRtDialogAberto] = useState(false)
+  const [rtSelecionadoId, setRtSelecionadoId] = useState<string>('')
+  const [novoRTNome, setNovoRTNome] = useState('')
+  const [novoRTTipo, setNovoRTTipo] = useState<TipoRegistroRT>('CREA')
+  const [novoRTNumero, setNovoRTNumero] = useState('')
+  const [novoRTUf, setNovoRTUf] = useState('')
+  const [novoRTPadrao, setNovoRTPadrao] = useState(false)
+  const [finalizando, setFinalizando] = useState(false)
+
   const loadData = useCallback(async () => {
     if (!id) return
     try {
@@ -134,6 +168,15 @@ export default function VistoriaDetalhe() {
         // sem organização carregada ainda — segue com o logo padrão da Labora
       })
   }, [])
+
+  useEffect(() => {
+    if (!vistoria?.organizacao_id) return
+    getResponsaveisTecnicos(vistoria.organizacao_id)
+      .then(setResponsaveis)
+      .catch(() => {
+        // não impede o uso da vistoria — só não vai ter sugestão pronta ao finalizar
+      })
+  }, [vistoria?.organizacao_id])
 
   const handleSituacaoChange = async (item: ItemChecklist, situacao: Situacao) => {
     if (!vistoria) return
@@ -220,6 +263,87 @@ export default function VistoriaDetalhe() {
       toast.error('Não foi possível atualizar o status', { description: getErrorMessage(error) })
     } finally {
       setSavingStatus(false)
+    }
+  }
+
+  const abrirDialogFinalizacao = () => {
+    const padrao = responsaveis.find((r) => r.padrao)
+    setRtSelecionadoId(
+      padrao?.id || (responsaveis.length > 0 ? responsaveis[0].id : NOVO_RESPONSAVEL),
+    )
+    setNovoRTNome('')
+    setNovoRTTipo('CREA')
+    setNovoRTNumero('')
+    setNovoRTUf('')
+    setNovoRTPadrao(responsaveis.length === 0)
+    setRtDialogAberto(true)
+  }
+
+  const handleStatusSelect = (v: string) => {
+    if (v === 'concluida') {
+      abrirDialogFinalizacao()
+    } else {
+      handleStatusChange(v as StatusVistoria)
+    }
+  }
+
+  const handleConfirmarFinalizacao = async () => {
+    if (!vistoria) return
+    setFinalizando(true)
+    try {
+      let nomeRT: string
+      let registroRT: string
+
+      if (rtSelecionadoId === NOVO_RESPONSAVEL) {
+        if (!novoRTNome.trim() || !novoRTNumero.trim()) {
+          toast.error('Preencha o nome e o número do registro do responsável técnico')
+          setFinalizando(false)
+          return
+        }
+        const criado = await criarResponsavelTecnico({
+          organizacao_id: vistoria.organizacao_id,
+          nome: novoRTNome.trim(),
+          tipo_registro: novoRTTipo,
+          numero_registro: novoRTNumero.trim(),
+          uf: novoRTUf.trim() || undefined,
+          padrao: novoRTPadrao || responsaveis.length === 0,
+        })
+        if (criado.padrao) await definirComoPadrao(vistoria.organizacao_id, criado.id)
+        nomeRT = criado.nome
+        registroRT = formatarRegistroRT(criado)
+        setResponsaveis(await getResponsaveisTecnicos(vistoria.organizacao_id))
+      } else {
+        const rt = responsaveis.find((r) => r.id === rtSelecionadoId)
+        if (!rt) {
+          toast.error('Selecione um responsável técnico')
+          setFinalizando(false)
+          return
+        }
+        nomeRT = rt.nome
+        registroRT = formatarRegistroRT(rt)
+      }
+
+      const updated = await updateVistoria(vistoria.id, {
+        status: 'concluida',
+        responsavel_tecnico_nome: nomeRT,
+        responsavel_tecnico_registro: registroRT,
+      })
+      setVistoria((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: updated.status,
+              responsavel_tecnico_nome: updated.responsavel_tecnico_nome,
+              responsavel_tecnico_registro: updated.responsavel_tecnico_registro,
+            }
+          : prev,
+      )
+      toast.success('Vistoria finalizada')
+      setRtDialogAberto(false)
+    } catch (error) {
+      toast.error('Não foi possível finalizar a vistoria', { description: getErrorMessage(error) })
+    } finally {
+      setFinalizando(false)
     }
   }
 
@@ -316,6 +440,13 @@ export default function VistoriaDetalhe() {
               <> · {format(parseISO(vistoria.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}</>
             )}
           </p>
+          {vistoria.responsavel_tecnico_nome && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <UserCog className="h-3 w-3" />
+              Responsável técnico: {vistoria.responsavel_tecnico_nome} —{' '}
+              {vistoria.responsavel_tecnico_registro}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -329,7 +460,7 @@ export default function VistoriaDetalhe() {
           </label>
           <Select
             value={vistoria.status || 'agendada'}
-            onValueChange={(v) => handleStatusChange(v as StatusVistoria)}
+            onValueChange={handleStatusSelect}
             disabled={savingStatus}
           >
             <SelectTrigger className="w-[160px]">
@@ -553,6 +684,117 @@ export default function VistoriaDetalhe() {
           </div>
         ))}
       </div>
+
+      <Dialog open={rtDialogAberto} onOpenChange={setRtDialogAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Responsável técnico do laudo</DialogTitle>
+            <DialogDescription>
+              Escolha quem assina esta vistoria como responsável técnico.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Select value={rtSelecionadoId} onValueChange={setRtSelecionadoId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {responsaveis.map((rt) => (
+                  <SelectItem key={rt.id} value={rt.id}>
+                    {rt.nome} — {formatarRegistroRT(rt)}
+                    {rt.padrao ? ' (padrão)' : ''}
+                  </SelectItem>
+                ))}
+                <SelectItem value={NOVO_RESPONSAVEL}>
+                  + Adicionar novo responsável técnico
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {rtSelecionadoId === NOVO_RESPONSAVEL && (
+              <div className="grid grid-cols-1 gap-3 rounded-md border border-dashed p-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="novo-rt-nome" className="mb-1.5 block text-xs">
+                    Nome
+                  </Label>
+                  <Input
+                    id="novo-rt-nome"
+                    value={novoRTNome}
+                    onChange={(e) => setNovoRTNome(e.target.value)}
+                    placeholder="Nome completo"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1.5 block text-xs">Conselho</Label>
+                  <Select
+                    value={novoRTTipo}
+                    onValueChange={(v) => setNovoRTTipo(v as TipoRegistroRT)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_REGISTRO_RT.map((tipo) => (
+                        <SelectItem key={tipo} value={tipo}>
+                          {tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-16">
+                    <Label htmlFor="novo-rt-uf" className="mb-1.5 block text-xs">
+                      UF
+                    </Label>
+                    <Input
+                      id="novo-rt-uf"
+                      value={novoRTUf}
+                      maxLength={2}
+                      onChange={(e) => setNovoRTUf(e.target.value.toUpperCase())}
+                      placeholder="PI"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="novo-rt-numero" className="mb-1.5 block text-xs">
+                      Número
+                    </Label>
+                    <Input
+                      id="novo-rt-numero"
+                      value={novoRTNumero}
+                      onChange={(e) => setNovoRTNumero(e.target.value)}
+                      placeholder="12345"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <Checkbox
+                    id="novo-rt-padrao"
+                    checked={novoRTPadrao}
+                    onCheckedChange={(v) => setNovoRTPadrao(v === true)}
+                  />
+                  <Label
+                    htmlFor="novo-rt-padrao"
+                    className="text-xs font-normal text-muted-foreground"
+                  >
+                    Salvar como padrão da organização
+                  </Label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRtDialogAberto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmarFinalizacao} disabled={finalizando}>
+              {finalizando ? 'Finalizando...' : 'Finalizar vistoria'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -16,6 +16,8 @@ export interface Vistoria extends RecordModel {
   status?: StatusVistoria
   observacoes_gerais?: string
   fotos_georreferenciadas?: boolean
+  responsavel_tecnico_nome?: string
+  responsavel_tecnico_registro?: string
   client_uuid: string
   created: string
   updated: string
@@ -33,6 +35,8 @@ export interface VistoriaInput {
   status?: StatusVistoria
   observacoes_gerais?: string
   fotos_georreferenciadas?: boolean
+  responsavel_tecnico_nome?: string
+  responsavel_tecnico_registro?: string
   client_uuid: string
 }
 
