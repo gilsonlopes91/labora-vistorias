@@ -292,7 +292,7 @@ export default function Empresas() {
                   <FormItem>
                     <FormLabel>Razão social *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex.: Aro Sport Centro Automotivo Ltda" {...field} />
+                      <Input placeholder="Ex.: Empresa Exemplo Ltda" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -305,7 +305,7 @@ export default function Empresas() {
                   <FormItem>
                     <FormLabel>Nome fantasia</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex.: Aro Sport" {...field} />
+                      <Input placeholder="Ex.: Empresa Exemplo" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
