@@ -4,10 +4,11 @@ import { useParams, Link } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { ArrowLeft, AlertTriangle, Camera, MapPin, UserCog } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Camera, MapPin, UserCog, FileCheck2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
+import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
 import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png'
 import {
   getVistoria,
@@ -119,11 +120,14 @@ export default function VistoriaDetalhe() {
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingGeo, setSavingGeo] = useState(false)
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null)
-  // Logo usado na marca d'água das fotos: o da organização, com o da Labora
-  // como padrão pra quem ainda não cadastrou o próprio (ver /configuracoes).
+  // Logo e nome usados no laudo e na marca d'água das fotos: os da
+  // organização, com os da Labora como padrão pra quem ainda não configurou
+  // os próprios (ver /configuracoes).
   const [logoMarcaDagua, setLogoMarcaDagua] = useState<string>(laboraLogoUrl)
+  const [nomeOrganizacao, setNomeOrganizacao] = useState<string>('LABORA')
 
-  // Finalização da vistoria — escolha do responsável técnico que assina o laudo.
+  // Finalização da vistoria — escolha do responsável técnico que assina o
+  // laudo, e geração do PDF.
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [rtDialogAberto, setRtDialogAberto] = useState(false)
   const [rtSelecionadoId, setRtSelecionadoId] = useState<string>('')
@@ -163,9 +167,10 @@ export default function VistoriaDetalhe() {
       .then((org) => {
         const url = urlLogoOrganizacao(org)
         if (url) setLogoMarcaDagua(url)
+        if (org.nome) setNomeOrganizacao(org.nome)
       })
       .catch(() => {
-        // sem organização carregada ainda — segue com o logo padrão da Labora
+        // sem organização carregada ainda — segue com os padrões da Labora
       })
   }, [])
 
@@ -267,7 +272,10 @@ export default function VistoriaDetalhe() {
   }
 
   const abrirDialogFinalizacao = () => {
-    const padrao = responsaveis.find((r) => r.padrao)
+    const existente = vistoria?.responsavel_tecnico_nome
+      ? responsaveis.find((r) => r.nome === vistoria.responsavel_tecnico_nome)
+      : undefined
+    const padrao = existente || responsaveis.find((r) => r.padrao)
     setRtSelecionadoId(
       padrao?.id || (responsaveis.length > 0 ? responsaveis[0].id : NOVO_RESPONSAVEL),
     )
@@ -328,18 +336,37 @@ export default function VistoriaDetalhe() {
         responsavel_tecnico_nome: nomeRT,
         responsavel_tecnico_registro: registroRT,
       })
-      setVistoria((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: updated.status,
-              responsavel_tecnico_nome: updated.responsavel_tecnico_nome,
-              responsavel_tecnico_registro: updated.responsavel_tecnico_registro,
-            }
-          : prev,
-      )
-      toast.success('Vistoria finalizada')
+      const vistoriaFinalizada: Vistoria = {
+        ...vistoria,
+        status: updated.status,
+        responsavel_tecnico_nome: updated.responsavel_tecnico_nome,
+        responsavel_tecnico_registro: updated.responsavel_tecnico_registro,
+      }
+      setVistoria(vistoriaFinalizada)
       setRtDialogAberto(false)
+      toast.success('Vistoria finalizada — gerando o PDF...')
+
+      const empresa = vistoria.expand?.empresa_id
+      const tipo = vistoria.expand?.tipo_vistoria_id
+      try {
+        await gerarPdfVistoria({
+          vistoria: vistoriaFinalizada,
+          empresaNome: empresa?.nome_fantasia || empresa?.razao_social || 'Empresa',
+          empresaCnpj: empresa?.cnpj,
+          empresaEndereco: empresa?.endereco,
+          tipoNome: tipo?.nome || '',
+          tipoNrReferencia: tipo?.nr_referencia,
+          organizacaoNome: nomeOrganizacao,
+          logoUrl: logoMarcaDagua,
+          itens: itensOrdenados,
+          respostas,
+          resumo,
+        })
+      } catch (pdfError) {
+        toast.error('Vistoria finalizada, mas o PDF não pôde ser gerado', {
+          description: getErrorMessage(pdfError),
+        })
+      }
     } catch (error) {
       toast.error('Não foi possível finalizar a vistoria', { description: getErrorMessage(error) })
     } finally {
@@ -418,6 +445,8 @@ export default function VistoriaDetalhe() {
 
   const empresa = vistoria.expand?.empresa_id
   const tipo = vistoria.expand?.tipo_vistoria_id
+  const rotuloBotaoFinalizar =
+    vistoria.status === 'concluida' ? 'Gerar PDF novamente' : 'Finalizar vistoria'
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -479,12 +508,15 @@ export default function VistoriaDetalhe() {
 
       {/* Progresso — fica visível ao rolar a página pra baixo entre os itens. */}
       <div className="sticky top-0 z-10 mb-3 rounded-lg border bg-background/95 px-4 py-2.5 shadow-subtle backdrop-blur">
-        <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
+        <div className="mb-1.5 flex items-center justify-between gap-3 text-xs font-medium">
           <span>
             {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
-            respondidos
+            respondidos ({progressoPct}%)
           </span>
-          <span className="text-muted-foreground">{progressoPct}%</span>
+          <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={abrirDialogFinalizacao}>
+            <FileCheck2 className="h-3.5 w-3.5" />
+            {rotuloBotaoFinalizar}
+          </Button>
         </div>
         <Progress value={progressoPct} className="h-1.5" />
       </div>
@@ -685,12 +717,20 @@ export default function VistoriaDetalhe() {
         ))}
       </div>
 
+      <div className="mt-8 flex justify-center">
+        <Button size="lg" className="gap-2" onClick={abrirDialogFinalizacao}>
+          <FileCheck2 className="h-4 w-4" />
+          {rotuloBotaoFinalizar}
+        </Button>
+      </div>
+
       <Dialog open={rtDialogAberto} onOpenChange={setRtDialogAberto}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Responsável técnico do laudo</DialogTitle>
             <DialogDescription>
-              Escolha quem assina esta vistoria como responsável técnico.
+              Escolha quem assina esta vistoria como responsável técnico. Ao confirmar, a vistoria é
+              finalizada e o PDF é gerado.
             </DialogDescription>
           </DialogHeader>
 
@@ -735,9 +775,9 @@ export default function VistoriaDetalhe() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_REGISTRO_RT.map((tipo) => (
-                        <SelectItem key={tipo} value={tipo}>
-                          {tipo}
+                      {TIPOS_REGISTRO_RT.map((tipoRT) => (
+                        <SelectItem key={tipoRT} value={tipoRT}>
+                          {tipoRT}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -790,7 +830,7 @@ export default function VistoriaDetalhe() {
               Cancelar
             </Button>
             <Button onClick={handleConfirmarFinalizacao} disabled={finalizando}>
-              {finalizando ? 'Finalizando...' : 'Finalizar vistoria'}
+              {finalizando ? 'Finalizando...' : 'Finalizar e gerar PDF'}
             </Button>
           </DialogFooter>
         </DialogContent>
