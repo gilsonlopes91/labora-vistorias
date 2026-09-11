@@ -8,10 +8,12 @@ import {
   CalendarClock,
   ListChecks,
   Settings,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
 import AssistantWidget from '@/components/AssistantWidget'
+import { isGestor } from '@/services/equipe'
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +35,8 @@ const NAV_ITEMS = [
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
   { to: '/modelos', label: 'Modelos', icon: ListChecks },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+  { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
+  { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
 ]
 
 export default function Layout() {
@@ -76,7 +79,7 @@ export default function Layout() {
         <SidebarContent>
           <SidebarGroup>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => {
+              {NAV_ITEMS.filter((item) => !item.gestor || isGestor()).map((item) => {
                 const active =
                   item.to === '/'
                     ? location.pathname === '/'

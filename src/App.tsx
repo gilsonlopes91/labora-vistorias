@@ -13,6 +13,7 @@ import VistoriaDetalhe from './pages/VistoriaDetalhe'
 import ModelosVistoria from './pages/ModelosVistoria'
 import Agenda from './pages/Agenda'
 import Configuracoes from './pages/Configuracoes'
+import Equipe from './pages/Equipe'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -81,6 +82,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Configuracoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/equipe"
+              element={
+                <ProtectedRoute>
+                  <Equipe />
                 </ProtectedRoute>
               }
             />
