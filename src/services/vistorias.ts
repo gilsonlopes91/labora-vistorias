@@ -2,6 +2,7 @@ import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import type { Empresa } from '@/services/empresas'
 import type { TipoVistoria } from '@/services/tiposVistoria'
+import type { ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 
 export type StatusVistoria = 'agendada' | 'em_andamento' | 'concluida' | 'cancelada'
 
@@ -11,6 +12,7 @@ export interface Vistoria extends RecordModel {
   empresa_id: string
   tipo_vistoria_id: string
   tecnico_id?: string
+  responsavel_tecnico_id?: string
   data_agendada: string
   data_realizada?: string
   status?: StatusVistoria
@@ -24,6 +26,7 @@ export interface Vistoria extends RecordModel {
   expand?: {
     empresa_id?: Empresa
     tipo_vistoria_id?: TipoVistoria
+    responsavel_tecnico_id?: ResponsavelTecnico
   }
 }
 
@@ -31,6 +34,8 @@ export interface VistoriaInput {
   organizacao_id: string
   empresa_id: string
   tipo_vistoria_id: string
+  tecnico_id?: string
+  responsavel_tecnico_id?: string
   data_agendada: string
   status?: StatusVistoria
   observacoes_gerais?: string
@@ -43,11 +48,13 @@ export interface VistoriaInput {
 export const getVistorias = () =>
   pb.collection('vistorias').getFullList<Vistoria>({
     sort: '-data_agendada',
-    expand: 'empresa_id,tipo_vistoria_id',
+    expand: 'empresa_id,tipo_vistoria_id,responsavel_tecnico_id',
   })
 
 export const getVistoria = (id: string) =>
-  pb.collection('vistorias').getOne<Vistoria>(id, { expand: 'empresa_id,tipo_vistoria_id' })
+  pb
+    .collection('vistorias')
+    .getOne<Vistoria>(id, { expand: 'empresa_id,tipo_vistoria_id,responsavel_tecnico_id' })
 
 export const createVistoria = (data: VistoriaInput) =>
   pb.collection('vistorias').create<Vistoria>(data)

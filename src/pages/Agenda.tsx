@@ -10,12 +10,21 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { parseLocalDate, formatLocalDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getVistorias, type Vistoria, type StatusVistoria } from '@/services/vistorias'
+import { getMinhaOrganizacao } from '@/services/organizacoes'
+import { getResponsaveisTecnicos, type ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
 import RotinasPanel from '@/components/RotinasPanel'
 
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const STATUS_LABEL: Record<StatusVistoria, string> = {
   agendada: 'Agendada',
@@ -34,13 +43,17 @@ const STATUS_VARIANT: Record<StatusVistoria, 'secondary' | 'default' | 'outline'
 
 export default function Agenda() {
   const [vistorias, setVistorias] = useState<Vistoria[]>([])
+  const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
+  const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
   const [selected, setSelected] = useState<Date>(new Date())
   const navigate = useNavigate()
 
   const loadData = useCallback(async () => {
     try {
-      const items = await getVistorias()
+      const [items, org] = await Promise.all([getVistorias(), getMinhaOrganizacao()])
       setVistorias(items)
+      const rts = await getResponsaveisTecnicos(org.id)
+      setResponsaveis(rts)
     } catch (error) {
       toast.error('Não foi possível carregar as vistorias', { description: getErrorMessage(error) })
     }
@@ -62,11 +75,15 @@ export default function Agenda() {
 
   const vistoriasDoDia = useMemo(
     () =>
-      vistorias.filter((v) => {
-        const d = parseLocalDate(v.data_agendada)
-        return d !== null && isSameDay(d, selected)
-      }),
-    [vistorias, selected],
+      vistorias
+        .filter((v) => {
+          const d = parseLocalDate(v.data_agendada)
+          return d !== null && isSameDay(d, selected)
+        })
+        .filter(
+          (v) => filtroResponsavel === 'todos' || v.responsavel_tecnico_id === filtroResponsavel,
+        ),
+    [vistorias, selected, filtroResponsavel],
   )
 
   const defaultDateForDialog = formatLocalDate(selected)
@@ -78,10 +95,25 @@ export default function Agenda() {
           <h1 className="text-2xl font-bold">Agenda</h1>
           <p className="text-sm text-muted-foreground">Visualize e agende vistorias por data.</p>
         </div>
-        <NovaVistoriaDialog
-          defaultDate={defaultDateForDialog}
-          onCreated={(id) => navigate(`/vistorias/${id}`)}
-        />
+        <div className="flex items-center gap-3">
+          <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Quem vai fazer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os responsáveis</SelectItem>
+              {responsaveis.map((rt) => (
+                <SelectItem key={rt.id} value={rt.id}>
+                  {rt.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <NovaVistoriaDialog
+            defaultDate={defaultDateForDialog}
+            onCreated={(id) => navigate(`/vistorias/${id}`)}
+          />
+        </div>
       </div>
 
       <div className="mb-6">
@@ -134,6 +166,9 @@ export default function Agenda() {
                       <div className="text-sm text-muted-foreground">
                         {v.expand?.tipo_vistoria_id?.nr_referencia ||
                           v.expand?.tipo_vistoria_id?.nome}
+                        {v.expand?.responsavel_tecnico_id?.nome
+                          ? ` · ${v.expand.responsavel_tecnico_id.nome}`
+                          : ''}
                       </div>
                     </div>
                     <Badge variant={STATUS_VARIANT[v.status || 'agendada']}>
