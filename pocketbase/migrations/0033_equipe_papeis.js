@@ -44,6 +44,26 @@ migrate(
     const AUTENTICADO = "@request.auth.id != ''"
     const GESTOR = "@request.auth.papel != 'executor'"
 
+    // responsaveis_tecnicos: campo usuario_id PRECISA existir antes das
+    // regras de vistorias/respostas o referenciarem.
+    const rtCol = app.findCollectionByNameOrId('responsaveis_tecnicos')
+    if (!rtCol.fields.getByName('usuario_id')) {
+      rtCol.fields.add(
+        new RelationField({
+          name: 'usuario_id',
+          collectionId: usersCol.id,
+          cascadeDelete: false,
+          maxSelect: 1,
+          required: false,
+        }),
+      )
+    }
+    rtCol.listRule = AUTENTICADO + ' && ' + MEMBRO
+    rtCol.viewRule = AUTENTICADO + ' && ' + MEMBRO
+    rtCol.createRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    rtCol.updateRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    rtCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    app.save(rtCol)
     // Empresas: todos veem; só dono/gerente gerenciam.
     const empCol = app.findCollectionByNameOrId('empresas')
     empCol.listRule = AUTENTICADO + ' && ' + MEMBRO
@@ -119,26 +139,6 @@ migrate(
     rotCol.updateRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
     rotCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
     app.save(rotCol)
-
-    // Responsáveis técnicos: todos veem (para filtros); dono/gerente gerenciam.
-    const rtCol = app.findCollectionByNameOrId('responsaveis_tecnicos')
-    if (!rtCol.fields.getByName('usuario_id')) {
-      rtCol.fields.add(
-        new RelationField({
-          name: 'usuario_id',
-          collectionId: usersCol.id,
-          cascadeDelete: false,
-          maxSelect: 1,
-          required: false,
-        }),
-      )
-    }
-    rtCol.listRule = AUTENTICADO + ' && ' + MEMBRO
-    rtCol.viewRule = AUTENTICADO + ' && ' + MEMBRO
-    rtCol.createRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    rtCol.updateRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    rtCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    app.save(rtCol)
   },
   (app) => {
     // Down: restaura as regras originais (só dono) e remove os campos novos.
