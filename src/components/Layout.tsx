@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
+import AssistantWidget from '@/components/AssistantWidget'
 import {
   Sidebar,
   SidebarContent,
@@ -127,6 +128,7 @@ export default function Layout() {
         <div className="flex-1">
           <Outlet />
         </div>
+        <AssistantWidget />
       </SidebarInset>
     </SidebarProvider>
   )
