@@ -1,36 +1,32 @@
 // Recorrência de vistorias: quando uma vistoria vinculada a uma rotina ativa
 // é concluída, cria automaticamente a próxima vistoria agendada e atualiza a
-// rotina (proxima_data / ultima_vistoria_id). Frequência em dias:
-// semanal 7, mensal 30, bimestral 60, trimestral 90, semestral 180, anual 365.
-const DIAS_POR_FREQUENCIA = {
-  semanal: 7,
-  mensal: 30,
-  bimestral: 60,
-  trimestral: 90,
-  semestral: 180,
-  anual: 365,
-}
-
-function toJsDate(pbDateTime) {
-  if (!pbDateTime) return null
-  const s = typeof pbDateTime === 'string' ? pbDateTime : pbDateTime.string()
-  const d = new Date(String(s).replace(' ', 'T'))
-  return isNaN(d.getTime()) ? null : d
-}
-
-function toPbDate(jsDate) {
-  return jsDate.toISOString().replace('T', ' ')
-}
-
+// rotina (proxima_data / ultima_vistoria_id).
+// Toda a lógica vive DENTRO do callback — o JSVM do PocketBase não expõe
+// declarações de topo aos callbacks.
 onRecordUpdate((e) => {
   try {
     const record = e.record
-    if (record.getString('status') !== 'concluida') return e.next()
+    if (record.getString('status') !== 'concluida') {
+      e.next()
+      return
+    }
 
     // Só dispara na TRANSIÇÃO para concluída (evita recriar a próxima vistoria
     // em qualquer edição posterior de uma vistoria já concluída).
     const anterior = record.original()
-    if (anterior && anterior.getString('status') === 'concluida') return e.next()
+    if (anterior && anterior.getString('status') === 'concluida') {
+      e.next()
+      return
+    }
+
+    const diasPorFrequencia = {
+      semanal: 7,
+      mensal: 30,
+      bimestral: 60,
+      trimestral: 90,
+      semestral: 180,
+      anual: 365,
+    }
 
     const filtro =
       "organizacao_id = '" +
@@ -47,16 +43,41 @@ onRecordUpdate((e) => {
     } catch (_) {
       rotina = null
     }
-    if (!rotina || !rotina.getBool('ativo')) return e.next()
+    if (!rotina || !rotina.getBool('ativo')) {
+      e.next()
+      return
+    }
 
-    const dias = DIAS_POR_FREQUENCIA[rotina.getString('frequencia')]
-    if (!dias) return e.next()
+    const dias = diasPorFrequencia[rotina.getString('frequencia')]
+    if (!dias) {
+      e.next()
+      return
+    }
 
     // Base: data agendada da vistoria concluída (fallback: proxima_data da rotina).
-    const base =
-      toJsDate(record.get('data_agendada')) || toJsDate(rotina.get('proxima_data')) || new Date()
-    const proxima = new Date(base.getTime() + dias * 86400000)
-    const proximaStr = toPbDate(proxima)
+    let baseMs = Date.now()
+    const dataAgendada = record.get('data_agendada')
+    const dataAgendadaStr = dataAgendada
+      ? typeof dataAgendada === 'string'
+        ? dataAgendada
+        : dataAgendada.string()
+      : ''
+    const dataAgendadaDate = new Date(String(dataAgendadaStr).replace(' ', 'T'))
+    if (!isNaN(dataAgendadaDate.getTime())) {
+      baseMs = dataAgendadaDate.getTime()
+    } else {
+      const proximaData = rotina.get('proxima_data')
+      const proximaStr = proximaData
+        ? typeof proximaData === 'string'
+          ? proximaData
+          : proximaData.string()
+        : ''
+      const proximaDate = new Date(String(proximaStr).replace(' ', 'T'))
+      if (!isNaN(proximaDate.getTime())) baseMs = proximaDate.getTime()
+    }
+
+    const proxima = new Date(baseMs + dias * 86400000)
+    const proximaStr = proxima.toISOString().replace('T', ' ')
 
     const col = $app.findCollectionByNameOrId('vistorias')
     const nova = new Record(col)
