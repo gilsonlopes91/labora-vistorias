@@ -11,6 +11,7 @@ import { parseLocalDate, formatLocalDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getVistorias, type Vistoria, type StatusVistoria } from '@/services/vistorias'
 import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
+import RotinasPanel from '@/components/RotinasPanel'
 
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent } from '@/components/ui/card'
@@ -81,6 +82,10 @@ export default function Agenda() {
           defaultDate={defaultDateForDialog}
           onCreated={(id) => navigate(`/vistorias/${id}`)}
         />
+      </div>
+
+      <div className="mb-6">
+        <RotinasPanel />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[auto_1fr]">

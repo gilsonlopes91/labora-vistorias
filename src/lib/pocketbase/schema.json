@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T00:40:36.574Z",
+  "generatedAt": "2026-09-11T14:04:44.711Z",
   "collections": [
     {
       "name": "users",
@@ -852,6 +852,96 @@
       ],
       "indexes": [
         "CREATE INDEX idx_responsaveis_tecnicos_organizacao ON responsaveis_tecnicos (organizacao_id)"
+      ]
+    },
+    {
+      "name": "rotinas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "view": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "create": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "update": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && organizacao_id.dono_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "tipo_vistoria_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "tipos_vistoria"
+        },
+        {
+          "name": "frequencia",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "semanal",
+            "mensal",
+            "bimestral",
+            "trimestral",
+            "semestral",
+            "anual"
+          ]
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proxima_data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ultima_vistoria_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vistorias"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_rotinas_organizacao ON rotinas (organizacao_id)",
+        "CREATE INDEX idx_rotinas_empresa ON rotinas (empresa_id)"
       ]
     }
   ]
