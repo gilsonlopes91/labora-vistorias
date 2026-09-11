@@ -1,12 +1,14 @@
-// Fase A — Equipe: papéis (dono/gerente/executor) + membros da organização.
-// - users.papel: define o que a pessoa pode fazer dentro da organização.
-// - organizacoes.membros: usuários vinculados à organização (além do dono).
-// - responsaveis_tecnicos.usuario_id: liga o RT ao login (para o executor
-//   editar somente vistorias atribuídas a ele).
+// Fase A — Equipe: papéis (dono/gerente/executor) + vínculo usuário→organização.
+// users.papel: o que a pessoa pode fazer. users.organizacao_id: a qual
+// organização pertence (o dono também é marcado — simplifica TODAS as regras:
+// basta comparar organizacao_id = @request.auth.organizacao_id).
 // Regras: membro vê tudo da organização; executor não gerencia (empresas,
 // modelos, rotinas, equipe) e só edita as próprias vistorias/respostas.
 migrate(
   (app) => {
+    const orgColId = app.findCollectionByNameOrId('organizacoes').id
+
+    // 1) users: papel + organizacao_id.
     const usersCol = app.findCollectionByNameOrId('users')
     if (!usersCol.fields.getByName('papel')) {
       usersCol.fields.add(
@@ -17,35 +19,52 @@ migrate(
         }),
       )
     }
-    app.save(usersCol)
-
-    const orgCol = app.findCollectionByNameOrId('organizacoes')
-    if (!orgCol.fields.getByName('membros')) {
-      orgCol.fields.add(
+    if (!usersCol.fields.getByName('organizacao_id')) {
+      usersCol.fields.add(
         new RelationField({
-          name: 'membros',
-          collectionId: usersCol.id,
+          name: 'organizacao_id',
+          collectionId: orgColId,
           cascadeDelete: false,
-          maxSelect: 200,
+          maxSelect: 1,
           required: false,
         }),
       )
     }
+    app.save(usersCol)
+
+    // 2) Backfill: dono de cada organização recebe organizacao_id e papel 'dono'.
+    const orgs = app.findRecordsByFilter('organizacoes', 'id != ""', '-created', 0, 0)
+    orgs.forEach((org) => {
+      const donoId = org.getString('dono_id')
+      if (!donoId) return
+      try {
+        const dono = app.findRecordById('users', donoId)
+        if (!dono.getString('organizacao_id')) {
+          dono.set('organizacao_id', org.id)
+        }
+        if (!dono.getString('papel')) {
+          dono.set('papel', 'dono')
+        }
+        app.save(dono)
+      } catch (_) {
+        // dono removido — ignora
+      }
+    })
+
+    // 3) organizacoes: membros veem; só o dono edita.
     orgCol.listRule =
-      "@request.auth.id != '' && (dono_id = @request.auth.id || membros ?= @request.auth.id)"
+      "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id)"
     orgCol.viewRule =
-      "@request.auth.id != '' && (dono_id = @request.auth.id || membros ?= @request.auth.id)"
+      "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id)"
     orgCol.updateRule = "@request.auth.id != '' && dono_id = @request.auth.id"
     app.save(orgCol)
 
-    // Expressões reutilizáveis.
-    const MEMBRO =
-      '(organizacao_id.dono_id = @request.auth.id || organizacao_id.membros ?= @request.auth.id)'
+    // 4) Regras das coleções operacionais.
     const AUTENTICADO = "@request.auth.id != ''"
+    const MESMA_ORG = 'organizacao_id = @request.auth.organizacao_id'
     const GESTOR = "@request.auth.papel != 'executor'"
 
-    // responsaveis_tecnicos: campo usuario_id PRECISA existir antes das
-    // regras de vistorias/respostas o referenciarem.
+    // responsaveis_tecnicos: campo usuario_id ANTES das regras que o referenciam.
     const rtCol = app.findCollectionByNameOrId('responsaveis_tecnicos')
     if (!rtCol.fields.getByName('usuario_id')) {
       rtCol.fields.add(
@@ -58,42 +77,40 @@ migrate(
         }),
       )
     }
-    rtCol.listRule = AUTENTICADO + ' && ' + MEMBRO
-    rtCol.viewRule = AUTENTICADO + ' && ' + MEMBRO
-    rtCol.createRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    rtCol.updateRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    rtCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    rtCol.listRule = AUTENTICADO + ' && ' + MESMA_ORG
+    rtCol.viewRule = AUTENTICADO + ' && ' + MESMA_ORG
+    rtCol.createRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
+    rtCol.updateRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
+    rtCol.deleteRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
     app.save(rtCol)
-    // Empresas: todos veem; só dono/gerente gerenciam.
+
+    // Empresas: todos veem; dono/gerente gerenciam.
     const empCol = app.findCollectionByNameOrId('empresas')
-    empCol.listRule = AUTENTICADO + ' && ' + MEMBRO
-    empCol.viewRule = AUTENTICADO + ' && ' + MEMBRO
-    empCol.createRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    empCol.updateRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    empCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    empCol.listRule = AUTENTICADO + ' && ' + MESMA_ORG
+    empCol.viewRule = AUTENTICADO + ' && ' + MESMA_ORG
+    empCol.createRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
+    empCol.updateRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
+    empCol.deleteRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
     app.save(empCol)
 
-    // Tipos de vistoria: catálogo global visível a todos; modelos próprios
-    // gerenciados por dono/gerente.
+    // Tipos de vistoria: catálogo global visível; modelos próprios p/ gestor.
     const tipoCol = app.findCollectionByNameOrId('tipos_vistoria')
-    tipoCol.listRule = AUTENTICADO + " && (organizacao_id = '' || " + MEMBRO + ')'
-    tipoCol.viewRule = AUTENTICADO + " && (organizacao_id = '' || " + MEMBRO + ')'
-    tipoCol.createRule = AUTENTICADO + " && organizacao_id != '' && " + MEMBRO + ' && ' + GESTOR
-    tipoCol.updateRule = AUTENTICADO + " && organizacao_id != '' && " + MEMBRO + ' && ' + GESTOR
-    tipoCol.deleteRule = AUTENTICADO + " && organizacao_id != '' && " + MEMBRO + ' && ' + GESTOR
+    tipoCol.listRule = AUTENTICADO + " && (organizacao_id = '' || " + MESMA_ORG + ')'
+    tipoCol.viewRule = AUTENTICADO + " && (organizacao_id = '' || " + MESMA_ORG + ')'
+    tipoCol.createRule = AUTENTICADO + " && organizacao_id != '' && " + MESMA_ORG + ' && ' + GESTOR
+    tipoCol.updateRule = AUTENTICADO + " && organizacao_id != '' && " + MESMA_ORG + ' && ' + GESTOR
+    tipoCol.deleteRule = AUTENTICADO + " && organizacao_id != '' && " + MESMA_ORG + ' && ' + GESTOR
     app.save(tipoCol)
 
     // Itens de checklist: seguem o tipo de vistoria.
     const itemCol = app.findCollectionByNameOrId('itens_checklist')
-    itemCol.listRule =
-      AUTENTICADO +
-      " && (tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id || tipo_vistoria_id.organizacao_id.membros ?= @request.auth.id)"
-    itemCol.viewRule =
-      AUTENTICADO +
-      " && (tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id || tipo_vistoria_id.organizacao_id.membros ?= @request.auth.id)"
+    const ITEM_ORG =
+      "(tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id)"
+    itemCol.listRule = AUTENTICADO + ' && ' + ITEM_ORG
+    itemCol.viewRule = AUTENTICADO + ' && ' + ITEM_ORG
     itemCol.createRule =
       AUTENTICADO +
-      " && tipo_vistoria_id.organizacao_id != '' && (tipo_vistoria_id.organizacao_id.dono_id = @request.auth.id || tipo_vistoria_id.organizacao_id.membros ?= @request.auth.id) && " +
+      " && tipo_vistoria_id.organizacao_id != '' && tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id && " +
       GESTOR
     itemCol.updateRule = itemCol.createRule
     itemCol.deleteRule = itemCol.createRule
@@ -101,47 +118,41 @@ migrate(
 
     // Vistorias: todos veem; executor só cria/edita as atribuídas a ele.
     const vistCol = app.findCollectionByNameOrId('vistorias')
-    vistCol.listRule = AUTENTICADO + ' && ' + MEMBRO
-    vistCol.viewRule = AUTENTICADO + ' && ' + MEMBRO
+    vistCol.listRule = AUTENTICADO + ' && ' + MESMA_ORG
+    vistCol.viewRule = AUTENTICADO + ' && ' + MESMA_ORG
     vistCol.createRule =
       AUTENTICADO +
       ' && ' +
-      MEMBRO +
+      MESMA_ORG +
       " && (@request.auth.papel != 'executor' || responsavel_tecnico_id.usuario_id = @request.auth.id)"
     vistCol.updateRule = vistCol.createRule
-    vistCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    vistCol.deleteRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
     app.save(vistCol)
 
-    // Respostas de vistoria: executor só preenche as da própria vistoria.
+    // Respostas: executor só preenche as da própria vistoria.
     const respCol = app.findCollectionByNameOrId('respostas_vistoria')
-    respCol.listRule =
-      AUTENTICADO + ' && ' + MEMBRO.replace('organizacao_id', 'vistoria_id.organizacao_id')
-    respCol.viewRule = respCol.listRule
+    const RESP_ORG = 'vistoria_id.organizacao_id = @request.auth.organizacao_id'
+    respCol.listRule = AUTENTICADO + ' && ' + RESP_ORG
+    respCol.viewRule = AUTENTICADO + ' && ' + RESP_ORG
     respCol.createRule =
       AUTENTICADO +
       ' && ' +
-      MEMBRO.replace('organizacao_id', 'vistoria_id.organizacao_id') +
+      RESP_ORG +
       " && (@request.auth.papel != 'executor' || vistoria_id.responsavel_tecnico_id.usuario_id = @request.auth.id)"
     respCol.updateRule = respCol.createRule
-    respCol.deleteRule =
-      AUTENTICADO +
-      ' && ' +
-      MEMBRO.replace('organizacao_id', 'vistoria_id.organizacao_id') +
-      ' && ' +
-      GESTOR
+    respCol.deleteRule = AUTENTICADO + ' && ' + RESP_ORG + ' && ' + GESTOR
     app.save(respCol)
 
-    // Rotinas: gestão é de dono/gerente; executor só consulta.
+    // Rotinas: gestão de dono/gerente; executor consulta.
     const rotCol = app.findCollectionByNameOrId('rotinas')
-    rotCol.listRule = AUTENTICADO + ' && ' + MEMBRO
-    rotCol.viewRule = AUTENTICADO + ' && ' + MEMBRO
-    rotCol.createRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    rotCol.updateRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
-    rotCol.deleteRule = AUTENTICADO + ' && ' + MEMBRO + ' && ' + GESTOR
+    rotCol.listRule = AUTENTICADO + ' && ' + MESMA_ORG
+    rotCol.viewRule = AUTENTICADO + ' && ' + MESMA_ORG
+    rotCol.createRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
+    rotCol.updateRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
+    rotCol.deleteRule = AUTENTICADO + ' && ' + MESMA_ORG + ' && ' + GESTOR
     app.save(rotCol)
   },
   (app) => {
-    // Down: restaura as regras originais (só dono) e remove os campos novos.
     const restaura = (nome, regra) => {
       const col = app.findCollectionByNameOrId(nome)
       col.listRule = regra
@@ -177,7 +188,6 @@ migrate(
     app.save(rtCol)
 
     const orgCol = app.findCollectionByNameOrId('organizacoes')
-    orgCol.fields.removeByName('membros')
     orgCol.listRule = "@request.auth.id != '' && dono_id = @request.auth.id"
     orgCol.viewRule = orgCol.listRule
     orgCol.updateRule = orgCol.listRule
@@ -185,6 +195,7 @@ migrate(
 
     const usersCol = app.findCollectionByNameOrId('users')
     usersCol.fields.removeByName('papel')
+    usersCol.fields.removeByName('organizacao_id')
     app.save(usersCol)
   },
 )

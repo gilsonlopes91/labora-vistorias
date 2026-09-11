@@ -1,6 +1,6 @@
-// Fase A — convite de membro da equipe: o dono/gerente cria o usuário
-// (e-mail + senha temporária + papel) e o liga à organização.
-// Papéis: gerente (tudo operacional, sem cobrança) e executor (técnico de campo).
+// Fase A — convite de membro da equipe: dono/gerente cria o usuário
+// (e-mail + senha temporária + papel) e o vincula à organização.
+// users.organizacao_id = organização do convidante; papel = gerente|executor.
 routerAdd(
   'POST',
   '/backend/v1/equipe/convidar',
@@ -22,22 +22,15 @@ routerAdd(
       return e.badRequestError('papel deve ser gerente ou executor')
     }
 
-    // Descobre a organização do usuário logado (dono ou membro).
-    let org = null
-    try {
-      org = $app.findFirstRecordByFilter(
-        'organizacoes',
-        "dono_id = '" + auth.id + "' || membros ?= '" + auth.id + "'",
-      )
-    } catch (_) {
-      return e.json(404, { error: 'organização não encontrada' })
-    }
-
     // Apenas dono ou gerente convidam.
     const papelAuth = auth.getString('papel') || 'dono'
     if (papelAuth === 'executor') {
       return e.json(403, { error: 'apenas dono ou gerente podem convidar' })
     }
+
+    const orgId = auth.getString('organizacao_id')
+    if (!orgId) return e.json(404, { error: 'organização do usuário não encontrada' })
+    const org = $app.findRecordById('organizacoes', orgId)
 
     // Usuário já existe?
     let user = null
@@ -47,21 +40,14 @@ routerAdd(
       user = null
     }
     if (user) {
-      // Já é membro? Nada a fazer além de informar.
-      const membros = org.get('membros')
-      const jaMembro =
-        org.getString('dono_id') === user.id ||
-        (Array.isArray(membros) && membros.indexOf(user.id) >= 0)
+      const jaMembro = user.getString('organizacao_id') === orgId
       if (jaMembro) return e.json(409, { error: 'este e-mail já faz parte da sua equipe' })
       if (papelAuth === 'gerente') {
         return e.json(403, { error: 'apenas o dono pode vincular um usuário existente' })
       }
-      // Dono vincula usuário existente à organização.
-      const membrosAtuais = org.get('membros') || []
-      membrosAtuais.push(user.id)
-      org.set('membros', membrosAtuais)
+      // Dono vincula usuário existente (ex.: conta antiga) à organização.
+      user.set('organizacao_id', orgId)
       if (!user.getString('papel')) user.set('papel', papel)
-      $app.save(org)
       $app.save(user)
       return e.json(200, { ok: true, vinculado: true })
     }
@@ -74,6 +60,7 @@ routerAdd(
     novo.set('password', senha)
     novo.set('passwordConfirm', senha)
     novo.set('papel', papel)
+    novo.set('organizacao_id', orgId)
     novo.set('verified', true)
     $app.save(novo)
 
@@ -81,19 +68,13 @@ routerAdd(
     if (papel === 'executor') {
       const rtCol = $app.findCollectionByNameOrId('responsaveis_tecnicos')
       const rt = new Record(rtCol)
-      rt.set('organizacao_id', org.id)
+      rt.set('organizacao_id', orgId)
       rt.set('nome', nome)
       rt.set('tipo_registro', 'Outro')
       rt.set('numero_registro', '—')
       rt.set('usuario_id', novo.id)
       $app.save(rt)
     }
-
-    // Liga à organização.
-    const membrosAtuais = org.get('membros') || []
-    membrosAtuais.push(novo.id)
-    org.set('membros', membrosAtuais)
-    $app.save(org)
 
     return e.json(200, { ok: true, id: novo.id })
   },
