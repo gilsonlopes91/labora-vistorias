@@ -52,6 +52,7 @@ migrate(
     })
 
     // 3) organizacoes: membros veem; só o dono edita.
+    const orgCol = app.findCollectionByNameOrId('organizacoes')
     orgCol.listRule =
       "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id)"
     orgCol.viewRule =
