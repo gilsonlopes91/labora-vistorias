@@ -247,9 +247,10 @@ const Index = () => {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <h1 className="mb-1 text-2xl font-bold">
+      <h1 className="mb-1 text-3xl font-extrabold tracking-tight lg:text-4xl">
         {getSaudacao()}
-        {user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
+        {user?.name ? `, ${user.name.split(' ')[0]}` : ''}!{' '}
+        <span className="text-primary">O que está em aberto?</span>
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">
         Bem-vindo ao LABORA auditoria — gestão de auditorias, vistorias e inspeções de SST.
@@ -287,7 +288,7 @@ const Index = () => {
       {/* KPIs */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.label} className="rounded-2xl border-none p-5 shadow-subtle">
+          <Card key={stat.label} className="rounded-3xl border-none p-6 shadow-subtle">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                 <stat.icon className="h-4 w-4" />
@@ -296,8 +297,8 @@ const Index = () => {
                 <Badge variant="destructive">atenção</Badge>
               ) : null}
             </div>
-            <div className="text-2xl font-bold">{stat.value}</div>
-            <div className="text-xs text-muted-foreground">{stat.label}</div>
+            <div className="text-4xl font-extrabold tracking-tight text-primary">{stat.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{stat.label}</div>
           </Card>
         ))}
       </div>
