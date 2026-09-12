@@ -10,11 +10,15 @@ export interface MembroEquipe {
 }
 
 export const getPapelUsuarioLogado = (): Papel => {
-  const papel = pb.authStore.record?.get('papel')
+  const record = pb.authStore.record as (Record<string, unknown> & { papel?: string }) | null
+  const papel = record?.papel
   return (papel as Papel) || 'dono' // usuários antigos sem papel = dono
 }
 
-export const isGestor = () => getPapelUsuarioLogado() !== 'executor'
+export const isGestor = () => {
+  if (!pb.authStore.isValid || !pb.authStore.record) return false
+  return getPapelUsuarioLogado() !== 'executor'
+}
 
 export const getEquipe = async (): Promise<MembroEquipe[]> => {
   const org = await pb.collection('organizacoes').getFirstListItem('')
