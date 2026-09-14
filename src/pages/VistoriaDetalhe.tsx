@@ -477,6 +477,19 @@ export default function VistoriaDetalhe() {
               {vistoria.responsavel_tecnico_registro}
             </p>
           )}
+          {!!vistoria.expand?.formularios?.length && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Formulários de campo:
+              </span>
+              {vistoria.expand.formularios.map((m) => (
+                <Badge key={m.id} variant="secondary" className="text-xs">
+                  {m.nome}
+                  {m.fixo ? ' 📌' : ''}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
