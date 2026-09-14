@@ -7,6 +7,7 @@ export interface Formulario {
   organizacao_id: string
   empresa_id?: string
   modelo_formulario_id: string
+  vistoria_id?: string
   // expand do modelo (usado na listagem/detalhe)
   expand?: { modelo_formulario_id?: { nome: string; icone?: string; campos?: CampoFormulario[] } }
   dados: Record<string, unknown>
@@ -28,10 +29,18 @@ export const getFormularios = () =>
 export const getFormulario = (id: string) =>
   pb.collection('formularios').getOne<Formulario>(id, { expand: 'modelo_formulario_id' })
 
+// Registros de formulário já preenchidos dentro de uma vistoria específica.
+export const getFormulariosByVistoria = (vistoriaId: string) =>
+  pb.collection('formularios').getFullList<Formulario>({
+    filter: pb.filter('vistoria_id = {:id}', { id: vistoriaId }),
+    expand: 'modelo_formulario_id',
+  })
+
 export interface FormularioInput {
   organizacao_id: string
   empresa_id?: string
   modelo_formulario_id: string
+  vistoria_id?: string
   dados?: Record<string, unknown>
   status: 'rascunho' | 'concluido'
   data_campo?: string

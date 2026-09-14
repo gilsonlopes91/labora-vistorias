@@ -13,7 +13,12 @@ import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getEmpresas, type Empresa } from '@/services/empresas'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
 import { getResponsaveisTecnicos, type ResponsavelTecnico } from '@/services/responsaveisTecnicos'
-import { getModelosFormulario, type ModeloFormulario } from '@/services/formularios'
+import {
+  getModelosFormulario,
+  getModeloFormulario,
+  type ModeloFormulario,
+} from '@/services/formularios'
+import { getItensChecklist } from '@/services/itensChecklist'
 import { createVistoria } from '@/services/vistorias'
 
 import { Button } from '@/components/ui/button'
@@ -164,6 +169,34 @@ export default function NovaVistoriaDialog({
 
   const modeloPorId = (id: string) => modelos.find((m) => m.id === id)
 
+  // Resumo: quantos itens tem cada checklist e quantos campos cada formulário
+  // escolhido — para o usuário conferir a cobertura da vistoria antes de agendar.
+  const [contagens, setContagens] = useState<Record<string, number>>({})
+  useEffect(() => {
+    if (!open) return
+    const alvos = [...checklistsSel, ...formulariosSel]
+    for (const id of alvos) {
+      if (contagens[id] !== undefined) continue
+      const isForm = formulariosSel.includes(id) && !checklistsSel.includes(id)
+      if (isForm) {
+        getModeloFormulario(id)
+          .then((m) =>
+            setContagens((prev) => ({
+              ...prev,
+              [id]: (m.campos || []).filter((c) => c.tipo !== 'secao').length,
+            })),
+          )
+          .catch(() => setContagens((prev) => ({ ...prev, [id]: 0 })))
+      } else {
+        import('@/services/itensChecklist')
+          .then(({ contarItensChecklist }) => contarItensChecklist(id))
+          .then((n) => setContagens((prev) => ({ ...prev, [id]: n })))
+          .catch(() => setContagens((prev) => ({ ...prev, [id]: 0 })))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, checklistsSel, formulariosSel])
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -221,6 +254,11 @@ export default function NovaVistoriaDialog({
                     return (
                       <Badge key={id} variant="secondary" className="gap-1 pr-1">
                         {t?.nr_referencia || t?.nome || id}
+                        {contagens[id] !== undefined && (
+                          <span className="font-normal text-muted-foreground">
+                            · {contagens[id]} itens
+                          </span>
+                        )}
                         <button
                           type="button"
                           onClick={() => toggleNr(id)}
@@ -263,6 +301,11 @@ export default function NovaVistoriaDialog({
                   return (
                     <Badge key={id} variant="secondary" className="gap-1 pr-1">
                       {m?.nome || id}
+                      {contagens[id] !== undefined && (
+                        <span className="font-normal text-muted-foreground">
+                          · {contagens[id]} campos
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => toggleFormulario(id)}

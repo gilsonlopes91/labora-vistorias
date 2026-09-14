@@ -21,6 +21,15 @@ export const getItensChecklist = (tipoVistoriaId: string) =>
     sort: 'ordem',
   })
 
+// Contagem barata (usa totalItems do PocketBase, sem baixar os itens) —
+// usada no resumo do agendamento da vistoria.
+export const contarItensChecklist = async (tipoVistoriaId: string): Promise<number> => {
+  const res = await pb.collection('itens_checklist').getList<ItemChecklist>(1, 1, {
+    filter: pb.filter('tipo_vistoria_id = {:id}', { id: tipoVistoriaId }),
+  })
+  return res.totalItems
+}
+
 export interface ItemChecklistInput {
   secao?: string
   item_ref: string

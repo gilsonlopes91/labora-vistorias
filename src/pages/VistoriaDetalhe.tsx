@@ -37,6 +37,9 @@ import {
   type ResponsavelTecnico,
   type TipoRegistroRT,
 } from '@/services/responsaveisTecnicos'
+import { getModeloFormulario } from '@/services/formularios'
+import { getFormulariosByVistoria, type Formulario } from '@/services/registrosFormulario'
+import FormularioPreenchivel from '@/components/FormularioPreenchivel'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -117,6 +120,11 @@ export default function VistoriaDetalhe() {
   const [vistoria, setVistoria] = useState<Vistoria | null>(null)
   const [itens, setItens] = useState<ItemChecklist[]>([])
   const [nomesChecklist, setNomesChecklist] = useState<string[]>([])
+  const [registrosForm, setRegistrosForm] = useState<Record<string, Formulario>>({})
+  const [formAberto, setFormAberto] = useState<string | null>(null)
+  const [modeloAberto, setModeloAberto] = useState<Awaited<
+    ReturnType<typeof getModeloFormulario>
+  > | null>(null)
   const [respostas, setRespostas] = useState<Record<string, RespostaVistoria>>({})
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
@@ -156,7 +164,7 @@ export default function VistoriaDetalhe() {
       setItens(itensPorChecklist.flat())
       setNomesChecklist(
         idsChecklists.map((cid) => {
-          if (v.tipo_vistoria_id && cid === v.tipo_vistoria_id) {
+          if (cid === v.tipo_vistoria_id) {
             const t = v.expand?.tipo_vistoria_id
             return t?.nr_referencia || t?.nome || 'Checklist principal'
           }
@@ -164,6 +172,14 @@ export default function VistoriaDetalhe() {
           return extra?.nr_referencia || extra?.nome || 'Checklist'
         }),
       )
+      try {
+        const regs = await getFormulariosByVistoria(v.id)
+        const map: Record<string, Formulario> = {}
+        for (const r of regs) map[r.modelo_formulario_id] = r
+        setRegistrosForm(map)
+      } catch (_) {
+        setRegistrosForm({})
+      }
       const map: Record<string, RespostaVistoria> = {}
       for (const r of respostasVistoria) map[r.item_checklist_id] = r
       setRespostas(map)
@@ -578,12 +594,45 @@ export default function VistoriaDetalhe() {
               <span className="text-xs font-medium text-muted-foreground">
                 Formulários de campo:
               </span>
-              {vistoria.expand.formularios.map((m) => (
-                <Badge key={m.id} variant="secondary" className="text-xs">
-                  {m.nome}
-                  {m.fixo ? ' 📌' : ''}
-                </Badge>
-              ))}
+              {vistoria.expand.formularios.map((m) => {
+                const reg = registrosForm[m.id]
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={async () => {
+                      if (formAberto === m.id) {
+                        setFormAberto(null)
+                        setModeloAberto(null)
+                        return
+                      }
+                      setFormAberto(m.id)
+                      setModeloAberto(null)
+                      try {
+                        setModeloAberto(await getModeloFormulario(m.id))
+                      } catch (error) {
+                        toast.error('Não foi possível abrir o formulário', {
+                          description: getErrorMessage(error),
+                        })
+                      }
+                    }}
+                  >
+                    <Badge
+                      variant="secondary"
+                      className={
+                        'cursor-pointer text-xs ' +
+                        (formAberto === m.id
+                          ? 'border border-primary bg-primary/10'
+                          : 'hover:bg-accent')
+                      }
+                    >
+                      {m.nome}
+                      {m.fixo ? ' 📌' : ''}
+                      {reg?.status === 'concluido' ? ' ✓' : reg ? ' ✎' : ''}
+                    </Badge>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -615,6 +664,36 @@ export default function VistoriaDetalhe() {
           </Select>
         </div>
       </div>
+
+      {/* Formulário aberto — preenchimento inline dentro da vistoria */}
+      {formAberto && modeloAberto && (
+        <div className="mb-6 rounded-2xl border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">{modeloAberto.nome}</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFormAberto(null)
+                setModeloAberto(null)
+              }}
+            >
+              Fechar
+            </Button>
+          </div>
+          <FormularioPreenchivel
+            modelo={modeloAberto}
+            registroExistente={registrosForm[formAberto] || null}
+            vistoriaId={vistoria.id}
+            compacto
+            onSalvo={(registro) => {
+              setRegistrosForm((prev) => ({ ...prev, [formAberto]: registro }))
+              setFormAberto(null)
+              setModeloAberto(null)
+            }}
+          />
+        </div>
+      )}
 
       {/* Progresso — fica visível ao rolar a página pra baixo entre os itens. */}
       <div className="sticky top-0 z-10 mb-3 rounded-lg border bg-background/95 px-4 py-2.5 shadow-subtle backdrop-blur">
