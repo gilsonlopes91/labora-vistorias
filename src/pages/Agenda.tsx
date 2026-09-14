@@ -172,6 +172,15 @@ export default function Agenda() {
     setVisao('mes')
   }
 
+  const rotuloTipoVistoria = (v: Vistoria) =>
+    v.expand?.tipo_vistoria_id?.nr_referencia ||
+    v.expand?.tipo_vistoria_id?.nome ||
+    (v.expand?.checklists?.length
+      ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
+      : v.expand?.formularios?.length
+        ? v.expand.formularios.map((f) => f.nome).join(', ')
+        : '')
+
   const chip = (v: Vistoria) => (
     <div
       key={v.id}
@@ -180,8 +189,8 @@ export default function Agenda() {
         navigate(`/vistorias/${v.id}`)
       }}
       className="cursor-pointer truncate rounded bg-accent px-1.5 py-0.5 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
-      title={`${v.expand?.empresa_id?.nome_fantasia || v.expand?.empresa_id?.razao_social || '—'} · ${
-        v.expand?.tipo_vistoria_id?.nr_referencia || v.expand?.tipo_vistoria_id?.nome || ''
+      title={`${v.expand?.empresa_id?.nome_fantasia || v.expand?.empresa_id?.razao_social || '—'}${
+        rotuloTipoVistoria(v) ? ` · ${rotuloTipoVistoria(v)}` : ''
       }${v.expand?.responsavel_tecnico_id?.nome ? ' · ' + v.expand.responsavel_tecnico_id.nome : ''}`}
     >
       {v.expand?.empresa_id?.nome_fantasia || v.expand?.empresa_id?.razao_social || '—'}
@@ -215,7 +224,7 @@ export default function Agenda() {
                       '—'}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {v.expand?.tipo_vistoria_id?.nr_referencia || v.expand?.tipo_vistoria_id?.nome}
+                    {rotuloTipoVistoria(v) || '—'}
                     {v.expand?.responsavel_tecnico_id?.nome
                       ? ` · ${v.expand.responsavel_tecnico_id.nome}`
                       : ''}
@@ -398,9 +407,7 @@ export default function Agenda() {
                               '—'}
                           </div>
                           <div className="truncate opacity-80">
-                            {v.expand?.responsavel_tecnico_id?.nome ||
-                              v.expand?.tipo_vistoria_id?.nr_referencia ||
-                              ''}
+                            {v.expand?.responsavel_tecnico_id?.nome || rotuloTipoVistoria(v) || ''}
                           </div>
                         </div>
                       ))}

@@ -135,7 +135,11 @@ export default function Vistorias() {
                   <TableCell>
                     {v.expand?.tipo_vistoria_id?.nr_referencia ||
                       v.expand?.tipo_vistoria_id?.nome ||
-                      '—'}
+                      (v.expand?.checklists?.length
+                        ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
+                        : v.expand?.formularios?.length
+                          ? v.expand.formularios.map((f) => f.nome).join(', ')
+                          : '—')}
                   </TableCell>
                   <TableCell>{formatBrazilianDate(v.data_agendada)}</TableCell>
                   <TableCell>

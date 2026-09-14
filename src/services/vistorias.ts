@@ -11,7 +11,7 @@ export interface Vistoria extends RecordModel {
   id: string
   organizacao_id: string
   empresa_id: string
-  tipo_vistoria_id: string
+  tipo_vistoria_id?: string
   formularios?: string[]
   checklists?: string[]
   tecnico_id?: string
@@ -38,7 +38,7 @@ export interface Vistoria extends RecordModel {
 export interface VistoriaInput {
   organizacao_id: string
   empresa_id: string
-  tipo_vistoria_id: string
+  tipo_vistoria_id?: string
   formularios?: string[]
   checklists?: string[]
   tecnico_id?: string

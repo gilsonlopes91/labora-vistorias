@@ -151,7 +151,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const titulo =
     dados.tipoNrReferencia && !nomeTipoJaTemReferencia
       ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
-      : dados.tipoNome
+      : dados.tipoNome || 'Laudo de Vistoria SST'
   const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
   doc.text(linhasTitulo, margin, y)
   y += linhasTitulo.length * 17 + 6
@@ -398,6 +398,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     .replace(/(^-|-$)/g, '')
   const slugTipo = (dados.tipoNrReferencia || dados.tipoNome || 'vistoria')
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
-  doc.save(`laudo-${slugEmpresa || 'empresa'}-${slugTipo}.pdf`)
+    .replace(/(^-|-$)/g, '')
+  doc.save(`laudo-${slugEmpresa || 'empresa'}-${slugTipo || 'vistoria'}.pdf`)
 }

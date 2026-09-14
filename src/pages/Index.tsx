@@ -327,7 +327,12 @@ const Index = () => {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {v.expand?.tipo_vistoria_id?.nr_referencia ||
-                          v.expand?.tipo_vistoria_id?.nome}
+                          v.expand?.tipo_vistoria_id?.nome ||
+                          (v.expand?.checklists?.length
+                            ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
+                            : v.expand?.formularios?.length
+                              ? v.expand.formularios.map((f) => f.nome).join(', ')
+                              : 'Vistoria')}
                         {v.expand?.responsavel_tecnico_id?.nome
                           ? ` · ${v.expand.responsavel_tecnico_id.nome}`
                           : ''}
@@ -381,7 +386,12 @@ const Index = () => {
                       <div className="text-sm text-muted-foreground">
                         {d ? format(d, 'EEE, dd/MM', { locale: ptBR }) : '—'} ·{' '}
                         {v.expand?.tipo_vistoria_id?.nr_referencia ||
-                          v.expand?.tipo_vistoria_id?.nome}
+                          v.expand?.tipo_vistoria_id?.nome ||
+                          (v.expand?.checklists?.length
+                            ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
+                            : v.expand?.formularios?.length
+                              ? v.expand.formularios.map((f) => f.nome).join(', ')
+                              : 'Vistoria')}
                         {v.expand?.responsavel_tecnico_id?.nome
                           ? ` · ${v.expand.responsavel_tecnico_id.nome}`
                           : ''}

@@ -145,7 +145,10 @@ export default function VistoriaDetalhe() {
     try {
       const v = await getVistoria(id)
       setVistoria(v)
-      const idsChecklists = [v.tipo_vistoria_id, ...(v.expand?.checklists || []).map((c) => c.id)]
+      const idsChecklists = [
+        ...(v.tipo_vistoria_id ? [v.tipo_vistoria_id] : []),
+        ...(v.expand?.checklists || []).map((c) => c.id),
+      ]
       const [itensPorChecklist, respostasVistoria] = await Promise.all([
         Promise.all(idsChecklists.map((cid) => getItensChecklist(cid))),
         getRespostasByVistoria(v.id),
@@ -153,7 +156,7 @@ export default function VistoriaDetalhe() {
       setItens(itensPorChecklist.flat())
       setNomesChecklist(
         idsChecklists.map((cid) => {
-          if (cid === v.tipo_vistoria_id) {
+          if (v.tipo_vistoria_id && cid === v.tipo_vistoria_id) {
             const t = v.expand?.tipo_vistoria_id
             return t?.nr_referencia || t?.nome || 'Checklist principal'
           }
@@ -272,6 +275,13 @@ export default function VistoriaDetalhe() {
 
   const handleStatusChange = async (status: StatusVistoria) => {
     if (!vistoria) return
+    if (status === 'concluida' && !temChecklistOuFormulario) {
+      toast.error('Não é possível finalizar a vistoria', {
+        description:
+          'É necessário ter ao menos um checklist ou um formulário de campo vinculado para finalizar.',
+      })
+      return
+    }
     setSavingStatus(true)
     try {
       const updated = await updateVistoria(vistoria.id, { status })
@@ -284,7 +294,28 @@ export default function VistoriaDetalhe() {
     }
   }
 
+  const temChecklistOuFormulario = useMemo(() => {
+    if (!vistoria) return false
+    const temChecklistPrincipal = !!vistoria.tipo_vistoria_id
+    const temChecklistAdicional = !!(
+      (vistoria.checklists && vistoria.checklists.length > 0) ||
+      (vistoria.expand?.checklists && vistoria.expand.checklists.length > 0)
+    )
+    const temFormulario = !!(
+      (vistoria.formularios && vistoria.formularios.length > 0) ||
+      (vistoria.expand?.formularios && vistoria.expand.formularios.length > 0)
+    )
+    return temChecklistPrincipal || temChecklistAdicional || temFormulario
+  }, [vistoria])
+
   const abrirDialogFinalizacao = () => {
+    if (!temChecklistOuFormulario) {
+      toast.error('Não é possível finalizar a vistoria', {
+        description:
+          'É necessário ter ao menos um checklist ou um formulário de campo vinculado para finalizar.',
+      })
+      return
+    }
     const existente = vistoria?.responsavel_tecnico_nome
       ? responsaveis.find((r) => r.nome === vistoria.responsavel_tecnico_nome)
       : undefined
@@ -310,6 +341,14 @@ export default function VistoriaDetalhe() {
 
   const handleConfirmarFinalizacao = async () => {
     if (!vistoria) return
+    if (!temChecklistOuFormulario) {
+      toast.error('Não é possível finalizar a vistoria', {
+        description:
+          'É necessário ter ao menos um checklist ou um formulário de campo vinculado para finalizar.',
+      })
+      setRtDialogAberto(false)
+      return
+    }
     setFinalizando(true)
     try {
       let nomeRT: string
@@ -486,6 +525,13 @@ export default function VistoriaDetalhe() {
 
   const empresa = vistoria.expand?.empresa_id
   const tipo = vistoria.expand?.tipo_vistoria_id
+  const nomeTipoPrincipal =
+    tipo?.nr_referencia && tipo?.nome && !tipo.nome.startsWith(tipo.nr_referencia)
+      ? `${tipo.nr_referencia} — ${tipo.nome}`
+      : tipo?.nome ||
+        (vistoria.checklists?.length || vistoria.formularios?.length
+          ? 'Vistoria personalizada'
+          : 'Sem checklist vinculado')
   const rotuloBotaoFinalizar =
     vistoria.status === 'concluida' ? 'Gerar PDF novamente' : 'Finalizar vistoria'
 
@@ -505,9 +551,7 @@ export default function VistoriaDetalhe() {
             {empresa?.nome_fantasia || empresa?.razao_social || 'Vistoria'}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {tipo?.nr_referencia && tipo?.nome && !tipo.nome.startsWith(tipo.nr_referencia)
-              ? `${tipo.nr_referencia} — ${tipo.nome}`
-              : tipo?.nome}
+            {nomeTipoPrincipal}
             {vistoria.data_agendada && <> · {formatBrazilianDate(vistoria.data_agendada)}</>}
           </p>
           {vistoria.responsavel_tecnico_nome && (

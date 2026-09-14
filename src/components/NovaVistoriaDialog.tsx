@@ -46,7 +46,7 @@ import {
 
 const schema = z.object({
   empresa_id: z.string().min(1, 'Selecione a empresa'),
-  tipo_vistoria_id: z.string().min(1, 'Selecione o tipo de vistoria'),
+  tipo_vistoria_id: z.string().optional(),
   data_agendada: z.string().min(1, 'Selecione a data'),
   responsavel_tecnico_id: z.string().optional(),
 })
@@ -103,7 +103,6 @@ export default function NovaVistoriaDialog({
     getTiposVistoria()
       .then((items) => {
         setTipos(items)
-        if (items.length === 1) form.setValue('tipo_vistoria_id', items[0].id)
       })
       .catch((error) =>
         toast.error('Não foi possível carregar os tipos de vistoria', {
@@ -139,7 +138,7 @@ export default function NovaVistoriaDialog({
       const vistoria = await createVistoria({
         organizacao_id: org.id,
         empresa_id: values.empresa_id,
-        tipo_vistoria_id: values.tipo_vistoria_id,
+        tipo_vistoria_id: values.tipo_vistoria_id || undefined,
         checklists: nrsSel,
         responsavel_tecnico_id: values.responsavel_tecnico_id || undefined,
         data_agendada: toPocketBaseDate(values.data_agendada),
@@ -211,27 +210,33 @@ export default function NovaVistoriaDialog({
               name="tipo_vistoria_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Checklist principal (obrigatório)</FormLabel>
-                  <Select value={field.value || undefined} onValueChange={field.onChange}>
+                  <FormLabel>Checklist principal (opcional)</FormLabel>
+                  <Select
+                    value={field.value ? field.value : '__none__'}
+                    onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo" />
+                        <SelectValue placeholder="Selecione o tipo (opcional)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {tipos.map((tipo) => {
-                        const rotulo =
-                          tipo.nr_referencia && tipo.nome.startsWith(tipo.nr_referencia)
-                            ? tipo.nome
-                            : tipo.nr_referencia
-                              ? `${tipo.nr_referencia} — ${tipo.nome}`
-                              : tipo.nome
-                        return (
-                          <SelectItem key={tipo.id} value={tipo.id}>
-                            {rotulo}
-                          </SelectItem>
-                        )
-                      })}
+                      <SelectItem value="__none__">Nenhum (sem checklist principal)</SelectItem>
+                      {tipos
+                        .filter((tipo) => !nrsSel.includes(tipo.id))
+                        .map((tipo) => {
+                          const rotulo =
+                            tipo.nr_referencia && tipo.nome.startsWith(tipo.nr_referencia)
+                              ? tipo.nome
+                              : tipo.nr_referencia
+                                ? `${tipo.nr_referencia} — ${tipo.nome}`
+                                : tipo.nome
+                          return (
+                            <SelectItem key={tipo.id} value={tipo.id}>
+                              {rotulo}
+                            </SelectItem>
+                          )
+                        })}
                     </SelectContent>
                   </Select>
                   <FormMessage />
