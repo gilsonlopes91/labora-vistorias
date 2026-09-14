@@ -13,6 +13,7 @@ export interface Vistoria extends RecordModel {
   empresa_id: string
   tipo_vistoria_id: string
   formularios?: string[]
+  checklists?: string[]
   tecnico_id?: string
   responsavel_tecnico_id?: string
   data_agendada: string
@@ -30,6 +31,7 @@ export interface Vistoria extends RecordModel {
     tipo_vistoria_id?: TipoVistoria
     responsavel_tecnico_id?: ResponsavelTecnico
     formularios?: ModeloFormulario[]
+    checklists?: TipoVistoria[]
   }
 }
 
@@ -38,6 +40,7 @@ export interface VistoriaInput {
   empresa_id: string
   tipo_vistoria_id: string
   formularios?: string[]
+  checklists?: string[]
   tecnico_id?: string
   responsavel_tecnico_id?: string
   data_agendada: string
@@ -52,12 +55,12 @@ export interface VistoriaInput {
 export const getVistorias = () =>
   pb.collection('vistorias').getFullList<Vistoria>({
     sort: '-data_agendada',
-    expand: 'empresa_id,tipo_vistoria_id,responsavel_tecnico_id,formularios',
+    expand: 'empresa_id,tipo_vistoria_id,responsavel_tecnico_id,formularios,checklists',
   })
 
 export const getVistoria = (id: string) =>
   pb.collection('vistorias').getOne<Vistoria>(id, {
-    expand: 'empresa_id,tipo_vistoria_id,responsavel_tecnico_id,formularios',
+    expand: 'empresa_id,tipo_vistoria_id,responsavel_tecnico_id,formularios,checklists',
   })
 
 export const createVistoria = (data: VistoriaInput) =>

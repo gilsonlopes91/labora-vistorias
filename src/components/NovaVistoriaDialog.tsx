@@ -71,6 +71,7 @@ export default function NovaVistoriaDialog({
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [modelos, setModelos] = useState<ModeloFormulario[]>([])
   const [formulariosSel, setFormulariosSel] = useState<string[]>([])
+  const [nrsSel, setNrsSel] = useState<string[]>([])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -91,6 +92,7 @@ export default function NovaVistoriaDialog({
       responsavel_tecnico_id: '',
     })
     setFormulariosSel([])
+    setNrsSel([])
     getEmpresas()
       .then(setEmpresas)
       .catch((error) =>
@@ -126,6 +128,10 @@ export default function NovaVistoriaDialog({
     setFormulariosSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
+  const toggleNr = (id: string) => {
+    setNrsSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true)
     try {
@@ -134,6 +140,7 @@ export default function NovaVistoriaDialog({
         organizacao_id: org.id,
         empresa_id: values.empresa_id,
         tipo_vistoria_id: values.tipo_vistoria_id,
+        checklists: nrsSel,
         responsavel_tecnico_id: values.responsavel_tecnico_id || undefined,
         data_agendada: toPocketBaseDate(values.data_agendada),
         status: 'agendada',
@@ -204,7 +211,7 @@ export default function NovaVistoriaDialog({
               name="tipo_vistoria_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Checklist da NR (principal)</FormLabel>
+                  <FormLabel>Checklist principal (obrigatório)</FormLabel>
                   <Select value={field.value || undefined} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
@@ -231,6 +238,49 @@ export default function NovaVistoriaDialog({
                 </FormItem>
               )}
             />
+
+            {/* Checklists NR adicionais (multi) */}
+            <div>
+              <FormLabel>Checklists NR adicionais (opcional, vários)</FormLabel>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {nrsSel.map((id) => {
+                  const t = tipos.find((x) => x.id === id)
+                  return (
+                    <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                      {t?.nr_referencia || t?.nome || id}
+                      <button
+                        type="button"
+                        onClick={() => toggleNr(id)}
+                        className="ml-1 rounded-full p-0.5 hover:bg-accent"
+                        aria-label={`Remover ${t?.nr_referencia || id}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )
+                })}
+              </div>
+              <Select value="" onValueChange={(id) => id && toggleNr(id)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Adicionar checklist NR..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipos
+                    .filter(
+                      (t) => t.id !== form.watch('tipo_vistoria_id') && !nrsSel.includes(t.id),
+                    )
+                    .map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nr_referencia && t.nome.startsWith(t.nr_referencia)
+                          ? t.nome
+                          : t.nr_referencia
+                            ? `${t.nr_referencia} — ${t.nome}`
+                            : t.nome}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Formulários de campo adicionais (multi) */}
             <div>

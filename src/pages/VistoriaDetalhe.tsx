@@ -116,6 +116,7 @@ export default function VistoriaDetalhe() {
 
   const [vistoria, setVistoria] = useState<Vistoria | null>(null)
   const [itens, setItens] = useState<ItemChecklist[]>([])
+  const [nomesChecklist, setNomesChecklist] = useState<string[]>([])
   const [respostas, setRespostas] = useState<Record<string, RespostaVistoria>>({})
   const [loading, setLoading] = useState(true)
   const [savingStatus, setSavingStatus] = useState(false)
@@ -144,11 +145,22 @@ export default function VistoriaDetalhe() {
     try {
       const v = await getVistoria(id)
       setVistoria(v)
-      const [itensChecklist, respostasVistoria] = await Promise.all([
-        getItensChecklist(v.tipo_vistoria_id),
+      const idsChecklists = [v.tipo_vistoria_id, ...(v.expand?.checklists || []).map((c) => c.id)]
+      const [itensPorChecklist, respostasVistoria] = await Promise.all([
+        Promise.all(idsChecklists.map((cid) => getItensChecklist(cid))),
         getRespostasByVistoria(v.id),
       ])
-      setItens(itensChecklist)
+      setItens(itensPorChecklist.flat())
+      setNomesChecklist(
+        idsChecklists.map((cid) => {
+          if (cid === v.tipo_vistoria_id) {
+            const t = v.expand?.tipo_vistoria_id
+            return t?.nr_referencia || t?.nome || 'Checklist principal'
+          }
+          const extra = v.expand?.checklists?.find((c) => c.id === cid)
+          return extra?.nr_referencia || extra?.nome || 'Checklist'
+        }),
+      )
       const map: Record<string, RespostaVistoria> = {}
       for (const r of respostasVistoria) map[r.item_checklist_id] = r
       setRespostas(map)
@@ -423,14 +435,42 @@ export default function VistoriaDetalhe() {
     : 0
 
   const grupos = useMemo(() => {
-    const map = new Map<string, ItemChecklist[]>()
+    // Multi-NR: agrupa primeiro por checklist (NR) e depois por seção interna.
+    // Com 1 checklist só, o visual continua igual ao de antes.
+    const multi = nomesChecklist.length > 1
+    const porChecklist = new Map<string, ItemChecklist[]>()
+    const ordemChecklists: string[] = []
     for (const item of itensOrdenados) {
-      const key = item.secao || 'Disposições gerais'
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(item)
+      if (!porChecklist.has(item.tipo_vistoria_id)) porChecklist.set(item.tipo_vistoria_id, [])
+      porChecklist.get(item.tipo_vistoria_id)!.push(item)
+      if (!ordemChecklists.includes(item.tipo_vistoria_id))
+        ordemChecklists.push(item.tipo_vistoria_id)
     }
-    return Array.from(map.entries())
-  }, [itensOrdenados])
+    if (!multi) {
+      const map = new Map<string, ItemChecklist[]>()
+      for (const item of itensOrdenados) {
+        const key = item.secao || 'Disposições gerais'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(item)
+      }
+      return Array.from(map.entries())
+    }
+    // multi: pares [titulo, itens] com titulo = "NR-XX · Seção"
+    const saida: [string, ItemChecklist[]][] = []
+    ordemChecklists.forEach((cid, idx) => {
+      const nome = nomesChecklist[idx] || 'Checklist'
+      const secoes = new Map<string, ItemChecklist[]>()
+      for (const item of porChecklist.get(cid) || []) {
+        const s = item.secao || 'Disposições gerais'
+        if (!secoes.has(s)) secoes.set(s, [])
+        secoes.get(s)!.push(item)
+      }
+      for (const [secao, itensSecao] of secoes.entries()) {
+        saida.push([`${nome} · ${secao}`, itensSecao])
+      }
+    })
+    return saida
+  }, [itensOrdenados, nomesChecklist])
 
   if (loading) {
     return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
@@ -476,6 +516,18 @@ export default function VistoriaDetalhe() {
               Responsável técnico: {vistoria.responsavel_tecnico_nome} —{' '}
               {vistoria.responsavel_tecnico_registro}
             </p>
+          )}
+          {!!vistoria.expand?.checklists?.length && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Checklists NR adicionais:
+              </span>
+              {vistoria.expand.checklists.map((c) => (
+                <Badge key={c.id} variant="outline" className="text-xs">
+                  {c.nr_referencia || c.nome}
+                </Badge>
+              ))}
+            </div>
           )}
           {!!vistoria.expand?.formularios?.length && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
