@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Início', icon: Home },
   { to: '/empresas', label: 'Empresas', icon: Building2 },
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
-  { to: '/modelos', label: 'Modelos', icon: ListChecks },
+  { to: '/modelos', label: 'Auditoria NRs', icon: ListChecks },
   { to: '/formularios', label: 'Formulários', icon: FileText },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
