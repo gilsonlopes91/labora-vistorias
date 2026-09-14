@@ -46,7 +46,6 @@ import {
 
 const schema = z.object({
   empresa_id: z.string().min(1, 'Selecione a empresa'),
-  tipo_vistoria_id: z.string().optional(),
   data_agendada: z.string().min(1, 'Selecione a data'),
   responsavel_tecnico_id: z.string().optional(),
 })
@@ -71,13 +70,12 @@ export default function NovaVistoriaDialog({
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [modelos, setModelos] = useState<ModeloFormulario[]>([])
   const [formulariosSel, setFormulariosSel] = useState<string[]>([])
-  const [nrsSel, setNrsSel] = useState<string[]>([])
+  const [checklistsSel, setChecklistsSel] = useState<string[]>([])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       empresa_id: '',
-      tipo_vistoria_id: '',
       data_agendada: defaultDate || '',
       responsavel_tecnico_id: '',
     },
@@ -87,12 +85,11 @@ export default function NovaVistoriaDialog({
     if (!open) return
     form.reset({
       empresa_id: '',
-      tipo_vistoria_id: '',
       data_agendada: defaultDate || '',
       responsavel_tecnico_id: '',
     })
     setFormulariosSel([])
-    setNrsSel([])
+    setChecklistsSel([])
     getEmpresas()
       .then(setEmpresas)
       .catch((error) =>
@@ -102,7 +99,13 @@ export default function NovaVistoriaDialog({
       )
     getTiposVistoria()
       .then((items) => {
-        setTipos(items)
+        // Ordena por número de NR (ex.: NR-01, NR-02, ..., NR-38)
+        const ordenados = [...items].sort((a, b) => {
+          const refA = a.nr_referencia || a.nome || ''
+          const refB = b.nr_referencia || b.nome || ''
+          return refA.localeCompare(refB, undefined, { numeric: true })
+        })
+        setTipos(ordenados)
       })
       .catch((error) =>
         toast.error('Não foi possível carregar os tipos de vistoria', {
@@ -128,18 +131,21 @@ export default function NovaVistoriaDialog({
   }
 
   const toggleNr = (id: string) => {
-    setNrsSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    setChecklistsSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true)
     try {
       const org = await getMinhaOrganizacao()
+      const tipoVistoriaId = checklistsSel[0] || undefined
+      const adicionais = checklistsSel.slice(1)
+
       const vistoria = await createVistoria({
         organizacao_id: org.id,
         empresa_id: values.empresa_id,
-        tipo_vistoria_id: values.tipo_vistoria_id || undefined,
-        checklists: nrsSel,
+        tipo_vistoria_id: tipoVistoriaId,
+        checklists: adicionais,
         responsavel_tecnico_id: values.responsavel_tecnico_id || undefined,
         data_agendada: toPocketBaseDate(values.data_agendada),
         status: 'agendada',
@@ -205,75 +211,36 @@ export default function NovaVistoriaDialog({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="tipo_vistoria_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Checklist principal (opcional)</FormLabel>
-                  <Select
-                    value={field.value ? field.value : '__none__'}
-                    onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo (opcional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nenhum (sem checklist principal)</SelectItem>
-                      {tipos
-                        .filter((tipo) => !nrsSel.includes(tipo.id))
-                        .map((tipo) => {
-                          const rotulo =
-                            tipo.nr_referencia && tipo.nome.startsWith(tipo.nr_referencia)
-                              ? tipo.nome
-                              : tipo.nr_referencia
-                                ? `${tipo.nr_referencia} — ${tipo.nome}`
-                                : tipo.nome
-                          return (
-                            <SelectItem key={tipo.id} value={tipo.id}>
-                              {rotulo}
-                            </SelectItem>
-                          )
-                        })}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Checklists NR adicionais (multi) */}
+            {/* Checklists (unificado: multi-select) */}
             <div>
-              <FormLabel>Checklists NR adicionais (opcional, vários)</FormLabel>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {nrsSel.map((id) => {
-                  const t = tipos.find((x) => x.id === id)
-                  return (
-                    <Badge key={id} variant="secondary" className="gap-1 pr-1">
-                      {t?.nr_referencia || t?.nome || id}
-                      <button
-                        type="button"
-                        onClick={() => toggleNr(id)}
-                        className="ml-1 rounded-full p-0.5 hover:bg-accent"
-                        aria-label={`Remover ${t?.nr_referencia || id}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  )
-                })}
-              </div>
+              <FormLabel>Checklists (opcional, vários)</FormLabel>
+              {checklistsSel.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {checklistsSel.map((id) => {
+                    const t = tipos.find((x) => x.id === id)
+                    return (
+                      <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                        {t?.nr_referencia || t?.nome || id}
+                        <button
+                          type="button"
+                          onClick={() => toggleNr(id)}
+                          className="ml-1 rounded-full p-0.5 hover:bg-accent"
+                          aria-label={`Remover ${t?.nr_referencia || id}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )
+                  })}
+                </div>
+              )}
               <Select value="" onValueChange={(id) => id && toggleNr(id)}>
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Adicionar checklist NR..." />
                 </SelectTrigger>
                 <SelectContent>
                   {tipos
-                    .filter(
-                      (t) => t.id !== form.watch('tipo_vistoria_id') && !nrsSel.includes(t.id),
-                    )
+                    .filter((t) => !checklistsSel.includes(t.id))
                     .map((t) => (
                       <SelectItem key={t.id} value={t.id}>
                         {t.nr_referencia && t.nome.startsWith(t.nr_referencia)
