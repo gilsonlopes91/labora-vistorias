@@ -6,7 +6,7 @@
    sem itens por migration) sem precisar digitar a lista inteira. */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ListChecks, Lock, Search } from 'lucide-react'
+import { ListChecks, Lock, Search, Shapes } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
@@ -117,6 +117,14 @@ export default function ModelosVistoria() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscando, buscaNormalizada, tipos, itensPorTipo])
 
+  // Separa a referência do item (ex.: "22.7.22, alínea \"f\"") em duas linhas:
+  // o número do item e o complemento (alíneas), para a coluna ficar alinhada.
+  const separarItemRef = (item: ItemChecklist) => {
+    const ref = item.item_ref || ''
+    const m = ref.match(/^(.*?\d)(\s*,.*|\s+alínea.*|\s+e\s+.*)$/)
+    return { num: m ? m[1] : ref, alineas: m ? m[2].trim() : '' }
+  }
+
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
 
   return (
@@ -190,11 +198,16 @@ export default function ModelosVistoria() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{tipo.nome}</span>
                           {tipo.nr_referencia && (
-                            <Badge variant="secondary">{tipo.nr_referencia}</Badge>
+                            <Badge variant="secondary" className="shrink-0">
+                              <Shapes className="mr-1 h-3 w-3" />
+                              {tipo.nr_referencia}
+                            </Badge>
                           )}
                         </div>
                         {tipo.descricao && (
-                          <p className="truncate text-xs text-muted-foreground">{tipo.descricao}</p>
+                          <p className="line-clamp-2 text-xs text-muted-foreground sm:truncate sm:line-clamp-none">
+                            {tipo.descricao}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -211,20 +224,31 @@ export default function ModelosVistoria() {
                             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                               {secao}
                             </p>
-                            <ul className="space-y-2">
-                              {itens.map((item) => (
-                                <li key={item.id} className="flex items-start gap-3 text-sm">
-                                  <div className="mt-0.5 flex w-[4.5rem] shrink-0 flex-col items-start gap-0.5">
-                                    <span className="text-[11px] font-semibold text-foreground">
-                                      {item.item_ref}
+                            <ul className="space-y-1.5">
+                              {itens.map((item) => {
+                                const { num, alineas } = separarItemRef(item)
+                                return (
+                                  <li
+                                    key={item.id}
+                                    className="grid grid-cols-[5.5rem_1fr] gap-x-3 rounded-lg px-2 py-1.5 text-sm hover:bg-accent/40 sm:grid-cols-[5.5rem_5.5rem_1fr]"
+                                  >
+                                    <span className="whitespace-nowrap text-[11px] font-semibold leading-5 text-foreground">
+                                      {num}
                                     </span>
-                                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    <span className="hidden whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground sm:block">
                                       {item.codigo}
                                     </span>
-                                  </div>
-                                  <span>{item.descricao}</span>
-                                </li>
-                              ))}
+                                    <div className="min-w-0">
+                                      <p className="leading-snug">{item.descricao}</p>
+                                      {alineas && (
+                                        <p className="mt-0.5 text-[11px] italic text-muted-foreground">
+                                          {alineas}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </li>
+                                )
+                              })}
                             </ul>
                           </div>
                         ))}
