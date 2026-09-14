@@ -144,9 +144,32 @@ export default function PreencherFormulario() {
 
   const getValor = (campoId: string) => dados[campoId]
 
+  const normalizarInstancias = (raw: unknown): Record<string, unknown>[] => {
+    if (Array.isArray(raw)) return raw as Record<string, unknown>[]
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return parsed as Record<string, unknown>[]
+        if (parsed && typeof parsed === 'object') {
+          return Object.values(parsed).filter(
+            (v): v is Record<string, unknown> => typeof v === 'object' && v !== null,
+          )
+        }
+      } catch {
+        return []
+      }
+    }
+    if (raw && typeof raw === 'object') {
+      return Object.values(raw as Record<string, unknown>).filter(
+        (v): v is Record<string, unknown> => typeof v === 'object' && v !== null,
+      )
+    }
+    return []
+  }
+
   const setValorRepetivel = (campoId: string, indice: number, subcampoId: string, valor: unknown) =>
     setDados((prev) => {
-      const lista = { ...((prev[campoId] as Record<string, unknown>[]) || []) }
+      const lista = [...normalizarInstancias(prev[campoId])]
       const item = { ...((lista[indice] as Record<string, unknown>) || {}) }
       item[subcampoId] = valor
       lista[indice] = item
@@ -191,7 +214,7 @@ export default function PreencherFormulario() {
       if (campo.tipo === 'secao') continue
       const valor = dados[campo.id]
       if (campo.tipo === 'repetivel') {
-        const lista = (valor as Record<string, unknown>[]) || []
+        const lista = normalizarInstancias(valor)
         if (lista.length === 0) pendentes.push(campo.nome)
         continue
       }
@@ -370,7 +393,18 @@ export default function PreencherFormulario() {
             </Label>
             <div className="space-y-1">
               {(campo.opcoes || []).map((opcao) => {
-                const selecionadas = (valor as string[]) || []
+                const selecionadas = Array.isArray(valor)
+                  ? (valor as string[])
+                  : typeof valor === 'string'
+                    ? (() => {
+                        try {
+                          const parsed = JSON.parse(valor)
+                          return Array.isArray(parsed) ? (parsed as string[]) : [valor]
+                        } catch {
+                          return [valor]
+                        }
+                      })()
+                    : []
                 const marcada = selecionadas.includes(opcao)
                 return (
                   <label
@@ -493,7 +527,7 @@ export default function PreencherFormulario() {
         )
 
       case 'repetivel': {
-        const instancias = (valor as Record<string, unknown>[]) || []
+        const instancias = normalizarInstancias(valor)
         const total = repetiveis[campo.id] ?? instancias.length ?? 0
         return (
           <div key={campo.id} className="space-y-2">
@@ -531,7 +565,7 @@ export default function PreencherFormulario() {
                     variant="ghost"
                     className="h-7 w-7 text-destructive hover:text-destructive"
                     onClick={() => {
-                      const lista = ((dados[campo.id] as Record<string, unknown>[]) || []).filter(
+                      const lista = normalizarInstancias(dados[campo.id]).filter(
                         (_, i) => i !== indice,
                       )
                       setValor(campo.id, lista)
