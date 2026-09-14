@@ -1,6 +1,9 @@
 /* Auditoria NRs — catálogo das Normas Regulamentadoras oficiais vigentes
    e seus checklists, mantido pela Labora via migration. Somente
-   leitura: criação/edição de modelos fica em Formulários (builder customizado). */
+   leitura pela UI padrão: criação/edição de modelos fica em Formulários
+   (builder customizado). A exceção é a importação de checklist via CSV,
+   usada para popular rapidamente um tipo de vistoria "rascunho" (criado
+   sem itens por migration) sem precisar digitar a lista inteira. */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ListChecks, Lock, Search } from 'lucide-react'
@@ -8,6 +11,7 @@ import { ListChecks, Lock, Search } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
 import { getItensChecklist, type ItemChecklist } from '@/services/itensChecklist'
+import { ImportarChecklistCsvDialog } from '@/components/ImportarChecklistCsvDialog'
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -32,9 +36,7 @@ export default function ModelosVistoria() {
   const [busca, setBusca] = useState('')
   const [abertosManual, setAbertosManual] = useState<string[]>([])
 
-  useEffect(() => {
-    // Catálogo fixo: só modelos globais (organizacao_id vazio). Modelos
-    // customizados de organização passam a ser criados em Formulários.
+  const carregarTipos = () =>
     getTiposVistoria()
       .then((todos) => {
         const globais = todos.filter((t) => !t.organizacao_id)
@@ -51,11 +53,14 @@ export default function ModelosVistoria() {
           description: getErrorMessage(error),
         }),
       )
-      .finally(() => setLoading(false))
+
+  useEffect(() => {
+    carregarTipos().finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const carregarItens = async (tipoId: string) => {
-    if (itensPorTipo[tipoId] || carregandoItens[tipoId]) return
+  const carregarItens = async (tipoId: string, forcar = false) => {
+    if ((itensPorTipo[tipoId] && !forcar) || carregandoItens[tipoId]) return
     setCarregandoItens((prev) => ({ ...prev, [tipoId]: true }))
     try {
       const itens = await getItensChecklist(tipoId)
@@ -65,6 +70,13 @@ export default function ModelosVistoria() {
     } finally {
       setCarregandoItens((prev) => ({ ...prev, [tipoId]: false }))
     }
+  }
+
+  // Depois de importar um CSV, recarrega os itens do tipo afetado (e garante
+  // que o accordion dele fique aberto pra mostrar o resultado).
+  const handleImportado = (tipoVistoriaId: string) => {
+    carregarItens(tipoVistoriaId, true)
+    setAbertosManual((prev) => (prev.includes(tipoVistoriaId) ? prev : [...prev, tipoVistoriaId]))
   }
 
   // Enquanto o usuário busca, carrega o checklist de todos os modelos (não só
@@ -109,19 +121,22 @@ export default function ModelosVistoria() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Auditoria NRs</h1>
-          <Badge variant="secondary" className="gap-1">
-            <Lock className="h-3 w-3" />
-            Catálogo fixo ({tipos.length} NRs)
-          </Badge>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Auditoria NRs</h1>
+            <Badge variant="secondary" className="gap-1">
+              <Lock className="h-3 w-3" />
+              Catálogo fixo ({tipos.length} NRs)
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Catálogo com todas as Normas Regulamentadoras brasileiras vigentes, mantido pela Labora.
+            Para criar seus próprios modelos customizados, use{' '}
+            <span className="font-medium">Formulários</span>.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Catálogo com todas as Normas Regulamentadoras brasileiras vigentes, mantido pela Labora.
-          Para criar seus próprios modelos customizados, use{' '}
-          <span className="font-medium">Formulários</span>.
-        </p>
+        <ImportarChecklistCsvDialog tipos={tipos} onImportado={handleImportado} />
       </div>
 
       <div className="relative mb-4">
@@ -221,7 +236,8 @@ export default function ModelosVistoria() {
                       </div>
                     ) : (
                       <p className="py-2 text-sm text-muted-foreground">
-                        Este modelo ainda não tem itens de checklist.
+                        Este modelo ainda não tem itens de checklist. Use "Importar checklist (CSV)"
+                        acima para preenchê-lo.
                       </p>
                     )}
                   </AccordionContent>
