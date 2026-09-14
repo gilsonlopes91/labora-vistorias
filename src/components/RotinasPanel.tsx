@@ -180,7 +180,11 @@ export default function RotinasPanel() {
                   <SelectContent>
                     {tipos.map((tipo) => (
                       <SelectItem key={tipo.id} value={tipo.id}>
-                        {tipo.nr_referencia ? `${tipo.nr_referencia} — ${tipo.nome}` : tipo.nome}
+                        {tipo.nr_referencia && tipo.nome.startsWith(tipo.nr_referencia)
+                          ? tipo.nome
+                          : tipo.nr_referencia
+                            ? `${tipo.nr_referencia} — ${tipo.nome}`
+                            : tipo.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -250,7 +254,10 @@ export default function RotinasPanel() {
                       '—'}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {rotina.expand?.tipo_vistoria_id?.nr_referencia
+                    {rotina.expand?.tipo_vistoria_id?.nr_referencia &&
+                    !rotina.expand?.tipo_vistoria_id?.nome.startsWith(
+                      rotina.expand.tipo_vistoria_id.nr_referencia,
+                    )
                       ? `${rotina.expand.tipo_vistoria_id.nr_referencia} — `
                       : ''}
                     {rotina.expand?.tipo_vistoria_id?.nome || '—'} ·{' '}

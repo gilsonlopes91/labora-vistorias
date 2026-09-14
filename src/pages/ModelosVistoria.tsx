@@ -1,5 +1,5 @@
-/* Auditoria NRs — catálogo FIXO dos tipos de vistoria oficiais (NR-01, 04, 05,
-   06, 07, 08) e seus checklists, mantido pela Labora via migration. Somente
+/* Auditoria NRs — catálogo das Normas Regulamentadoras oficiais vigentes
+   e seus checklists, mantido pela Labora via migration. Somente
    leitura: criação/edição de modelos fica em Formulários (builder customizado). */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -36,7 +36,16 @@ export default function ModelosVistoria() {
     // Catálogo fixo: só modelos globais (organizacao_id vazio). Modelos
     // customizados de organização passam a ser criados em Formulários.
     getTiposVistoria()
-      .then((todos) => setTipos(todos.filter((t) => !t.organizacao_id)))
+      .then((todos) => {
+        const globais = todos.filter((t) => !t.organizacao_id)
+        // Ordena por NR (ex: NR-01, NR-03, ..., NR-38)
+        globais.sort((a, b) => {
+          const refA = a.nr_referencia || a.nome || ''
+          const refB = b.nr_referencia || b.nome || ''
+          return refA.localeCompare(refB, undefined, { numeric: true })
+        })
+        setTipos(globais)
+      })
       .catch((error) =>
         toast.error('Não foi possível carregar os modelos de vistoria', {
           description: getErrorMessage(error),
@@ -105,11 +114,12 @@ export default function ModelosVistoria() {
           <h1 className="text-2xl font-bold">Auditoria NRs</h1>
           <Badge variant="secondary" className="gap-1">
             <Lock className="h-3 w-3" />
-            Catálogo fixo
+            Catálogo fixo ({tipos.length} NRs)
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Checklists oficiais das NRs, mantidos pela Labora. Para criar seus próprios modelos, use{' '}
+          Catálogo com todas as Normas Regulamentadoras brasileiras vigentes, mantido pela Labora.
+          Para criar seus próprios modelos customizados, use{' '}
           <span className="font-medium">Formulários</span>.
         </p>
       </div>

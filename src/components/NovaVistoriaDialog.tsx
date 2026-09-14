@@ -194,11 +194,19 @@ export default function NovaVistoriaDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {tipos.map((tipo) => (
-                        <SelectItem key={tipo.id} value={tipo.id}>
-                          {tipo.nr_referencia ? `${tipo.nr_referencia} — ${tipo.nome}` : tipo.nome}
-                        </SelectItem>
-                      ))}
+                      {tipos.map((tipo) => {
+                        const rotulo =
+                          tipo.nr_referencia && tipo.nome.startsWith(tipo.nr_referencia)
+                            ? tipo.nome
+                            : tipo.nr_referencia
+                              ? `${tipo.nr_referencia} — ${tipo.nome}`
+                              : tipo.nome
+                        return (
+                          <SelectItem key={tipo.id} value={tipo.id}>
+                            {rotulo}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                   <FormMessage />

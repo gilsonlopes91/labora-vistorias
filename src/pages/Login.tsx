@@ -108,7 +108,7 @@ export default function Login() {
 
           <div className="mt-10 grid max-w-xl grid-cols-3 gap-4">
             <div>
-              <div className="text-3xl font-extrabold text-primary lg:text-4xl">6</div>
+              <div className="text-3xl font-extrabold text-primary lg:text-4xl">36</div>
               <div className="mt-1 text-xs text-muted-foreground">normas NR no catálogo</div>
             </div>
             <div>

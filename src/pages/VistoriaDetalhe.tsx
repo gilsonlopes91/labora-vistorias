@@ -465,7 +465,9 @@ export default function VistoriaDetalhe() {
             {empresa?.nome_fantasia || empresa?.razao_social || 'Vistoria'}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {tipo?.nr_referencia ? `${tipo.nr_referencia} — ${tipo.nome}` : tipo?.nome}
+            {tipo?.nr_referencia && tipo?.nome && !tipo.nome.startsWith(tipo.nr_referencia)
+              ? `${tipo.nr_referencia} — ${tipo.nome}`
+              : tipo?.nome}
             {vistoria.data_agendada && <> · {formatBrazilianDate(vistoria.data_agendada)}</>}
           </p>
           {vistoria.responsavel_tecnico_nome && (
