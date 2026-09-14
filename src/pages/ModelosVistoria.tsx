@@ -196,7 +196,9 @@ export default function ModelosVistoria() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{tipo.nome}</span>
+                          <span className="font-medium">
+                            {tipo.nome.replace(/^NR-\d+\s*[—–-]\s*/i, '')}
+                          </span>
                           {tipo.nr_referencia && (
                             <Badge variant="secondary" className="shrink-0">
                               <Shapes className="mr-1 h-3 w-3" />
