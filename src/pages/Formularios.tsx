@@ -81,8 +81,8 @@ export default function Formularios() {
           <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{modelo.descricao}</p>
         )}
         <div className="mt-auto pt-4">
-          <Button size="sm" className="w-full rounded-full" disabled title="Fase 3 — em breve">
-            Preencher
+          <Button asChild size="sm" className="w-full rounded-full">
+            <Link to={`/formularios/${modelo.id}/preencher`}>Preencher</Link>
           </Button>
         </div>
       </Card>

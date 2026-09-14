@@ -13,6 +13,7 @@ import VistoriaDetalhe from './pages/VistoriaDetalhe'
 import ModelosVistoria from './pages/ModelosVistoria'
 import Formularios from './pages/Formularios'
 import BuilderFormulario from './pages/BuilderFormulario'
+import PreencherFormulario from './pages/PreencherFormulario'
 import Agenda from './pages/Agenda'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
@@ -84,6 +85,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <BuilderFormulario />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/formularios/:id/preencher"
+              element={
+                <ProtectedRoute>
+                  <PreencherFormulario />
                 </ProtectedRoute>
               }
             />
