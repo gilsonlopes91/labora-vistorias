@@ -99,13 +99,11 @@ export default function Formularios() {
           </p>
         </div>
         {podeGerenciar && (
-          <Button
-            className="shrink-0 rounded-full"
-            disabled
-            title="Em breve — construtor de formulários"
-          >
-            <FilePlus2 className="mr-2 h-4 w-4" />
-            Criar formulário
+          <Button asChild className="shrink-0 rounded-full">
+            <Link to="/formularios/novo">
+              <FilePlus2 className="mr-2 h-4 w-4" />
+              Criar formulário
+            </Link>
           </Button>
         )}
       </div>
