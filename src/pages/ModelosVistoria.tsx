@@ -122,7 +122,10 @@ export default function ModelosVistoria() {
   const separarItemRef = (item: ItemChecklist) => {
     const ref = item.item_ref || ''
     const m = ref.match(/^(.*?\d)(\s*,.*|\s+alínea.*|\s+e\s+.*)$/)
-    return { num: m ? m[1] : ref, alineas: m ? m[2].trim() : '' }
+    return {
+      num: m ? m[1] : ref,
+      alineas: m ? m[2].trim().replace(/^,\s*/, '') : '',
+    }
   }
 
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
@@ -234,7 +237,7 @@ export default function ModelosVistoria() {
                                     key={item.id}
                                     className="grid grid-cols-[5.5rem_1fr] gap-x-3 rounded-lg px-2 py-1.5 text-sm hover:bg-accent/40 sm:grid-cols-[5.5rem_5.5rem_1fr]"
                                   >
-                                    <span className="whitespace-nowrap text-[11px] font-semibold leading-5 text-foreground">
+                                    <span className="break-words text-[11px] font-semibold leading-5 text-foreground">
                                       {num}
                                     </span>
                                     <span className="hidden whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground sm:block">
