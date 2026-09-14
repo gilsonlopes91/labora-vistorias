@@ -11,6 +11,7 @@ import Empresas from './pages/Empresas'
 import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
 import ModelosVistoria from './pages/ModelosVistoria'
+import Formularios from './pages/Formularios'
 import Agenda from './pages/Agenda'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
@@ -66,6 +67,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ModelosVistoria />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/formularios"
+              element={
+                <ProtectedRoute>
+                  <Formularios />
                 </ProtectedRoute>
               }
             />

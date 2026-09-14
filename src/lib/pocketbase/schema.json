@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T23:33:02.053Z",
+  "generatedAt": "2026-09-14T01:36:06.398Z",
   "collections": [
     {
       "name": "users",
@@ -974,6 +974,184 @@
       "indexes": [
         "CREATE INDEX idx_rotinas_organizacao ON rotinas (organizacao_id)",
         "CREATE INDEX idx_rotinas_empresa ON rotinas (empresa_id)"
+      ]
+    },
+    {
+      "name": "modelos_formulario",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id)",
+        "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id)",
+        "create": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "icone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fixo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "campos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_modelos_formulario_org ON modelos_formulario (organizacao_id)"
+      ]
+    },
+    {
+      "name": "formularios",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "view": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "create": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "update": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "delete": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "modelo_formulario_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "modelos_formulario"
+        },
+        {
+          "name": "dados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexos",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "concluido"
+          ]
+        },
+        {
+          "name": "data_campo",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "client_uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_formularios_client_uuid ON formularios (client_uuid)",
+        "CREATE INDEX idx_formularios_organizacao ON formularios (organizacao_id)",
+        "CREATE INDEX idx_formularios_empresa ON formularios (empresa_id)",
+        "CREATE INDEX idx_formularios_modelo ON formularios (modelo_formulario_id)"
       ]
     }
   ]

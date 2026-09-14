@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   CalendarClock,
   ListChecks,
+  FileText,
   Settings,
   Users,
 } from 'lucide-react'
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { to: '/empresas', label: 'Empresas', icon: Building2 },
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
   { to: '/modelos', label: 'Modelos', icon: ListChecks },
+  { to: '/formularios', label: 'Formulários', icon: FileText },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
