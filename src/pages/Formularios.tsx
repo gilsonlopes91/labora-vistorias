@@ -7,11 +7,11 @@ import { Link } from 'react-router-dom'
 import {
   Activity,
   ClipboardList,
-  Cog,
+  FlaskConical,
   FilePlus2,
   Lock,
+  Thermometer,
   Volume2,
-  Zap,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -30,8 +30,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 const ICONES: Record<string, LucideIcon> = {
   'volume-2': Volume2,
   activity: Activity,
-  cog: Cog,
-  zap: Zap,
+  thermometer: Thermometer,
+  'flask-conical': FlaskConical,
   default: ClipboardList,
 }
 
