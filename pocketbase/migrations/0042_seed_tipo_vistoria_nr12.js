@@ -19,15 +19,11 @@ migrate(
       tipoRec.set('nr_referencia', 'NR-12')
       tipoRec.set(
         'descricao',
-        'Checklist do CORPO da NR-12 (itens 12.3 a 12.154 — regras gerais de segurança de máquinas, ' +
-          'válidas para qualquer equipamento). Os Anexos técnicos V a XII (específicos por tipo de ' +
-          'máquina: prensas, calandras, serras, injetoras etc.) ficam para um cadastro futuro, sob ' +
-          'demanda. Item/grau/tipo extraídos do Anexo II da NR-28; onde vários subitens/alíneas têm o ' +
-          'mesmo grau e tipo, foram agrupados em uma única linha (o código exibido é o do primeiro ' +
-          'subitem do grupo — a multa é calculada por grau/tipo, não pelo código). Cálculo de multa pelo ' +
-          'Anexo I da NR-28. TODAS as descrições foram redigidas a partir de conhecimento geral da ' +
-          'estrutura da NR-12, sem confirmação linha a linha do texto vigente — revisão obrigatória com ' +
-          'a fonte oficial (gov.br) antes de qualquer uso em laudo real.',
+        'Checklist do CORPO da NR-12 (12.3 a 12.154 — regras gerais, válidas p/ qualquer máquina). ' +
+          'Anexos V-XII (por tipo de máquina) ficam p/ cadastro futuro. Item/grau/tipo do Anexo II da ' +
+          'NR-28; subitens/alíneas de mesmo grau/tipo foram agrupados numa linha (multa é por grau/tipo, ' +
+          'não pelo código). Multa pelo Anexo I da NR-28. Descrições redigidas a partir de conhecimento ' +
+          'geral da norma, sem confirmação linha a linha — revisão obrigatória antes de laudo real.',
       )
       tipoRec.set('ativo', true)
       app.save(tipoRec)
