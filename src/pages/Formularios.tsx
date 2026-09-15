@@ -4,22 +4,14 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
-import {
-  Activity,
-  ClipboardList,
-  FlaskConical,
-  FilePlus2,
-  Lock,
-  Thermometer,
-  Volume2,
-  type LucideIcon,
-} from 'lucide-react'
+import { ClipboardList, FilePlus2, Lock } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getModelosFormulario, type ModeloFormulario } from '@/services/formularios'
 import { getFormularios, type Formulario } from '@/services/registrosFormulario'
+import { getIconeFormulario } from '@/lib/iconesFormulario'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,15 +19,7 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 
-const ICONES: Record<string, LucideIcon> = {
-  'volume-2': Volume2,
-  activity: Activity,
-  thermometer: Thermometer,
-  'flask-conical': FlaskConical,
-  default: ClipboardList,
-}
-
-const iconeDe = (modelo: ModeloFormulario) => ICONES[modelo.icone || ''] || ICONES.default
+const iconeDe = (modelo: { icone?: string | null }) => getIconeFormulario(modelo.icone)
 
 export default function Formularios() {
   const [modelos, setModelos] = useState<ModeloFormulario[]>([])
@@ -164,9 +148,7 @@ export default function Formularios() {
               <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl border-none bg-card p-2 shadow-subtle">
                 {registros.map((r) => {
                   const modelo = r.expand?.modelo_formulario_id
-                  const Icone = modelo
-                    ? iconeDe({ icone: modelo.icone } as ModeloFormulario)
-                    : ICONES.default
+                  const Icone = getIconeFormulario(modelo?.icone)
                   return (
                     <div key={r.id} className="flex items-center gap-3 px-3 py-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">

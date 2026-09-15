@@ -6,7 +6,6 @@ import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
-  Activity,
   AlignLeft,
   ArrowDown,
   ArrowUp,
@@ -27,17 +26,13 @@ import {
   Trash2,
   Type,
   Zap,
-  Volume2,
-  Thermometer,
-  FlaskConical,
-  Cog,
-  HardHat,
   type LucideIcon,
 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { createModeloFormulario, type CampoFormulario } from '@/services/formularios'
+import { ICONES_FORMULARIO } from '@/lib/iconesFormulario'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -101,17 +96,6 @@ const PALETA: { categoria: string; itens: TipoCampo[] }[] = [
 ]
 
 const tipoInfo = (tipo: string) => PALETA.flatMap((g) => g.itens).find((i) => i.tipo === tipo)
-
-const ICONES_FICHA = [
-  'clipboard-list',
-  'volume-2',
-  'activity',
-  'thermometer',
-  'flask-conical',
-  'zap',
-  'cog',
-  'hard-hat',
-]
 
 // ---------- Estado de configuração do campo em construção/edição ----------
 
@@ -699,19 +683,25 @@ export default function BuilderFormulario() {
             <div className="space-y-1.5">
               <Label>Ícone no catálogo</Label>
               <div className="grid grid-cols-4 gap-2">
-                {ICONES_FICHA.map((nome) => (
-                  <button
-                    key={nome}
-                    onClick={() => setIcone(nome)}
-                    className={`flex h-10 items-center justify-center rounded-xl border transition-colors ${
-                      icone === nome
-                        ? 'border-primary bg-accent text-accent-foreground'
-                        : 'hover:bg-muted'
-                    }`}
-                  >
-                    <IconeFicha nome={nome} />
-                  </button>
-                ))}
+                {ICONES_FORMULARIO.map((opcao) => {
+                  const Icone = opcao.icon
+                  return (
+                    <button
+                      key={opcao.id}
+                      type="button"
+                      title={opcao.label}
+                      aria-label={opcao.label}
+                      onClick={() => setIcone(opcao.id)}
+                      className={`flex h-10 items-center justify-center rounded-xl border transition-colors ${
+                        icone === opcao.id
+                          ? 'border-primary bg-accent text-accent-foreground'
+                          : 'hover:bg-muted'
+                      }`}
+                    >
+                      <Icone className="h-4 w-4" />
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -719,19 +709,4 @@ export default function BuilderFormulario() {
       </div>
     </div>
   )
-}
-
-function IconeFicha({ nome }: { nome: string }) {
-  const mapa: Record<string, LucideIcon> = {
-    'clipboard-list': ListChecks,
-    'volume-2': Volume2,
-    activity: Activity,
-    thermometer: Thermometer,
-    'flask-conical': FlaskConical,
-    zap: Zap,
-    cog: Cog,
-    'hard-hat': HardHat,
-  }
-  const Icone = mapa[nome] || ListChecks
-  return <Icone className="h-4 w-4" />
 }
