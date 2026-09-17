@@ -85,6 +85,11 @@ interface ImagemCarregada {
   altura: number
 }
 
+// Limite para embutir imagens no PDF — imagens maiores que isso são
+// redimensionadas antes. Sem isso, um PNG de alta resolução (ex.: logo
+// 4167px) entra inteiro no PDF e o laudo sai com dezenas de MB.
+const MAX_DIMENSAO_IMAGEM_PDF = 1200
+
 async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada | null> {
   try {
     const resposta = await fetch(url)
@@ -102,6 +107,38 @@ async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada |
       img.onerror = () => resolve({ largura: 4, altura: 3 })
       img.src = dataUrl
     })
+
+    // Redimensiona imagens grandes (logo/foto em alta resolução) antes de
+    // embutir no PDF — evita laudos com dezenas de MB. PNG continua PNG
+    // (preserva transparência da logo); os demais viram JPEG.
+    const maiorDimensao = Math.max(dimensoes.largura, dimensoes.altura)
+    if (maiorDimensao > MAX_DIMENSAO_IMAGEM_PDF) {
+      try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const imagem = new Image()
+          imagem.onload = () => resolve(imagem)
+          imagem.onerror = () => reject(new Error('Falha ao decodificar imagem'))
+          imagem.src = dataUrl
+        })
+        const escala = MAX_DIMENSAO_IMAGEM_PDF / maiorDimensao
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(dimensoes.largura * escala)
+        canvas.height = Math.round(dimensoes.altura * escala)
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          const tipoSaida = blob.type === 'image/png' ? 'image/png' : 'image/jpeg'
+          const redimensionado = canvas.toDataURL(
+            tipoSaida,
+            tipoSaida === 'image/jpeg' ? 0.85 : undefined,
+          )
+          return { dataUrl: redimensionado, largura: canvas.width, altura: canvas.height }
+        }
+      } catch {
+        // falha ao redimensionar — segue com a imagem original
+      }
+    }
+
     return { dataUrl, ...dimensoes }
   } catch {
     return null
