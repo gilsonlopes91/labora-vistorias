@@ -248,7 +248,19 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.text('Soma dos itens não conformes, pela gradação do Anexo I da NR-28.', margin, y)
-    y += 20
+    y += 11
+    if (dados.itens.some((item) => item.codigo && item.codigo.startsWith('231'))) {
+      doc.setFontSize(8)
+      doc.setTextColor(120)
+      const linhasNr31 = doc.splitTextToSize(
+        'Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — R$ 380,00 por empregado em situação irregular (dobrado na reincidência), conforme o nº de empregados informado em cada item.',
+        larguraUtil,
+      )
+      doc.text(linhasNr31, margin, y)
+      doc.setTextColor(0)
+      y += linhasNr31.length * 10
+    }
+    y += 9
   } else {
     y += 4
   }
@@ -290,6 +302,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       const yInicioItem = y
       const temMulta =
         resposta.situacao === 'N/C' && !!(resposta.valor_multa_min || resposta.valor_multa_max)
+      const ehNr31 = resposta.situacao === 'N/C' && !!item.codigo && item.codigo.startsWith('231')
 
       // Coluna esquerda: identificação do item + descrição + observação
       doc.setFont('helvetica', 'bold')
@@ -344,6 +357,23 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         doc.text(linhasMulta, xColunaValores, yColunaValores)
         yColunaValores += linhasMulta.length * 10
         doc.setTextColor(0, 0, 0)
+        doc.setFont('helvetica', 'normal')
+      }
+
+      if (ehNr31) {
+        // NR-31: explica o critério rural no laudo
+        doc.setFont('helvetica', 'italic')
+        doc.setFontSize(7.5)
+        doc.setTextColor(120)
+        const linhasNr31 = doc.splitTextToSize(
+          resposta.numero_funcionarios_irregulares
+            ? `NR-31 (Lei 5.889/1973, art. 18): R$ 380,00 por empregado irregular × ${resposta.numero_funcionarios_irregulares} empregado(s); dobrada na reincidência (R$ 760,00).`
+            : 'NR-31 (Lei 5.889/1973, art. 18): multa por empregado em situação irregular — informe o nº de empregados irregulares para calcular.',
+          larguraColunaDescricao,
+        )
+        doc.text(linhasNr31, margin, y)
+        y += linhasNr31.length * 9 + 2
+        doc.setTextColor(0)
         doc.setFont('helvetica', 'normal')
       }
 

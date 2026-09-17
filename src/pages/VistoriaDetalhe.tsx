@@ -87,6 +87,19 @@ const OBSERVACAO_PLACEHOLDER: Record<Situacao, string> = {
   'N/A': 'Observação (opcional)',
 }
 
+// NR-31 (trabalho rural): os itens dela têm código 231xxx no Anexo II da NR-28
+// e NÃO usam a grade UFIR do Anexo I — a sanção segue o art. 18 da Lei
+// 5.889/1973 (R$ 380,00 por empregado em situação irregular, dobrado na
+// reincidência), remetida pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026).
+// Por isso o item pede o nº de empregados irregulares em vez de mostrar grau.
+const isItemNr31 = (item: ItemChecklist) => !!(item.codigo && item.codigo.startsWith('231'))
+
+const TEXTO_NR31 =
+  'Infração da NR-31 (trabalho rural): a multa não usa a grade de UFIR do Anexo I da NR-28. ' +
+  'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973: ' +
+  'R$ 380,00 por empregado em situação irregular, dobrada na reincidência (R$ 760,00). ' +
+  'Informe abaixo quantos empregados estão expostos à não conformidade para o cálculo.'
+
 const NOVO_RESPONSAVEL = '__novo__'
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -230,6 +243,23 @@ export default function VistoriaDetalhe() {
       setRespostas((prev) => ({ ...prev, [item.id]: updated }))
     } catch (error) {
       toast.error('Não foi possível salvar a resposta', { description: getErrorMessage(error) })
+    }
+  }
+
+  const handleIrregularesBlur = async (item: ItemChecklist, valor: string) => {
+    const existing = respostas[item.id]
+    if (!existing) return
+    const n = Math.max(0, Math.floor(Number(valor) || 0))
+    if ((existing.numero_funcionarios_irregulares || 0) === n) return
+    try {
+      const updated = await updateResposta(existing.id, {
+        numero_funcionarios_irregulares: n,
+      } as unknown as { situacao?: Situacao })
+      setRespostas((prev) => ({ ...prev, [item.id]: updated }))
+    } catch (error) {
+      toast.error('Não foi possível salvar o nº de empregados irregulares', {
+        description: getErrorMessage(error),
+      })
     }
   }
 
@@ -484,6 +514,10 @@ export default function VistoriaDetalhe() {
     }
     return { conforme, naoConforme, naoAplica, semResposta, multaMin, multaMax }
   }, [itensOrdenados, respostas])
+
+  // NR-31 presente na vistoria? O resumo avisa que a parte rural usa outro
+  // critério legal (Lei 5.889/1973), somado à grade UFIR das demais NRs.
+  const temNr31 = useMemo(() => itensOrdenados.some((item) => isItemNr31(item)), [itensOrdenados])
 
   const progressoPct = itensOrdenados.length
     ? Math.round(((itensOrdenados.length - resumo.semResposta) / itensOrdenados.length) * 100)
@@ -756,6 +790,8 @@ export default function VistoriaDetalhe() {
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Soma dos itens marcados como não conforme, pela gradação do Anexo I da NR-28.
+                  {temNr31 &&
+                    ' Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — R$ 380,00 por empregado irregular (dobrado na reincidência), calculados conforme o nº informado em cada item.'}
                 </div>
               </div>
             </CardContent>
@@ -790,6 +826,11 @@ export default function VistoriaDetalhe() {
                             {item.grau && (
                               <Badge variant="outline" className="text-xs">
                                 Grau {item.grau} · {item.tipo === 'S' ? 'Severidade' : 'Moderada'}
+                              </Badge>
+                            )}
+                            {!item.grau && isItemNr31(item) && (
+                              <Badge variant="outline" className="text-xs">
+                                NR-31 · multa por empregado irregular
                               </Badge>
                             )}
                           </div>
@@ -831,7 +872,36 @@ export default function VistoriaDetalhe() {
                     </CardHeader>
                     {resposta?.situacao && (
                       <CardContent className="pt-0">
+                        {resposta.situacao === 'N/C' && isItemNr31(item) && (
+                          <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                            {TEXTO_NR31}
+                            <div className="mt-2 flex items-center gap-2">
+                              <Label htmlFor={`irreg-${item.id}`} className="text-xs font-medium">
+                                Empregados irregulares:
+                              </Label>
+                              <Input
+                                id={`irreg-${item.id}`}
+                                type="number"
+                                min={0}
+                                defaultValue={resposta.numero_funcionarios_irregulares ?? ''}
+                                onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
+                                className="h-8 w-28"
+                              />
+                              {resposta.valor_multa_min || resposta.valor_multa_max ? (
+                                <span className="text-sm font-medium text-destructive">
+                                  Multa: {currency.format(resposta.valor_multa_min || 0)} a{' '}
+                                  {currency.format(resposta.valor_multa_max || 0)}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  Sem nº informado — multa não calculada
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         {resposta.situacao === 'N/C' &&
+                          !isItemNr31(item) &&
                           (resposta.valor_multa_min || resposta.valor_multa_max) && (
                             <div className="mb-2 text-sm font-medium text-destructive">
                               Multa estimada: {currency.format(resposta.valor_multa_min || 0)} a{' '}

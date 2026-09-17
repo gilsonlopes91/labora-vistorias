@@ -1,8 +1,12 @@
-// Mesmo cálculo do calc_multa_on_create.js, mas disparado quando uma resposta
-// de vistoria já existente é atualizada (ex.: técnico muda a situação de C
-// para N/C em campo, ou informa/corrige o nº de empregados irregulares).
-// Regra 1 (urbana): Anexo I NR-28 x UFIR. Regra 2 (rural/NR-31): art. 18 da
-// Lei 5.889/1973 — R$ 392,89 por empregado irregular (parâmetro configurável).
+// Mesmo cálculo do calc_multa_on_create.js, mas disparado quando uma resposta de
+// vistoria já existente é atualizada (ex.: técnico muda a situação de C para N/C
+// em campo, ou corrige o item depois). Lógica duplicada de propósito — hooks do
+// Skip Cloud não compartilham helpers de nível de arquivo entre callbacks.
+//
+// NR-31 (trabalho rural): sanção pelo art. 18 da Lei 5.889/1973 — R$ 380,00 por
+// empregado em situação irregular (dobrado na reincidência = R$ 760,00), via
+// item 28.3.2 da NR-28 (Portaria MTE 104/2026). Usa o campo
+// numero_funcionarios_irregulares da resposta.
 onRecordUpdate((e) => {
   try {
     const record = e.record
@@ -14,9 +18,9 @@ onRecordUpdate((e) => {
       const item = $app.findRecordById('itens_checklist', record.get('item_checklist_id'))
       const grau = item.getInt('grau')
       const tipo = item.getString('tipo')
+      const codigo = item.getString('codigo')
 
       if (grau && (tipo === 'S' || tipo === 'M')) {
-        // Regra 1 — grade UFIR do Anexo I da NR-28 (NRs urbanas)
         const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
         const empresa = $app.findRecordById('empresas', vistoria.get('empresa_id'))
         const numFunc = empresa.getInt('numero_funcionarios')
@@ -43,27 +47,13 @@ onRecordUpdate((e) => {
 
         vmin = Math.round(tabelaRow.getFloat('valor_min_ufir') * ufirReais * 100) / 100
         vmax = Math.round(tabelaRow.getFloat('valor_max_ufir') * ufirReais * 100) / 100
-      } else {
-        // Regra 2 — trabalho rural (NR-31): multa fixa por empregado irregular
-        const tipoVistoria = $app.findRecordById(
-          'tipos_vistoria',
-          item.getString('tipo_vistoria_id'),
-        )
-        if (tipoVistoria.getString('nr_referencia') === 'NR-31') {
-          const irregulares = record.getInt('numero_funcionarios_irregulares')
-          if (irregulares > 0) {
-            let valorPorEmpregado = 392.89
-            try {
-              const paramRow = $app.findFirstRecordByFilter(
-                'parametros_sistema',
-                "chave = 'multa_rural_por_empregado'",
-              )
-              valorPorEmpregado = paramRow.getFloat('valor_numero') || 392.89
-            } catch (_) {}
-            const total = Math.round(irregulares * valorPorEmpregado * 100) / 100
-            vmin = total
-            vmax = total
-          }
+      } else if (codigo && codigo.startsWith('231')) {
+        // NR-31 — trabalho rural (códigos 231xxx do Anexo II da NR-28).
+        const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
+        const nIrregulares = record.getInt('numero_funcionarios_irregulares')
+        if (nIrregulares > 0) {
+          vmin = Math.round(380 * nIrregulares * 100) / 100
+          vmax = Math.round(760 * nIrregulares * 100) / 100
         }
       }
     }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-17T22:30:00.189Z",
+  "generatedAt": "2026-09-17T22:34:02.103Z",
   "collections": [
     {
       "name": "users",
@@ -421,18 +421,6 @@
           "autodateTriggers": [
             "onCreate",
             "onUpdate"
-          ]
-        },
-        {
-          "name": "natureza_infracao",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": [
-            "leve",
-            "media",
-            "grave",
-            "gravissima"
           ]
         }
       ],

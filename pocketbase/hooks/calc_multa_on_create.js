@@ -1,16 +1,14 @@
 // Calcula o valor da multa (mín/máx) de uma resposta de vistoria assim que ela
-// é criada. Duas regras, conforme a norma do item:
+// é criada, usando a mesma lógica das planilhas: Anexo II da NR-28 (grau/tipo do
+// item) x Anexo I da NR-28 (grade de UFIR por faixa de nº de funcionários) x
+// valor de conversão do UFIR em reais. Só calcula quando situacao = "N/C".
 //
-// 1. URBANA (demais NRs): Anexo II da NR-28 (grau/tipo do item) x Anexo I da
-//    NR-28 (grade de UFIR por faixa de nº de funcionários do estabelecimento)
-//    x valor de conversão do UFIR em reais. Só calcula quando situacao = "N/C".
-//
-// 2. RURAL (NR-31): o item 28.3.2 da NR-28 remete ao art. 18 da Lei nº
-//    5.889/1973 — multa de valor fixo POR EMPREGADO EM SITUAÇÃO IRREGULAR
-//    (Portaria MTE nº 1.131/2025: R$ 392,89; parâmetro configurável em
-//    parametros_sistema). Usa o campo numero_funcionarios_irregulares da
-//    resposta; sem esse número, a multa fica 0 (o auditor precisa informar
-//    quantos empregados estão expostos à infração).
+// NR-31 (trabalho rural): a sanção NÃO usa a grade UFIR do Anexo I. O item
+// 28.3.2 da NR-28 (Portaria MTE 104/2026) remete ao art. 18 da Lei 5.889/1973:
+// R$ 380,00 por empregado em situação irregular, dobrada na reincidência
+// (R$ 760,00). O campo numero_funcionarios_irregulares da resposta informa
+// quantos empregados estão expostos à infração; sem esse valor, a multa fica
+// zerada e o laudo explica o critério rural.
 onRecordCreate((e) => {
   try {
     const record = e.record
@@ -22,9 +20,9 @@ onRecordCreate((e) => {
       const item = $app.findRecordById('itens_checklist', record.get('item_checklist_id'))
       const grau = item.getInt('grau')
       const tipo = item.getString('tipo')
+      const codigo = item.getString('codigo')
 
       if (grau && (tipo === 'S' || tipo === 'M')) {
-        // Regra 1 — grade UFIR do Anexo I da NR-28 (NRs urbanas)
         const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
         const empresa = $app.findRecordById('empresas', vistoria.get('empresa_id'))
         const numFunc = empresa.getInt('numero_funcionarios')
@@ -51,28 +49,15 @@ onRecordCreate((e) => {
 
         vmin = Math.round(tabelaRow.getFloat('valor_min_ufir') * ufirReais * 100) / 100
         vmax = Math.round(tabelaRow.getFloat('valor_max_ufir') * ufirReais * 100) / 100
-      } else {
-        // Regra 2 — trabalho rural (NR-31): multa fixa por empregado irregular
-        // (art. 18 da Lei 5.889/1973, via item 28.3.2 da NR-28)
-        const tipoVistoria = $app.findRecordById(
-          'tipos_vistoria',
-          item.getString('tipo_vistoria_id'),
-        )
-        if (tipoVistoria.getString('nr_referencia') === 'NR-31') {
-          const irregulares = record.getInt('numero_funcionarios_irregulares')
-          if (irregulares > 0) {
-            let valorPorEmpregado = 392.89
-            try {
-              const paramRow = $app.findFirstRecordByFilter(
-                'parametros_sistema',
-                "chave = 'multa_rural_por_empregado'",
-              )
-              valorPorEmpregado = paramRow.getFloat('valor_numero') || 392.89
-            } catch (_) {}
-            const total = Math.round(irregulares * valorPorEmpregado * 100) / 100
-            vmin = total
-            vmax = total
-          }
+      } else if (codigo && codigo.startsWith('231')) {
+        // NR-31 — trabalho rural (códigos 231xxx do Anexo II da NR-28).
+        // Art. 18 da Lei 5.889/1973: R$ 380,00 por empregado irregular;
+        // dobrado na reincidência (R$ 760,00).
+        const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
+        const nIrregulares = record.getInt('numero_funcionarios_irregulares')
+        if (nIrregulares > 0) {
+          vmin = Math.round(380 * nIrregulares * 100) / 100
+          vmax = Math.round(760 * nIrregulares * 100) / 100
         }
       }
     }

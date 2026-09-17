@@ -36,6 +36,7 @@ interface RespostaCreateInput {
 interface RespostaUpdateInput {
   situacao?: Situacao
   observacao?: string
+  numero_funcionarios_irregulares?: number
   fotos?: File[]
   localizacao?: GeoLocalizacao
 }
