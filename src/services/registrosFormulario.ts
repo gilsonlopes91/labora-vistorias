@@ -9,7 +9,10 @@ export interface Formulario {
   modelo_formulario_id: string
   vistoria_id?: string
   // expand do modelo (usado na listagem/detalhe)
-  expand?: { modelo_formulario_id?: { nome: string; icone?: string; campos?: CampoFormulario[] } }
+  expand?: {
+    modelo_formulario_id?: { nome: string; icone?: string; campos?: CampoFormulario[] }
+    empresa_id?: { razao_social: string; nome_fantasia?: string }
+  }
   dados: Record<string, unknown>
   anexos: string[]
   status: 'rascunho' | 'concluido'
@@ -23,11 +26,21 @@ export interface Formulario {
 export const getFormularios = () =>
   pb.collection('formularios').getFullList<Formulario>({
     sort: '-created',
-    expand: 'modelo_formulario_id',
+    expand: 'modelo_formulario_id,empresa_id',
   })
 
 export const getFormulario = (id: string) =>
-  pb.collection('formularios').getOne<Formulario>(id, { expand: 'modelo_formulario_id' })
+  pb.collection('formularios').getOne<Formulario>(id, {
+    expand: 'modelo_formulario_id,empresa_id',
+  })
+
+// Registros de formulário de uma empresa (página da empresa / filtro por empresa).
+export const getFormulariosByEmpresa = (empresaId: string) =>
+  pb.collection('formularios').getFullList<Formulario>({
+    filter: pb.filter('empresa_id = {:id}', { id: empresaId }),
+    sort: '-created',
+    expand: 'modelo_formulario_id,empresa_id',
+  })
 
 // Registros de formulário já preenchidos dentro de uma vistoria específica.
 export const getFormulariosByVistoria = (vistoriaId: string) =>

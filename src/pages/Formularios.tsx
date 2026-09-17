@@ -4,14 +4,23 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { ClipboardList, FilePlus2, Lock } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
+import { getEmpresas, type Empresa } from '@/services/empresas'
 import { getModelosFormulario, type ModeloFormulario } from '@/services/formularios'
 import { getFormularios, type Formulario } from '@/services/registrosFormulario'
 import { getIconeFormulario } from '@/lib/iconesFormulario'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,15 +33,18 @@ const iconeDe = (modelo: { icone?: string | null }) => getIconeFormulario(modelo
 export default function Formularios() {
   const [modelos, setModelos] = useState<ModeloFormulario[]>([])
   const [registros, setRegistros] = useState<Formulario[]>([])
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('todas')
   const [loading, setLoading] = useState(true)
   // Regras PB: só gestor (dono/gerente) cria modelos customizados.
   const podeGerenciar = getPapelUsuarioLogado() !== 'executor'
 
   useEffect(() => {
-    Promise.all([getModelosFormulario(), getFormularios()])
-      .then(([ms, rs]) => {
+    Promise.all([getModelosFormulario(), getFormularios(), getEmpresas()])
+      .then(([ms, rs, es]) => {
         setModelos(ms)
         setRegistros(rs)
+        setEmpresas(es)
       })
       .catch((error) =>
         toast.error('Não foi possível carregar os formulários', {
@@ -44,6 +56,9 @@ export default function Formularios() {
 
   const fixos = modelos.filter((m) => m.fixo)
   const proprios = modelos.filter((m) => !m.fixo)
+
+  const registrosFiltrados =
+    filtroEmpresa === 'todas' ? registros : registros.filter((r) => r.empresa_id === filtroEmpresa)
 
   const CardModelo = ({ modelo }: { modelo: ModeloFormulario }) => {
     const Icone = iconeDe(modelo)
@@ -104,7 +119,6 @@ export default function Formularios() {
             <TabsTrigger value="modelos">Modelos ({modelos.length})</TabsTrigger>
             <TabsTrigger value="registros">Registros ({registros.length})</TabsTrigger>
           </TabsList>
-
           <TabsContent value="modelos">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Catálogo — prontos para uso
@@ -135,19 +149,39 @@ export default function Formularios() {
               </div>
             )}
           </TabsContent>
-
           <TabsContent value="registros">
-            {registros.length === 0 ? (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Registros preenchidos
+              </p>
+              <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Filtrar por empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as empresas</SelectItem>
+                  {empresas.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.nome_fantasia || emp.razao_social}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {registrosFiltrados.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
                 <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Nenhum registro preenchido ainda — preencha um modelo na aba Modelos.
+                  {registros.length === 0
+                    ? 'Nenhum registro preenchido ainda — preencha um modelo na aba Modelos.'
+                    : 'Nenhum registro para a empresa selecionada.'}
                 </p>
               </div>
             ) : (
               <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl border-none bg-card p-2 shadow-subtle">
-                {registros.map((r) => {
+                {registrosFiltrados.map((r) => {
                   const modelo = r.expand?.modelo_formulario_id
+                  const empresa = r.expand?.empresa_id
                   const Icone = getIconeFormulario(modelo?.icone)
                   return (
                     <div key={r.id} className="flex items-center gap-3 px-3 py-3">
@@ -159,6 +193,7 @@ export default function Formularios() {
                           {modelo?.nome || 'Formulário'}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
+                          {empresa ? `${empresa.nome_fantasia || empresa.razao_social} · ` : ''}
                           {new Date(r.created).toLocaleDateString('pt-BR')} ·{' '}
                           {r.status === 'concluido' ? 'Concluído' : 'Rascunho'}
                         </p>
@@ -174,7 +209,7 @@ export default function Formularios() {
                 })}
               </Card>
             )}
-          </TabsContent>
+          </TabsContent>{' '}
         </Tabs>
       )}
 

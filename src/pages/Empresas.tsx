@@ -16,6 +16,7 @@ import {
   deleteEmpresa,
   type Empresa,
 } from '@/services/empresas'
+import { getFormularios, type Formulario } from '@/services/registrosFormulario'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -94,6 +95,7 @@ const emptyValues: EmpresaFormValues = {
 
 export default function Empresas() {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [formularios, setFormularios] = useState<Formulario[]>([])
   const [organizacaoId, setOrganizacaoId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -110,8 +112,9 @@ export default function Empresas() {
     try {
       const org = await getMinhaOrganizacao()
       setOrganizacaoId(org.id)
-      const items = await getEmpresas()
+      const [items, forms] = await Promise.all([getEmpresas(), getFormularios()])
       setEmpresas(items)
+      setFormularios(forms)
     } catch (error) {
       toast.error('Não foi possível carregar as empresas', { description: getErrorMessage(error) })
     } finally {
@@ -234,6 +237,7 @@ export default function Empresas() {
                 <TableHead>CNPJ</TableHead>
                 <TableHead>Porte</TableHead>
                 <TableHead>Funcionários</TableHead>
+                <TableHead>Formulários</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -248,6 +252,21 @@ export default function Empresas() {
                     {empresa.porte ? <Badge variant="secondary">{empresa.porte}</Badge> : '—'}
                   </TableCell>
                   <TableCell>{empresa.numero_funcionarios ?? '—'}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const total = formularios.filter((f) => f.empresa_id === empresa.id).length
+                      if (total === 0) return <span className="text-muted-foreground">—</span>
+                      const concluidos = formularios.filter(
+                        (f) => f.empresa_id === empresa.id && f.status === 'concluido',
+                      ).length
+                      return (
+                        <Badge variant="secondary">
+                          {total} registro{total > 1 ? 's' : ''}
+                          {concluidos > 0 ? ` · ${concluidos} concl.` : ''}
+                        </Badge>
+                      )
+                    })()}
+                  </TableCell>
                   <TableCell>
                     {empresa.contato_nome || empresa.contato_telefone ? (
                       <div className="text-sm">

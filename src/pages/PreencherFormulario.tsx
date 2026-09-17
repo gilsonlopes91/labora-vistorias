@@ -5,10 +5,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Camera, Check, PenTool, Plus, Save, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Building2, Camera, Check, PenTool, Plus, Save, Trash2, X } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
+import { getEmpresas, type Empresa } from '@/services/empresas'
 import {
   getModeloFormulario,
   type CampoFormulario,
@@ -123,6 +124,8 @@ export default function PreencherFormulario() {
   const [modelo, setModelo] = useState<ModeloFormulario | null>(null)
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [empresaId, setEmpresaId] = useState<string>('')
 
   // dados[campoId] = valor | dados[campoId][indice][subcampoId] = valor (repetível)
   const [dados, setDados] = useState<Record<string, unknown>>({})
@@ -131,8 +134,11 @@ export default function PreencherFormulario() {
 
   useEffect(() => {
     if (!id) return
-    getModeloFormulario(id)
-      .then(setModelo)
+    Promise.all([getModeloFormulario(id), getEmpresas()])
+      .then(([m, es]) => {
+        setModelo(m)
+        setEmpresas(es)
+      })
       .catch((error) =>
         toast.error('Não foi possível carregar o modelo', { description: getErrorMessage(error) }),
       )
@@ -242,6 +248,7 @@ export default function PreencherFormulario() {
       const registro = await createFormulario({
         organizacao_id: org.id,
         modelo_formulario_id: modelo.id,
+        empresa_id: empresaId || undefined,
         dados,
         status,
         data_campo: new Date().toISOString(),
@@ -675,6 +682,32 @@ export default function PreencherFormulario() {
           {obrigatoriosPendentes.length} campo(s) obrigatório(s) pendente(s) para concluir.
         </p>
       )}
+
+      {/* Empresa à qual o registro se refere — vincula o registro ao cliente,
+          aparece na página da empresa e permite filtro na lista de registros. */}
+      <Card className="mb-4 rounded-2xl border-none bg-card p-4 shadow-subtle">
+        <div className="space-y-1.5">
+          <Label>
+            <Building2 className="mr-1.5 inline h-3.5 w-3.5" />
+            Empresa (cliente)
+          </Label>
+          <Select value={empresaId || undefined} onValueChange={setEmpresaId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Vincular a uma empresa (opcional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {empresas.map((emp) => (
+                <SelectItem key={emp.id} value={emp.id}>
+                  {emp.nome_fantasia || emp.razao_social}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Vinculando, o registro aparece na página da empresa e nos relatórios dela.
+          </p>
+        </div>
+      </Card>
 
       <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
         {modelo.campos.map(renderCampo)}
