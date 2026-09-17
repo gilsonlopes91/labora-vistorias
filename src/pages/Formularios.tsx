@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
 import { ClipboardList, FilePlus2, Lock } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
