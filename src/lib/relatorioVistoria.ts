@@ -12,7 +12,6 @@ import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respos
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
 
 function executarAutoTable(doc: jsPDF, options: Record<string, unknown>): number {
-  // 1. Garante que o plugin autoTable esteja registrado no protótipo/API do jsPDF
   try {
     if (typeof autoTableApplyPlugin === 'function') {
       autoTableApplyPlugin(jsPDF)
@@ -21,7 +20,6 @@ function executarAutoTable(doc: jsPDF, options: Record<string, unknown>): number
     // ignora se já tiver sido aplicado
   }
 
-  // 2. Tenta invocar doc.autoTable(options)
   const docAny = doc as unknown as {
     autoTable?: (options: Record<string, unknown>) => unknown
     lastAutoTable?: { finalY?: number }
@@ -31,7 +29,6 @@ function executarAutoTable(doc: jsPDF, options: Record<string, unknown>): number
     return docAny.lastAutoTable?.finalY ?? (typeof options.startY === 'number' ? options.startY : 0)
   }
 
-  // 3. Tenta invocar a função autoTablePlugin(doc, options)
   let fn: unknown = autoTablePlugin
   if (
     typeof fn !== 'function' &&
@@ -87,8 +84,9 @@ interface ImagemCarregada {
 
 // Limite para embutir imagens no PDF — imagens maiores que isso são
 // redimensionadas antes. Sem isso, um PNG de alta resolução (ex.: logo
-// 4167px) entra inteiro no PDF e o laudo sai com dezenas de MB.
-const MAX_DIMENSAO_IMAGEM_PDF = 1200
+// 4167px) entra inteiro no PDF e o laudo sai com dezenas de MB. 600px é
+// ~3x a maior exibição no laudo (foto ~210pt), suficiente para nitidez.
+const MAX_DIMENSAO_IMAGEM_PDF = 600
 
 async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada | null> {
   try {
