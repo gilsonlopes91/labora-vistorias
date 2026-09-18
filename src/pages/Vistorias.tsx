@@ -18,14 +18,6 @@ import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -92,7 +84,7 @@ export default function Vistorias() {
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Vistorias</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">Vistorias</h1>
           <p className="text-sm text-muted-foreground">
             Acompanhe as vistorias agendadas e realizadas.
           </p>
@@ -109,60 +101,65 @@ export default function Vistorias() {
           <NovaVistoriaDialog onCreated={(id) => navigate(`/vistorias/${id}`)} />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border-none bg-card shadow-subtle">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Empresa</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Data agendada</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vistorias.map((v) => (
-                <TableRow
-                  key={v.id}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/vistorias/${v.id}`)}
-                >
-                  <TableCell className="font-medium">
-                    {v.expand?.empresa_id?.nome_fantasia ||
-                      v.expand?.empresa_id?.razao_social ||
-                      '—'}
-                  </TableCell>
-                  <TableCell>
-                    {v.expand?.tipo_vistoria_id?.nr_referencia ||
-                      v.expand?.tipo_vistoria_id?.nome ||
-                      (v.expand?.checklists?.length
-                        ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
-                        : v.expand?.formularios?.length
-                          ? v.expand.formularios.map((f) => f.nome).join(', ')
-                          : '—')}
-                  </TableCell>
-                  <TableCell>{formatBrazilianDate(v.data_agendada)}</TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS_VARIANT[v.status || 'agendada']}>
-                      {STATUS_LABEL[v.status || 'agendada']}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(v)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="space-y-2">
+          {vistorias.map((v) => {
+            const status = v.status || 'agendada'
+            // Cor de estado na borda esquerda: leitura instantânea sem ler o texto
+            const borda =
+              status === 'concluida'
+                ? 'border-l-emerald-600'
+                : status === 'cancelada'
+                  ? 'border-l-muted-foreground/40'
+                  : status === 'em_andamento'
+                    ? 'border-l-primary'
+                    : 'border-l-amber-500'
+            return (
+              <div
+                key={v.id}
+                role="button"
+                tabIndex={0}
+                className={`group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-l-4 bg-card p-3 shadow-subtle transition-shadow hover:shadow-elevation ${borda}`}
+                onClick={() => navigate(`/vistorias/${v.id}`)}
+                onKeyDown={(e) => e.key === 'Enter' && navigate(`/vistorias/${v.id}`)}
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-semibold">
+                      {v.expand?.empresa_id?.nome_fantasia ||
+                        v.expand?.empresa_id?.razao_social ||
+                        '—'}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {v.expand?.tipo_vistoria_id?.nr_referencia ||
+                        v.expand?.tipo_vistoria_id?.nome ||
+                        (v.expand?.checklists?.length
+                          ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
+                          : v.expand?.formularios?.length
+                            ? v.expand.formularios.map((f) => f.nome).join(', ')
+                            : 'Vistoria')}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {formatBrazilianDate(v.data_agendada)}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteTarget(v)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

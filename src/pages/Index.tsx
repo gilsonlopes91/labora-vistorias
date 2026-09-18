@@ -285,151 +285,180 @@ const Index = () => {
         </Select>
       </div>
 
-      {/* KPIs */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="rounded-3xl border-none p-6 shadow-subtle">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                <stat.icon className="h-4 w-4" />
+      {/* Duas zonas: esquerda = agenda e atrasos, direita = KPIs empilhados */}
+      <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div className="space-y-6">
+          {/* Atrasadas — aparece primeiro: é a ação do dia */}
+          {atrasadas.length > 0 && (
+            <Card className="border-destructive/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  Vistorias atrasadas ({atrasadas.length})
+                </CardTitle>
+                <CardDescription>
+                  Agendadas para datas passadas e ainda não concluídas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {atrasadas.slice(0, 5).map((v) => {
+                  const d = parseLocalDate(v.data_agendada)
+                  return (
+                    <Link key={v.id} to={`/vistorias/${v.id}`} className="block">
+                      <div className="flex items-center justify-between rounded-lg border border-destructive/30 p-3 transition-colors hover:border-destructive">
+                        <div className="min-w-0">
+                          <div className="font-medium">
+                            {v.expand?.empresa_id?.nome_fantasia ||
+                              v.expand?.empresa_id?.razao_social ||
+                              '—'}
+                          </div>
+                          <div className="truncate text-sm text-muted-foreground">
+                            {v.expand?.tipo_vistoria_id?.nr_referencia ||
+                              v.expand?.tipo_vistoria_id?.nome ||
+                              (v.expand?.checklists?.length
+                                ? v.expand.checklists
+                                    .map((c) => c.nr_referencia || c.nome)
+                                    .join(', ')
+                                : v.expand?.formularios?.length
+                                  ? v.expand.formularios.map((f) => f.nome).join(', ')
+                                  : 'Vistoria')}
+                            {v.expand?.responsavel_tecnico_id?.nome
+                              ? ` · ${v.expand.responsavel_tecnico_id.nome}`
+                              : ''}
+                            {d ? ` · era para ${format(d, 'dd/MM', { locale: ptBR })}` : ''}
+                          </div>
+                        </div>
+                        <Badge variant="destructive" className="shrink-0">
+                          {STATUS_LABEL[v.status || 'agendada']}
+                        </Badge>
+                      </div>
+                    </Link>
+                  )
+                })}
+                {atrasadas.length > 5 && (
+                  <p className="text-xs text-muted-foreground">
+                    + {atrasadas.length - 5} atrasada(s) — veja a agenda para a lista completa.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Agenda do período */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-lg">Agenda — {PERIODO_LABEL[filtroPeriodo]}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {listaPeriodo.length === 0
+                    ? 'Nada agendado no período com os filtros atuais.'
+                    : `${listaPeriodo.length} vistoria(s) no período.`}
+                </p>
               </div>
-              {'alerta' in stat && stat.alerta ? (
-                <Badge variant="destructive">atenção</Badge>
-              ) : null}
-            </div>
-            <div className="text-4xl font-extrabold tracking-tight text-primary">{stat.value}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{stat.label}</div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Atrasadas */}
-      {atrasadas.length > 0 && (
-        <Card className="mb-6 border-destructive/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              Vistorias atrasadas ({atrasadas.length})
-            </CardTitle>
-            <CardDescription>Agendadas para datas passadas e ainda não concluídas.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {atrasadas.slice(0, 5).map((v) => {
-              const d = parseLocalDate(v.data_agendada)
-              return (
-                <Link key={v.id} to={`/vistorias/${v.id}`} className="block">
-                  <div className="flex items-center justify-between rounded-lg border border-destructive/30 p-3 transition-colors hover:border-destructive">
-                    <div>
-                      <div className="font-medium">
-                        {v.expand?.empresa_id?.nome_fantasia ||
-                          v.expand?.empresa_id?.razao_social ||
-                          '—'}
+              <Link to="/agenda">
+                <Button variant="ghost" size="sm">
+                  Abrir agenda <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </Link>
+            </CardHeader>
+            {listaPeriodo.length > 0 && (
+              <CardContent className="space-y-2">
+                {listaPeriodo.map((v) => {
+                  const d = parseLocalDate(v.data_agendada)
+                  return (
+                    <Link key={v.id} to={`/vistorias/${v.id}`} className="block">
+                      <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:border-primary">
+                        <div className="min-w-0">
+                          <div className="font-medium">
+                            {v.expand?.empresa_id?.nome_fantasia ||
+                              v.expand?.empresa_id?.razao_social ||
+                              '—'}
+                          </div>
+                          <div className="truncate text-sm text-muted-foreground">
+                            {d ? format(d, 'EEE, dd/MM', { locale: ptBR }) : '—'} ·{' '}
+                            {v.expand?.tipo_vistoria_id?.nr_referencia ||
+                              v.expand?.tipo_vistoria_id?.nome ||
+                              (v.expand?.checklists?.length
+                                ? v.expand.checklists
+                                    .map((c) => c.nr_referencia || c.nome)
+                                    .join(', ')
+                                : v.expand?.formularios?.length
+                                  ? v.expand.formularios.map((f) => f.nome).join(', ')
+                                  : 'Vistoria')}
+                            {v.expand?.responsavel_tecnico_id?.nome
+                              ? ` · ${v.expand.responsavel_tecnico_id.nome}`
+                              : ''}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={STATUS_VARIANT[v.status || 'agendada']}
+                          className="shrink-0"
+                        >
+                          {STATUS_LABEL[v.status || 'agendada']}
+                        </Badge>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {v.expand?.tipo_vistoria_id?.nr_referencia ||
-                          v.expand?.tipo_vistoria_id?.nome ||
-                          (v.expand?.checklists?.length
-                            ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
-                            : v.expand?.formularios?.length
-                              ? v.expand.formularios.map((f) => f.nome).join(', ')
-                              : 'Vistoria')}
-                        {v.expand?.responsavel_tecnico_id?.nome
-                          ? ` · ${v.expand.responsavel_tecnico_id.nome}`
-                          : ''}
-                        {d ? ` · era para ${format(d, 'dd/MM', { locale: ptBR })}` : ''}
-                      </div>
-                    </div>
-                    <Badge variant="destructive">{STATUS_LABEL[v.status || 'agendada']}</Badge>
-                  </div>
-                </Link>
-              )
-            })}
-            {atrasadas.length > 5 && (
-              <p className="text-xs text-muted-foreground">
-                + {atrasadas.length - 5} atrasada(s) — veja a agenda para a lista completa.
-              </p>
+                    </Link>
+                  )
+                })}
+              </CardContent>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </Card>
 
-      {/* Agenda do período */}
-      <Card className="mb-6">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div>
-            <CardTitle className="text-lg">Agenda — {PERIODO_LABEL[filtroPeriodo]}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {listaPeriodo.length === 0
-                ? 'Nada agendado no período com os filtros atuais.'
-                : `${listaPeriodo.length} vistoria(s) no período.`}
-            </p>
-          </div>
-          <Link to="/agenda">
-            <Button variant="ghost" size="sm">
-              Abrir agenda <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </Link>
-        </CardHeader>
-        {listaPeriodo.length > 0 && (
-          <CardContent className="space-y-2">
-            {listaPeriodo.map((v) => {
-              const d = parseLocalDate(v.data_agendada)
-              return (
-                <Link key={v.id} to={`/vistorias/${v.id}`} className="block">
-                  <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:border-primary">
-                    <div>
-                      <div className="font-medium">
-                        {v.expand?.empresa_id?.nome_fantasia ||
-                          v.expand?.empresa_id?.razao_social ||
-                          '—'}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {d ? format(d, 'EEE, dd/MM', { locale: ptBR }) : '—'} ·{' '}
-                        {v.expand?.tipo_vistoria_id?.nr_referencia ||
-                          v.expand?.tipo_vistoria_id?.nome ||
-                          (v.expand?.checklists?.length
-                            ? v.expand.checklists.map((c) => c.nr_referencia || c.nome).join(', ')
-                            : v.expand?.formularios?.length
-                              ? v.expand.formularios.map((f) => f.nome).join(', ')
-                              : 'Vistoria')}
-                        {v.expand?.responsavel_tecnico_id?.nome
-                          ? ` · ${v.expand.responsavel_tecnico_id.nome}`
-                          : ''}
-                      </div>
-                    </div>
-                    <Badge variant={STATUS_VARIANT[v.status || 'agendada']}>
-                      {STATUS_LABEL[v.status || 'agendada']}
-                    </Badge>
+          {/* Tendência mensal */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Vistorias por mês</CardTitle>
+              <CardDescription>Últimos 6 meses — concluídas x em aberto.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="Concluídas" fill="#3d5a1f" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Em aberto" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Coluna direita: KPIs empilhados, cor de estado */}
+        <div className="space-y-3">
+          {stats.map((stat) => {
+            const alerta = 'alerta' in stat && stat.alerta
+            const cor = alerta
+              ? 'bg-destructive/10 text-destructive'
+              : stat.label === 'Concluídas no mês'
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-foreground text-background'
+            return (
+              <Link key={stat.label} to={stat.label === 'Atrasadas' ? '/vistorias' : '/agenda'}>
+                <Card className="flex items-center gap-4 rounded-2xl border-none p-4 shadow-subtle transition-shadow hover:shadow-elevation">
+                  <div
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${cor}`}
+                  >
+                    <stat.icon className="h-5 w-5" />
                   </div>
-                </Link>
-              )
-            })}
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Tendência mensal */}
-      <Card className="mb-8">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Vistorias por mês</CardTitle>
-          <CardDescription>Últimos 6 meses — concluídas x em aberto.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Concluídas" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Em aberto" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="min-w-0">
+                    <div className="text-3xl font-extrabold leading-none tracking-tight">
+                      {stat.value}
+                    </div>
+                    <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {stat.label}
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
 
       <p className="mb-3 text-sm font-medium text-foreground">O que você gostaria de fazer?</p>
       <div className="mb-8 grid gap-3 sm:grid-cols-3">

@@ -143,7 +143,7 @@ export default function ModelosVistoria() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Auditoria NRs</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight">Auditoria NRs</h1>
             <Badge variant="secondary" className="gap-1">
               <Lock className="h-3 w-3" />
               Catálogo fixo ({qtdNrs} NRs e seus anexos)
