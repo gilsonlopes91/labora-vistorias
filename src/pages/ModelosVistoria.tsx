@@ -193,7 +193,7 @@ export default function ModelosVistoria() {
                     onClick={() => carregarItens(tipo.id)}
                     className="hover:no-underline"
                   >
-                    <div className="flex flex-1 items-center gap-3 text-left">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                         <ListChecks className="h-4 w-4" />
                       </div>
