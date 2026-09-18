@@ -27,6 +27,7 @@ import { parseLocalDate, formatLocalDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getVistorias, type Vistoria, type StatusVistoria } from '@/services/vistorias'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
+import { getFormularios, type Formulario } from '@/services/registrosFormulario'
 import { getResponsaveisTecnicos, type ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
 import RotinasPanel from '@/components/RotinasPanel'
@@ -71,6 +72,7 @@ const diaKey = (d: Date) => format(d, 'yyyy-MM-dd')
 
 export default function Agenda() {
   const [vistorias, setVistorias] = useState<Vistoria[]>([])
+  const [formularios, setFormularios] = useState<Formulario[]>([])
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
   const [visao, setVisao] = useState<Visao>('mes')
@@ -80,8 +82,13 @@ export default function Agenda() {
 
   const loadData = useCallback(async () => {
     try {
-      const [items, org] = await Promise.all([getVistorias(), getMinhaOrganizacao()])
+      const [items, forms, org] = await Promise.all([
+        getVistorias(),
+        getFormularios(),
+        getMinhaOrganizacao(),
+      ])
       setVistorias(items)
+      setFormularios(forms)
       const rts = await getResponsaveisTecnicos(org.id)
       setResponsaveis(rts)
     } catch (error) {
@@ -105,7 +112,8 @@ export default function Agenda() {
     [vistorias, filtroResponsavel],
   )
 
-  // Mapa dia -> vistorias (todas as visões usam).
+  // Mapa dia -> eventos (todas as visões usam). Formulários avulsos entram no
+  // mesmo calendário, marcados com __form = nome do modelo (agenda unificada).
   const porDia = useMemo(() => {
     const mapa = new Map<string, Vistoria[]>()
     filtradas.forEach((v) => {
@@ -116,8 +124,22 @@ export default function Agenda() {
       lista.push(v)
       mapa.set(key, lista)
     })
+    formularios.forEach((f) => {
+      const d = parseLocalDate(f.data_campo || f.created)
+      if (!d) return
+      const key = diaKey(startOfDay(d))
+      const lista = mapa.get(key) || []
+      lista.push({
+        id: f.id,
+        data_agendada: f.data_campo || f.created,
+        status: f.status === 'concluido' ? 'concluida' : 'agendada',
+        __form: f.expand?.modelo_formulario_id?.nome || 'Formulário',
+        expand: { empresa_id: f.expand?.empresa_id },
+      } as unknown as Vistoria)
+      mapa.set(key, lista)
+    })
     return mapa
-  }, [filtradas])
+  }, [filtradas, formularios])
 
   const doDia = (d: Date) => porDia.get(diaKey(d)) || []
 
@@ -173,6 +195,7 @@ export default function Agenda() {
   }
 
   const rotuloTipoVistoria = (v: Vistoria) =>
+    (v as unknown as { __form?: string }).__form ||
     v.expand?.tipo_vistoria_id?.nr_referencia ||
     v.expand?.tipo_vistoria_id?.nome ||
     (v.expand?.checklists?.length
@@ -186,7 +209,8 @@ export default function Agenda() {
       key={v.id}
       onClick={(e) => {
         e.stopPropagation()
-        navigate(`/vistorias/${v.id}`)
+        if ((v as unknown as { __form?: string }).__form) navigate('/formularios')
+        else navigate(`/vistorias/${v.id}`)
       }}
       className="cursor-pointer truncate rounded bg-accent px-1.5 py-0.5 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
       title={`${v.expand?.empresa_id?.nome_fantasia || v.expand?.empresa_id?.razao_social || '—'}${
@@ -214,7 +238,11 @@ export default function Agenda() {
             <Card
               key={v.id}
               className="cursor-pointer transition-colors hover:border-primary"
-              onClick={() => navigate(`/vistorias/${v.id}`)}
+              onClick={() =>
+                (v as unknown as { __form?: string }).__form
+                  ? navigate('/formularios')
+                  : navigate(`/vistorias/${v.id}`)
+              }
             >
               <CardContent className="flex items-center justify-between p-4">
                 <div>
@@ -397,7 +425,9 @@ export default function Agenda() {
                           key={v.id}
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/vistorias/${v.id}`)
+                            if ((v as unknown as { __form?: string }).__form)
+                              navigate('/formularios')
+                            else navigate(`/vistorias/${v.id}`)
                           }}
                           className="cursor-pointer rounded bg-accent px-1.5 py-1 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
                         >
