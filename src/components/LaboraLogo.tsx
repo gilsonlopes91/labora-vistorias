@@ -6,7 +6,7 @@ interface LaboraLogoProps {
   alt?: string
 }
 
-export function LaboraLogo({ className = 'h-9 w-9', alt = 'LABORA auditoria' }: LaboraLogoProps) {
+export function LaboraLogo({ className = 'h-9 w-9', alt = 'LABORA vistorias' }: LaboraLogoProps) {
   return (
     <img
       src={laboraLogoUrl}
@@ -17,7 +17,7 @@ export function LaboraLogo({ className = 'h-9 w-9', alt = 'LABORA auditoria' }: 
   )
 }
 
-/** Logo completo — marca oficial + dois nomes centralizados entre si (LABORA e auditoria), para telas de destaque como o login. */
+/** Logo completo — marca oficial + dois nomes centralizados entre si (LABORA e vistorias), para telas de destaque como o login. */
 export function LaboraLogoFull({ className = '' }: { className?: string }) {
   return (
     <div className={`flex flex-col items-center gap-3 ${className}`}>
@@ -29,7 +29,7 @@ export function LaboraLogoFull({ className = '' }: { className?: string }) {
           LABORA
         </span>
         <span className="text-xs tracking-widest text-muted-foreground leading-tight">
-          auditoria
+          vistorias
         </span>
       </div>
     </div>

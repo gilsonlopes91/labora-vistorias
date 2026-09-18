@@ -253,7 +253,7 @@ const Index = () => {
         <span className="text-primary">O que está em aberto?</span>
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Bem-vindo ao LABORA auditoria — gestão de auditorias, vistorias e inspeções de SST.
+        Bem-vindo ao LABORA vistorias — gestão de auditorias, vistorias e inspeções de SST.
       </p>
 
       {/* Filtros */}
