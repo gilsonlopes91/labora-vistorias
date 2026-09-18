@@ -130,6 +130,12 @@ export default function ModelosVistoria() {
 
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
 
+  // O catálogo lista NRs e anexos como tipos separados (ex.: NR-12 Anexo V);
+  // o badge mostra quantas NRs únicas existem, não o total de tipos.
+  const qtdNrs = new Set(
+    tipos.map((t) => (t.nr_referencia || t.nome || '').match(/NR-(\d+)/i)?.[1]).filter(Boolean),
+  ).size
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
@@ -138,7 +144,7 @@ export default function ModelosVistoria() {
             <h1 className="text-2xl font-bold">Auditoria NRs</h1>
             <Badge variant="secondary" className="gap-1">
               <Lock className="h-3 w-3" />
-              Catálogo fixo ({tipos.length} NRs)
+              Catálogo fixo ({qtdNrs} NRs e seus anexos)
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
