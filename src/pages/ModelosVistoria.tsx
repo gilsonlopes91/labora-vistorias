@@ -130,11 +130,13 @@ export default function ModelosVistoria() {
 
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
 
-  // O catálogo lista NRs e anexos como tipos separados (ex.: NR-12 Anexo V);
-  // o badge mostra quantas NRs únicas existem, não o total de tipos.
-  const qtdNrs = new Set(
-    tipos.map((t) => (t.nr_referencia || t.nome || '').match(/NR-(\d+)/i)?.[1]).filter(Boolean),
-  ).size
+  // O catálogo lista NRs e anexos como tipos separados (ex.: NR-12 Anexo V).
+  // O badge mostra o total oficial da lista (NR-1 a NR-38): as revogadas
+  // (NR-2 e NR-27) não geram tipos, então contamos pelo maior nº da NR.
+  const qtdNrs = tipos.reduce((max, t) => {
+    const n = Number((t.nr_referencia || t.nome || '').match(/NR-(\d+)/i)?.[1] || 0)
+    return n > max ? n : max
+  }, 0)
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
