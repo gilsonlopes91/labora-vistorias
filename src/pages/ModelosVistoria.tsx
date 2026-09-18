@@ -191,7 +191,7 @@ export default function ModelosVistoria() {
                 <AccordionItem key={tipo.id} value={tipo.id} className="border-border/60 px-2">
                   <AccordionTrigger
                     onClick={() => carregarItens(tipo.id)}
-                    className="min-w-0 hover:no-underline"
+                    className="group min-w-0 hover:no-underline"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -199,18 +199,18 @@ export default function ModelosVistoria() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {tipo.nome.replace(/^NR-\d+\s*[—–-]\s*/i, '')}
-                          </span>
                           {tipo.nr_referencia && (
                             <Badge variant="secondary" className="shrink-0">
                               <Shapes className="mr-1 h-3 w-3" />
                               {tipo.nr_referencia}
                             </Badge>
                           )}
+                          <span className="font-bold">
+                            {tipo.nome.replace(/^NR-\d+\s*[—–-]\s*/i, '')}
+                          </span>
                         </div>
                         {tipo.descricao && (
-                          <p className="line-clamp-2 text-xs text-muted-foreground">
+                          <p className="line-clamp-2 text-xs text-muted-foreground group-data-[state=open]:line-clamp-none">
                             {tipo.descricao}
                           </p>
                         )}
