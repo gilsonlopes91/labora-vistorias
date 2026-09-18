@@ -5,7 +5,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Building2, Camera, Check, PenTool, Plus, Save, Trash2, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Building2,
+  Camera,
+  Check,
+  ChevronRight,
+  PenTool,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
@@ -231,6 +242,46 @@ export default function PreencherFormulario() {
     return pendentes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelo, dados])
+
+  // ---- Wizard: uma seção do modelo por etapa ----
+  const [etapa, setEtapa] = useState(0)
+  const secoes = useMemo(() => {
+    if (!modelo) return []
+    const lista: { nome: string; campos: CampoFormulario[] }[] = []
+    let atual: { nome: string; campos: CampoFormulario[] } | null = null
+    for (const campo of modelo.campos) {
+      if (campo.tipo === 'secao') {
+        atual = { nome: campo.nome, campos: [] }
+        lista.push(atual)
+        continue
+      }
+      if (!atual) {
+        atual = { nome: 'Dados gerais', campos: [] }
+        lista.push(atual)
+      }
+      atual.campos.push(campo)
+    }
+    if (lista.length === 0) lista.push({ nome: 'Formulário', campos: [...modelo.campos] })
+    return lista
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelo])
+
+  const pendentesDaSecao = (idx: number) => {
+    const sec = secoes[idx]
+    if (!sec) return []
+    const pend: string[] = []
+    for (const campo of sec.campos) {
+      if (!campo.obrigatorio || !visivel(campo)) continue
+      const valor = dados[campo.id]
+      if (campo.tipo === 'repetivel') {
+        if (normalizarInstancias(valor).length === 0) pend.push(campo.nome)
+        continue
+      }
+      if (valor === undefined || valor === null || String(valor).trim() === '')
+        pend.push(campo.nome)
+    }
+    return pend
+  }
 
   const salvar = async (status: 'rascunho' | 'concluido') => {
     if (!modelo) return
@@ -709,9 +760,69 @@ export default function PreencherFormulario() {
         </div>
       </Card>
 
-      <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
-        {modelo.campos.map(renderCampo)}
-      </Card>
+      {/* Wizard: uma seção do modelo por etapa, com progresso e validação por etapa. */}
+      {secoes.length > 0 && (
+        <>
+          <div className="mb-4 flex items-center gap-1.5">
+            {secoes.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => setEtapa(i)}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  i <= etapa ? 'bg-primary' : 'bg-muted'
+                }`}
+                title={s.nome}
+                aria-label={`Etapa ${i + 1}: ${s.nome}`}
+              />
+            ))}
+          </div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Etapa {etapa + 1} de {secoes.length}
+          </p>
+          <h2 className="mb-4 text-lg font-semibold">{secoes[etapa]?.nome}</h2>
+
+          <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
+            {(secoes[etapa]?.campos || []).map(renderCampo)}
+          </Card>
+
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setEtapa((e) => Math.max(0, e - 1))}
+              disabled={etapa === 0}
+            >
+              Voltar
+            </Button>
+            {etapa < secoes.length - 1 ? (
+              <Button
+                className="rounded-full"
+                onClick={() => {
+                  const pend = pendentesDaSecao(etapa)
+                  if (pend.length > 0) {
+                    toast.warning('Campos obrigatórios pendentes nesta etapa', {
+                      description: pend.join(', '),
+                    })
+                    return
+                  }
+                  setEtapa((e) => Math.min(secoes.length - 1, e + 1))
+                }}
+              >
+                Próxima etapa
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={() => salvar('concluido')}
+                disabled={salvando}
+                className="rounded-full"
+              >
+                <Check className="mr-2 h-4 w-4" />
+                {salvando ? 'Salvando...' : 'Concluir'}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
