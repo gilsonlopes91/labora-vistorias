@@ -191,7 +191,7 @@ export default function ModelosVistoria() {
                 <AccordionItem key={tipo.id} value={tipo.id} className="border-border/60 px-2">
                   <AccordionTrigger
                     onClick={() => carregarItens(tipo.id)}
-                    className="hover:no-underline"
+                    className="min-w-0 hover:no-underline"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -210,7 +210,7 @@ export default function ModelosVistoria() {
                           )}
                         </div>
                         {tipo.descricao && (
-                          <p className="line-clamp-2 text-xs text-muted-foreground sm:truncate sm:line-clamp-none">
+                          <p className="line-clamp-2 text-xs text-muted-foreground">
                             {tipo.descricao}
                           </p>
                         )}
