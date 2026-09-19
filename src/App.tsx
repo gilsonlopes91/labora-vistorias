@@ -19,6 +19,8 @@ import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
 import NotFound from './pages/NotFound'
 import AdminConsole from './pages/AdminConsole'
+import TrocarSenha from './pages/TrocarSenha'
+import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
@@ -126,6 +128,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminConsole />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trocar-senha"
+              element={
+                <ProtectedRoute>
+                  <TrocarSenha />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/conteudo"
+              element={
+                <ProtectedRoute>
+                  <EditorConteudo />
                 </ProtectedRoute>
               }
             />

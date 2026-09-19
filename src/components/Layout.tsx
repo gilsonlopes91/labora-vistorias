@@ -1,5 +1,7 @@
 /* Layout — barra lateral com a identidade da Labora + área de conteúdo, presente em todas as páginas protegidas. */
+import { useEffect, useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { getModulos, type Modulos } from '@/services/modulos'
 import {
   LogOut,
   Building2,
@@ -46,6 +48,19 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  // Pacotes da organização: módulos desligados saem do menu.
+  const [modulos, setModulos] = useState<Modulos | null>(null)
+  useEffect(() => {
+    if (isAuthenticated)
+      getModulos()
+        .then(setModulos)
+        .catch(() => {})
+  }, [isAuthenticated])
+  const moduloDe: Record<string, keyof Modulos> = {
+    '/modelos': 'auditoria',
+    '/formularios': 'formularios',
+  }
+
   const handleSignOut = () => {
     signOut()
     navigate('/login', { replace: true })
@@ -81,22 +96,24 @@ export default function Layout() {
         <SidebarContent>
           <SidebarGroup>
             <SidebarMenu>
-              {NAV_ITEMS.filter((item) => !item.gestor || isGestor()).map((item) => {
-                const active =
-                  item.to === '/'
-                    ? location.pathname === '/'
-                    : location.pathname.startsWith(item.to)
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link to={item.to}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
+              {NAV_ITEMS.filter((item) => !item.gestor || isGestor())
+                .filter((item) => !modulos || !moduloDe[item.to] || modulos[moduloDe[item.to]])
+                .map((item) => {
+                  const active =
+                    item.to === '/'
+                      ? location.pathname === '/'
+                      : location.pathname.startsWith(item.to)
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                        <Link to={item.to}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>

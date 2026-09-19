@@ -14,7 +14,11 @@ import {
   Search,
   UserPlus,
   Trash2,
+  Package,
+  KeyRound,
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -39,6 +43,7 @@ interface OrgRow {
   nome: string
   status: string
   created: string
+  dono_id?: string
   dono_nome?: string
   dono_email?: string
   usuarios: number
@@ -52,6 +57,14 @@ interface StaffRow {
   name: string
   email: string
   orgs: string[]
+  acesso_console: boolean
+}
+
+interface Modulos {
+  auditoria: boolean
+  relatorios: boolean
+  formularios: boolean
+  ia: boolean
 }
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -73,6 +86,20 @@ export default function AdminConsole() {
   const [novoStaff, setNovoStaff] = useState({ nome: '', email: '', senha: '' })
   const [criandoStaff, setCriandoStaff] = useState(false)
   const [orgParaVincular, setOrgParaVincular] = useState<Record<string, string>>({})
+
+  // Pacotes (módulos) por organização
+  const [pacoteAlvo, setPacoteAlvo] = useState<OrgRow | null>(null)
+  const [pacoteModulos, setPacoteModulos] = useState<Modulos>({
+    auditoria: true,
+    relatorios: true,
+    formularios: true,
+  })
+  const [salvandoPacote, setSalvandoPacote] = useState(false)
+
+  // Nova senha com troca obrigatória
+  const [senhaAlvo, setSenhaAlvo] = useState<OrgRow | null>(null)
+  const [novaSenha, setNovaSenha] = useState('')
+  const [gerandoSenha, setGerandoSenha] = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -123,6 +150,7 @@ export default function AdminConsole() {
           nome: org.nome,
           status: org.status || 'ativa',
           created: org.created,
+          dono_id: org.dono_id,
           dono_nome: org.expand?.dono_id?.name || '',
           dono_email: org.expand?.dono_id?.email || '',
           usuarios: usuarios.totalItems,
@@ -164,6 +192,7 @@ export default function AdminConsole() {
           name: u.name || u.email,
           email: u.email,
           orgs: porUsuario[u.id] || [],
+          acesso_console: !!u.acesso_console,
         })),
       )
     } catch (_) {
@@ -233,6 +262,92 @@ export default function AdminConsole() {
     }
   }
 
+  // ---- Pacotes ----
+  const abrirPacote = async (org: OrgRow) => {
+    setPacoteAlvo(org)
+    try {
+      const rec = await pb.collection('organizacoes').getOne(org.id)
+      const m = (typeof rec.modulos === 'string' ? JSON.parse(rec.modulos) : rec.modulos) || {}
+      setPacoteModulos({
+        auditoria: m.auditoria !== false,
+        relatorios: m.relatorios !== false,
+        formularios: m.formularios !== false,
+        ia: m.ia !== false,
+      })
+    } catch (_) {
+      setPacoteModulos({ auditoria: true, relatorios: true, formularios: true, ia: true })
+    }
+  }
+
+  const salvarPacote = async () => {
+    if (!pacoteAlvo) return
+    setSalvandoPacote(true)
+    try {
+      await pb.send('/backend/v1/admin/usuario', {
+        method: 'POST',
+        body: JSON.stringify({ acao: 'pacotes', org_id: pacoteAlvo.id, modulos: pacoteModulos }),
+      })
+      toast.success('Pacote atualizado')
+      setPacoteAlvo(null)
+      carregar()
+    } catch (error) {
+      toast.error('Não foi possível salvar o pacote', { description: getErrorMessage(error) })
+    } finally {
+      setSalvandoPacote(false)
+    }
+  }
+
+  // ---- Nova senha ----
+  const gerarSenhaForte = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+    let s = ''
+    for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)]
+    setNovaSenha(s)
+  }
+
+  const salvarNovaSenha = async () => {
+    if (!senhaAlvo || novaSenha.length < 8) {
+      toast.error('A senha deve ter no mínimo 8 caracteres')
+      return
+    }
+    setGerandoSenha(true)
+    try {
+      const dono = await pb.collection('users').getFirstListItem(
+        pb.filter('organizacao_id = {:org} || id = {:dono}', {
+          org: senhaAlvo.id,
+          dono: senhaAlvo.dono_id || '__nenhum__',
+        }),
+      )
+      await pb.send('/backend/v1/admin/usuario', {
+        method: 'POST',
+        body: JSON.stringify({ acao: 'nova_senha', user_id: dono.id, senha: novaSenha }),
+      })
+      toast.success('Senha enviada! O usuário redefine no próximo login.')
+      setSenhaAlvo(null)
+      setNovaSenha('')
+    } catch (error) {
+      toast.error('Não foi possível definir a nova senha', {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setGerandoSenha(false)
+    }
+  }
+
+  // ---- Staff console ----
+  const alternarStaffConsole = async (s: StaffRow) => {
+    try {
+      await pb.send('/backend/v1/admin/usuario', {
+        method: 'POST',
+        body: JSON.stringify({ acao: 'staff_console', user_id: s.id, acesso: !s.acesso_console }),
+      })
+      toast.success(s.acesso_console ? 'Acesso ao console removido' : 'Acesso ao console concedido')
+      carregarStaff()
+    } catch (error) {
+      toast.error('Não foi possível alterar o acesso', { description: getErrorMessage(error) })
+    }
+  }
+
   const alternarBloqueio = async () => {
     if (!alvo) return
     setBloqueando(true)
@@ -273,7 +388,11 @@ export default function AdminConsole() {
     [orgs],
   )
 
-  if (user?.papel !== 'admin_plataforma') {
+  const podeAcessarConsole =
+    user?.papel === 'admin_plataforma' ||
+    (user?.papel === 'staff_labora' && user?.acesso_console)
+
+  if (!podeAcessarConsole) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
         <Ban className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
@@ -290,11 +409,16 @@ export default function AdminConsole() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-extrabold tracking-tight">Gerenciamento de contas</h1>
-        <p className="text-sm text-muted-foreground">
-          Console de administração da plataforma — visão de todas as organizações.
-        </p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Gerenciamento de contas</h1>
+          <p className="text-sm text-muted-foreground">
+            Console de administração da plataforma — visão de todas as organizações.
+          </p>
+        </div>
+        <Button asChild variant="outline" className="rounded-full">
+          <Link to="/conteudo">Textos do site</Link>
+        </Button>
       </div>
 
       {/* Métricas globais */}
@@ -375,14 +499,35 @@ export default function AdminConsole() {
                     perguntas IA
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant={org.status === 'bloqueada' ? 'default' : 'outline'}
-                  className="rounded-full"
-                  onClick={() => setAlvo(org)}
-                >
-                  {org.status === 'bloqueada' ? 'Desbloquear' : 'Bloquear'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => abrirPacote(org)}
+                  >
+                    <Package className="mr-1.5 h-3.5 w-3.5" />
+                    Pacote
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => setSenhaAlvo(org)}
+                    disabled={!org.dono_id}
+                  >
+                    <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                    Nova senha
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={org.status === 'bloqueada' ? 'default' : 'outline'}
+                    className="rounded-full"
+                    onClick={() => setAlvo(org)}
+                  >
+                    {org.status === 'bloqueada' ? 'Desbloquear' : 'Bloquear'}
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -477,7 +622,14 @@ export default function AdminConsole() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Checkbox
+                        checked={s.acesso_console}
+                        onCheckedChange={() => alternarStaffConsole(s)}
+                      />
+                      Acesso ao console
+                    </label>
                     <select
                       className="h-9 rounded-full border bg-background px-3 text-sm"
                       value={orgParaVincular[s.id] || ''}
@@ -507,6 +659,78 @@ export default function AdminConsole() {
           </div>
         )}
       </div>
+
+      {/* Dialog de pacotes */}
+      <Dialog open={!!pacoteAlvo} onOpenChange={(open) => !open && setPacoteAlvo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pacote de {pacoteAlvo?.nome}</DialogTitle>
+            <DialogDescription>
+              Escolha o que esta organização contratou. Módulo desligado fica invisível no app.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {[
+              { key: 'auditoria', label: 'Auditoria NRs', desc: 'Checklists item a item com cálculo de multa NR-28' },
+              { key: 'relatorios', label: 'Relatórios/PDF', desc: 'Geração do relatório em PDF da vistoria' },
+              { key: 'formularios', label: 'Formulários', desc: 'Modelos e registros de campo (ruído, calor, vibração, químicos)' },
+              { key: 'ia', label: 'Assistente IA', desc: 'Perguntas ao assistente dentro do app' },
+            ].map((m) => (
+              <div key={m.key} className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold">{m.label}</div>
+                  <div className="text-xs text-muted-foreground">{m.desc}</div>
+                </div>
+                <Switch
+                  checked={pacoteModulos[m.key as keyof Modulos]}
+                  onCheckedChange={(v) =>
+                    setPacoteModulos({ ...pacoteModulos, [m.key]: v })
+                  }
+                />
+              </div)
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPacoteAlvo(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarPacote} disabled={salvandoPacote}>
+              {salvandoPacote ? 'Salvando...' : 'Salvar pacote'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de nova senha */}
+      <Dialog open={!!senhaAlvo} onOpenChange={(open) => !open && setSenhaAlvo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova senha — {senhaAlvo?.nome}</DialogTitle>
+            <DialogDescription>
+              Defina uma senha temporária para o dono. No próximo login ele será obrigado a criar
+              uma nova.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 py-2">
+            <Input
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              placeholder="Senha temporária (mínimo 8)"
+            />
+            <Button variant="outline" onClick={gerarSenhaForte} type="button">
+              Gerar
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSenhaAlvo(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarNovaSenha} disabled={gerandoSenha || novaSenha.length < 8}>
+              {gerandoSenha ? 'Salvando...' : 'Definir senha'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmação de bloqueio */}
       <Dialog open={!!alvo} onOpenChange={(open) => !open && setAlvo(null)}>

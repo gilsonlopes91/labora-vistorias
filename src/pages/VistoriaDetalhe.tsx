@@ -40,6 +40,7 @@ import {
 import { getModeloFormulario } from '@/services/formularios'
 import { getFormulariosByVistoria, type Formulario } from '@/services/registrosFormulario'
 import FormularioPreenchivel from '@/components/FormularioPreenchivel'
+import { getModulos, type Modulos } from '@/services/modulos'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -170,6 +171,14 @@ export default function VistoriaDetalhe() {
   const [novoRTUf, setNovoRTUf] = useState('')
   const [novoRTPadrao, setNovoRTPadrao] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
+
+  // Pacotes: sem o módulo de relatórios contratado, o botão de gerar PDF some.
+  const [modulos, setModulos] = useState<Modulos | null>(null)
+  useEffect(() => {
+    getModulos()
+      .then(setModulos)
+      .catch(() => {})
+  }, [])
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -750,10 +759,12 @@ export default function VistoriaDetalhe() {
             {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
             respondidos ({progressoPct}%)
           </span>
-          <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={abrirDialogFinalizacao}>
-            <FileCheck2 className="h-3.5 w-3.5" />
-            {rotuloBotaoFinalizar}
-          </Button>
+          {modulos?.relatorios !== false && (
+            <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={abrirDialogFinalizacao}>
+              <FileCheck2 className="h-3.5 w-3.5" />
+              {rotuloBotaoFinalizar}
+            </Button>
+          )}
         </div>
         <Progress value={progressoPct} className="h-1.5" />
       </div>

@@ -1,6 +1,6 @@
 /* Tela de login/cadastro — estilo hero: tipografia grande com palavras destacadas,
    rótulo de seção em caixa alta e card flutuante. Paleta Labora preservada. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,6 +10,7 @@ import { CalendarClock, ClipboardCheck, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
+import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -37,8 +38,27 @@ const signupSchema = z.object({
 export default function Login() {
   const { isAuthenticated, loading, signIn, signUp } = useAuth()
   const [submitting, setSubmitting] = useState(false)
+  const [conteudo, setConteudo] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    pb.collection('conteudo_site')
+      .getFullList()
+      .then((lista) => {
+        const map: Record<string, string> = {}
+        for (const item of lista) map[item.chave] = item.valor
+        setConteudo(map)
+      })
+      .catch(() => {})
+  }, [])
+
+  const badge = conteudo.login_badge || 'Gestão de vistorias e inspeções de SST'
+  const titulo1 = conteudo.login_titulo_1 || 'Sua operação de segurança do trabalho'
+  const tituloDestaque = conteudo.login_titulo_destaque || 'organizada no automático'
+  const subtitulo =
+    conteudo.login_subtitulo ||
+    'O que vai fazer, onde, quem vai fazer e quando — agenda que se renova sozinha, vistoria guiada com foto e GPS, e o relatório com multa NR-28 pronto antes de você sair do cliente.'
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -61,6 +81,12 @@ export default function Login() {
     setSubmitting(false)
     if (error) {
       toast.error('Não foi possível entrar', { description: getErrorMessage(error) })
+      return
+    }
+    // Troca de senha obrigatória: usuário com o flag ativo cai na redefinição.
+    const rec = pb.authStore.record as { trocar_senha?: boolean } | null
+    if (rec?.trocar_senha) {
+      navigate('/trocar-senha', { replace: true })
       return
     }
     navigate('/', { replace: true })
@@ -93,18 +119,11 @@ export default function Login() {
       <main className="mx-auto grid max-w-7xl items-center gap-12 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
         {/* Hero — tipografia grande com destaques na cor primária */}
         <div>
-          <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">
-            Gestão de vistorias e inspeções de SST
-          </p>
+          <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">{badge}</p>
           <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground lg:text-6xl">
-            Sua operação de segurança do trabalho{' '}
-            <span className="text-primary">organizada no automático</span>.
+            {titulo1} <span className="text-primary">{tituloDestaque}</span>.
           </h1>
-          <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-            O que vai fazer, onde, quem vai fazer e quando — agenda que se renova sozinha, vistoria
-            guiada com foto e GPS, e o relatório com multa NR-28 pronto antes de você sair do
-            cliente.
-          </p>
+          <p className="mt-6 max-w-xl text-lg text-muted-foreground">{subtitulo}</p>
 
           <div className="mt-10 grid max-w-xl grid-cols-3 gap-4">
             <div>
