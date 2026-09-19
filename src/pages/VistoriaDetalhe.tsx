@@ -97,9 +97,10 @@ const isItemNr31 = (item: ItemChecklist) => !!(item.codigo && item.codigo.starts
 
 const TEXTO_NR31 =
   'Infração da NR-31 (trabalho rural): a multa não usa a grade de UFIR do Anexo I da NR-28. ' +
-  'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973: ' +
-  'R$ 392,89 por empregado prejudicado, dobrada na reincidência — multa per capita. ' +
-  'O número usado neste item é o informado no topo da página. Se a infração alcançar menos ' +
+  'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973 — ' +
+  'multa per capita por empregado prejudicado, dobrada na reincidência. O valor por empregado é o ' +
+  'escolhido no topo da página (R$ 392,89 pela Portaria MTE 1.131/2025 ou R$ 380,00 pelo texto da ' +
+  'lei). O número usado neste item é o informado no topo. Se a infração alcançar menos ' +
   'trabalhadores que o total do estabelecimento (ex.: falta de exame médico atinge só quem não ' +
   'fez), clique em "Alterar nº de empregados prejudicados" e informe só os afetados. ' +
   'Infrações coletivas (ex.: falta de PGRTR) usam o número de cima, sem alterar.'
@@ -815,17 +816,77 @@ export default function VistoriaDetalhe() {
       {temNr31 && (
         <Card className="mb-6 border-amber-300 bg-amber-50">
           <CardContent className="pt-4">
+            {/* Escolha da base legal do valor da multa rural */}
+            <div className="mb-3">
+              <div className="text-xs font-bold uppercase tracking-wide text-amber-900">
+                NR-31 · Base legal do valor da multa
+              </div>
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className={`rounded-xl border p-3 text-left text-xs leading-relaxed transition-colors ${
+                    (vistoria?.nr31_base_legal || 'portaria_392') === 'portaria_392'
+                      ? 'border-amber-600 bg-amber-100 text-amber-950'
+                      : 'border-amber-300 bg-white/60 text-amber-900 hover:border-amber-500'
+                  }`}
+                  onClick={() =>
+                    vistoria &&
+                    updateVistoria(vistoria.id, { nr31_base_legal: 'portaria_392' })
+                      .then((v) => setVistoria(v))
+                      .catch((error) =>
+                        toast.error('Não foi possível salvar a escolha', {
+                          description: getErrorMessage(error),
+                        }),
+                      )
+                  }
+                >
+                  <span className="block font-bold">R$ 392,89 — Portaria MTE 1.131/2025</span>
+                  <span className="mt-1 block">
+                    Valor reajustado aplicável pela fiscalização (o item 28.3.3 da NR-28 manda
+                    reajustar anualmente). Recomendado para cálculos atuais.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-xl border p-3 text-left text-xs leading-relaxed transition-colors ${
+                    vistoria?.nr31_base_legal === 'lei_380'
+                      ? 'border-amber-600 bg-amber-100 text-amber-950'
+                      : 'border-amber-300 bg-white/60 text-amber-900 hover:border-amber-500'
+                  }`}
+                  onClick={() =>
+                    vistoria &&
+                    updateVistoria(vistoria.id, { nr31_base_legal: 'lei_380' })
+                      .then((v) => setVistoria(v))
+                      .catch((error) =>
+                        toast.error('Não foi possível salvar a escolha', {
+                          description: getErrorMessage(error),
+                        }),
+                      )
+                  }
+                >
+                  <span className="block font-bold">R$ 380,00 — Lei 5.889/1973, art. 18</span>
+                  <span className="mt-1 block">
+                    Valor fixado no texto da lei (redação da MP 2.164-41/2001). Use quando quiser
+                    citar a lei na aula ou no relatório.
+                  </span>
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-amber-900">
+                Ambas remetem ao art. 18 da Lei 5.889/1973 (multa per capita, dobrada na
+                reincidência): a lei fixou R$ 380,00 em 2001 e a Portaria MTE 1.131/2025 reajustou
+                para R$ 392,89, conforme o item 28.3.3 da NR-28. A escolha vale para todos os itens
+                NR-31 desta vistoria.
+              </p>
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold uppercase tracking-wide text-amber-900">
-                  NR-31 · Número de empregados irregulares
+                  Número de empregados irregulares
                 </div>
                 <div className="mt-0.5 text-xs leading-relaxed text-amber-900">
-                  Multa per capita pelo art. 18 da Lei 5.889/1973 (R$ 392,89 por empregado
-                  prejudicado, dobrada na reincidência). O padrão é o total de trabalhadores do
-                  estabelecimento — usado quando a infração alcança a coletividade (ex.: falta de
-                  PGRTR). Se a infração atingir menos trabalhadores (ex.: exame médico), altere o
-                  número no item.
+                  O padrão é o total de trabalhadores do estabelecimento — usado quando a infração
+                  alcança a coletividade (ex.: falta de PGRTR). Se a infração atingir menos
+                  trabalhadores (ex.: exame médico), altere o número no item.
                 </div>
               </div>
               {nr31Editando ? (

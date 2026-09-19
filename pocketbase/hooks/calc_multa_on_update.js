@@ -66,10 +66,16 @@ onRecordUpdate((e) => {
         // estabelecimento; individuais (ex.: exame médico) listam só os
         // afetados. Campo vazio = coletiva → usa o total de trabalhadores da
         // empresa; preenchido = o nº de trabalhadores afetados pelo item.
+        // Base de valor: o usuário escolhe na vistoria — nr31_base_legal =
+        // "lei_380" (texto da lei, MP 2.164-41/2001) ou "portaria_392"
+        // (Portaria MTE 1.131/2025, reajuste anual do item 28.3.3 da NR-28).
+        // Sem escolha, usa o valor reajustado (392,89).
+        const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
+        const baseLegal = vistoria.getString('nr31_base_legal')
+        if (baseLegal === 'lei_380') multaRural = 380.0
         const rawAfetados = record.getString('numero_funcionarios_irregulares').trim()
         let nAfetados = 0
         if (rawAfetados === '') {
-          const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
           const empresa = $app.findRecordById('empresas', vistoria.get('empresa_id'))
           nAfetados = empresa.getInt('numero_funcionarios')
         } else {

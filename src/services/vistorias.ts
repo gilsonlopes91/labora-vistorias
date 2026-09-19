@@ -23,6 +23,7 @@ export interface Vistoria extends RecordModel {
   fotos_georreferenciadas?: boolean
   responsavel_tecnico_nome?: string
   responsavel_tecnico_registro?: string
+  nr31_base_legal?: 'lei_380' | 'portaria_392'
   client_uuid: string
   created: string
   updated: string
@@ -49,6 +50,7 @@ export interface VistoriaInput {
   fotos_georreferenciadas?: boolean
   responsavel_tecnico_nome?: string
   responsavel_tecnico_registro?: string
+  nr31_base_legal?: 'lei_380' | 'portaria_392'
   client_uuid: string
 }
 
