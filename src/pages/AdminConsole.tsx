@@ -85,9 +85,11 @@ export default function AdminConsole() {
       const linhas: OrgRow[] = []
       for (const org of orgsList) {
         // Contagens por organização (consultas leves; admin tem permissão).
+        // Usuários: por organizacao_id OU dono da org (orgs antigas têm o dono
+        // sem organizacao_id preenchido — ex.: "Labora Vistoria").
         const [usuarios, empresas, vistorias] = await Promise.all([
           pb.collection('users').getList(1, 1, {
-            filter: pb.filter('organizacao_id = {:org}', { org: org.id }),
+            filter: pb.filter('organizacao_id = {:org} || id = dono_id', { org: org.id }),
           }),
           pb.collection('empresas').getList(1, 1, {
             filter: pb.filter('organizacao_id = {:org}', { org: org.id }),
@@ -299,7 +301,7 @@ export default function AdminConsole() {
           { icon: ShieldCheck, label: 'Ativas', value: metricas.ativas },
           { icon: Users, label: 'Usuários', value: metricas.usuarios },
           { icon: ClipboardCheck, label: 'Vistorias', value: metricas.vistorias },
-          { icon: Bot, label: 'Perguntas IA (mês)', value: metricas.ia },
+          { icon: Bot, label: 'Perguntas IA (total)', value: metricas.ia },
         ].map((m) => (
           <Card key={m.label} className="rounded-2xl border-none p-4 shadow-subtle">
             <div className="flex items-center gap-3">

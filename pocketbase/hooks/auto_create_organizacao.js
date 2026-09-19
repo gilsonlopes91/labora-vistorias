@@ -4,6 +4,14 @@
 // nenhuma tela extra de "criar organização" hoje.
 onRecordAfterCreateSuccess((e) => {
   try {
+    // Staff e admin da PLATAFORMA não ganham organização própria — eles
+    // atuam dentro das organizações dos clientes (vinculados via staff_ids).
+    const papel = e.record.getString('papel')
+    if (papel === 'staff_labora' || papel === 'admin_plataforma') {
+      e.next()
+      return
+    }
+
     let jaTem = true
     try {
       $app.findFirstRecordByFilter('organizacoes', "dono_id = '" + e.record.id + "'")
