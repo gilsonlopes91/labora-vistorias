@@ -52,6 +52,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await pb.collection('users').create({ email, password, passwordConfirm: password, name })
       await pb.collection('users').authWithPassword(email, password)
+      // Recarrega o registro do usuário para garantir que organizacao_id e papel definidos pelo hook venham atualizados
+      try {
+        await pb.collection('users').authRefresh()
+      } catch {
+        /* intentionally ignored */
+      }
       return { error: null }
     } catch (error) {
       return { error }

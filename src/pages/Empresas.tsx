@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Building2 } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import {
   getEmpresas,
@@ -65,10 +65,35 @@ import {
 
 const PORTE_VALUES = ['MEI', 'ME', 'EPP', 'Demais / Não se enquadra'] as const
 
+function formatCnpj(val: string): string {
+  const digits = val.replace(/\D/g, '').slice(0, 14)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`
+  if (digits.length <= 12)
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`
+}
+
+function formatTelefone(val: string): string {
+  const digits = val.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`
+}
+
 const empresaSchema = z.object({
   razao_social: z.string().min(1, 'Informe a razão social'),
   nome_fantasia: z.string().optional(),
-  cnpj: z.string().optional(),
+  cnpj: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || !val.trim()) return true
+      const digits = val.replace(/\D/g, '')
+      return digits.length === 14
+    }, 'CNPJ deve conter 14 dígitos (ex.: 00.000.000/0000-00)'),
   porte: z.string().optional(),
   grau_risco: z.string().optional(),
   numero_funcionarios: z.string().optional(),
@@ -141,48 +166,69 @@ export default function Empresas() {
     form.reset({
       razao_social: empresa.razao_social ?? '',
       nome_fantasia: empresa.nome_fantasia ?? '',
-      cnpj: empresa.cnpj ?? '',
+      cnpj: empresa.cnpj ? formatCnpj(empresa.cnpj) : '',
       porte: empresa.porte ?? '',
       grau_risco: empresa.grau_risco != null ? String(empresa.grau_risco) : '',
       numero_funcionarios:
         empresa.numero_funcionarios != null ? String(empresa.numero_funcionarios) : '',
       endereco: empresa.endereco ?? '',
       contato_nome: empresa.contato_nome ?? '',
-      contato_telefone: empresa.contato_telefone ?? '',
+      contato_telefone: empresa.contato_telefone ? formatTelefone(empresa.contato_telefone) : '',
       contato_email: empresa.contato_email ?? '',
     })
     setDialogOpen(true)
   }
 
   const onSubmit = async (values: EmpresaFormValues) => {
-    if (!organizacaoId) return
+    let orgId = organizacaoId
+    if (!orgId) {
+      try {
+        const org = await getMinhaOrganizacao()
+        orgId = org.id
+        setOrganizacaoId(org.id)
+      } catch (err) {
+        toast.error('Não foi possível salvar', {
+          description: 'Organização não identificada. Tente recarregar a página.',
+        })
+        return
+      }
+    }
+
     setSubmitting(true)
     const payload = {
-      organizacao_id: organizacaoId,
-      razao_social: values.razao_social,
-      nome_fantasia: values.nome_fantasia || undefined,
-      cnpj: values.cnpj || undefined,
+      organizacao_id: orgId,
+      razao_social: values.razao_social.trim(),
+      nome_fantasia: values.nome_fantasia?.trim() || undefined,
+      cnpj: values.cnpj?.trim() || undefined,
       porte: values.porte || undefined,
       grau_risco: values.grau_risco ? Number(values.grau_risco) : undefined,
       numero_funcionarios: values.numero_funcionarios
         ? Number(values.numero_funcionarios)
         : undefined,
-      endereco: values.endereco || undefined,
-      contato_nome: values.contato_nome || undefined,
-      contato_telefone: values.contato_telefone || undefined,
-      contato_email: values.contato_email || undefined,
+      endereco: values.endereco?.trim() || undefined,
+      contato_nome: values.contato_nome?.trim() || undefined,
+      contato_telefone: values.contato_telefone?.trim() || undefined,
+      contato_email: values.contato_email?.trim() || undefined,
     }
     try {
       if (editing) {
         await updateEmpresa(editing.id, payload)
-        toast.success('Empresa atualizada')
+        toast.success('Empresa atualizada com sucesso')
       } else {
         await createEmpresa(payload)
-        toast.success('Empresa cadastrada')
+        toast.success('Empresa cadastrada com sucesso')
       }
       setDialogOpen(false)
       loadData()
     } catch (error) {
+      const fieldErrors = extractFieldErrors(error)
+      if (Object.keys(fieldErrors).length > 0) {
+        Object.entries(fieldErrors).forEach(([field, msg]) => {
+          if (field in emptyValues) {
+            form.setError(field as keyof EmpresaFormValues, { message: msg })
+          }
+        })
+      }
       toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
     } finally {
       setSubmitting(false)
@@ -338,7 +384,11 @@ export default function Empresas() {
                     <FormItem>
                       <FormLabel>CNPJ</FormLabel>
                       <FormControl>
-                        <Input placeholder="00.000.000/0000-00" {...field} />
+                        <Input
+                          placeholder="00.000.000/0000-00"
+                          value={field.value ?? ''}
+                          onChange={(e) => field.onChange(formatCnpj(e.target.value))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -442,7 +492,11 @@ export default function Empresas() {
                     <FormItem>
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
-                        <Input placeholder="(86) 90000-0000" {...field} />
+                        <Input
+                          placeholder="(86) 90000-0000"
+                          value={field.value ?? ''}
+                          onChange={(e) => field.onChange(formatTelefone(e.target.value))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

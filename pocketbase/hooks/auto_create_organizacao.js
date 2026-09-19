@@ -11,6 +11,7 @@ onRecordAfterCreateSuccess((e) => {
       jaTem = false
     }
 
+    let orgId = ''
     if (!jaTem) {
       const orgCol = $app.findCollectionByNameOrId('organizacoes')
       const nomeUsuario = e.record.getString('name')
@@ -18,6 +19,21 @@ onRecordAfterCreateSuccess((e) => {
       org.set('dono_id', e.record.id)
       org.set('nome', nomeUsuario ? nomeUsuario + ' — Organização' : 'Minha organização')
       $app.save(org)
+      orgId = org.id
+    }
+
+    // Garante que o usuário criado tenha organizacao_id e papel 'dono'
+    let precisaAtualizarUsuario = false
+    if (!e.record.getString('papel')) {
+      e.record.set('papel', 'dono')
+      precisaAtualizarUsuario = true
+    }
+    if (!e.record.getString('organizacao_id') && orgId) {
+      e.record.set('organizacao_id', orgId)
+      precisaAtualizarUsuario = true
+    }
+    if (precisaAtualizarUsuario) {
+      $app.save(e.record)
     }
   } catch (err) {
     $app
