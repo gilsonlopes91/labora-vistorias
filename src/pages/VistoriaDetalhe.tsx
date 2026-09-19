@@ -1023,9 +1023,8 @@ export default function VistoriaDetalhe() {
                               ) : (
                                 <>
                                   <span className="text-xs text-muted-foreground">
-                                    Usando o nº do topo (
-                                    {nr31Empregados || empresa?.numero_funcionarios || 0}{' '}
-                                    empregados)
+                                    Multa calculada com todos os trabalhadores (
+                                    {nr31Empregados || empresa?.numero_funcionarios || 0})
                                   </span>
                                   <Button
                                     size="sm"
@@ -1048,6 +1047,11 @@ export default function VistoriaDetalhe() {
                                     type="number"
                                     min={0}
                                     hidden
+                                    placeholder={
+                                      empresa?.numero_funcionarios
+                                        ? String(empresa.numero_funcionarios)
+                                        : '0'
+                                    }
                                     defaultValue={resposta.numero_funcionarios_irregulares ?? ''}
                                     onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
                                     className="h-8 w-28"

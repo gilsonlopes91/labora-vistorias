@@ -78,13 +78,12 @@ onRecordCreate((e) => {
         const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
         const baseLegal = vistoria.getString('nr31_base_legal')
         if (baseLegal === 'lei_380') multaRural = 380.0
-        const rawAfetados = record.getString('numero_funcionarios_irregulares').trim()
-        let nAfetados = 0
-        if (rawAfetados === '') {
+        // Campo numérico unset volta como 0 — 0 = sem nº informado = infração
+        // coletiva → usa o total de trabalhadores do estabelecimento.
+        let nAfetados = record.getInt('numero_funcionarios_irregulares')
+        if (nAfetados <= 0) {
           const empresa = $app.findRecordById('empresas', vistoria.get('empresa_id'))
           nAfetados = empresa.getInt('numero_funcionarios')
-        } else {
-          nAfetados = record.getInt('numero_funcionarios_irregulares')
         }
         if (nAfetados > 0) {
           vmin = Math.round(multaRural * nAfetados * 100) / 100
