@@ -20,26 +20,42 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-const FRIENDLY_ERROR_MAP: Record<string, string> = {
-  'Failed to create record.':
-    'Não foi possível criar o registro. Verifique as permissões ou se os campos obrigatórios estão preenchidos.',
-  'Failed to update record.':
-    'Não foi possível atualizar o registro. Verifique as permissões ou se os dados estão corretos.',
-  'Failed to delete record.':
-    'Não foi possível excluir o registro. Verifique as permissões de acesso.',
+const KNOWN_ERROR_TRANSLATIONS: Record<string, string> = {
+  'Failed to authenticate.': 'E-mail ou senha incorretos.',
+  'Failed to authenticate': 'E-mail ou senha incorretos.',
+  'The request requires valid record authorization token to be set.':
+    'Sessão expirada ou não autorizada. Faça login novamente.',
   'Something went wrong while processing your request.':
-    'Ocorreu um erro no servidor ao processar a requisição.',
+    'Ocorreu um erro inesperado ao processar sua solicitação.',
+  'Failed to create record.': 'Não foi possível criar o registro.',
+  'Failed to update record.': 'Não foi possível atualizar o registro.',
+  'Failed to delete record.': 'Não foi possível excluir o registro.',
+  'Only superusers can perform this action.': 'Apenas administradores podem executar esta ação.',
+  "The requested resource wasn't found.": 'O recurso solicitado não foi encontrado.',
+}
+
+function translateErrorMessage(msg: string): string {
+  const trimmed = msg.trim()
+  if (KNOWN_ERROR_TRANSLATIONS[trimmed]) {
+    return KNOWN_ERROR_TRANSLATIONS[trimmed]
+  }
+  // Se contiver a mensagem típica de falha de autenticação do PocketBase
+  if (trimmed.toLowerCase().includes('failed to authenticate')) {
+    return 'E-mail ou senha incorretos.'
+  }
+  return msg
 }
 
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
+    if (error instanceof Error) {
+      return translateErrorMessage(error.message)
+    }
+    return 'Ocorreu um erro inesperado.'
   }
-  const fieldErrors = extractFieldErrors(error)
-  const msgs = Object.entries(fieldErrors).map(([field, msg]) => `${field}: ${msg}`)
+  const msgs = Object.values(extractFieldErrors(error))
   if (msgs.length > 0) {
-    return msgs.join('. ')
+    return msgs.map(translateErrorMessage).join(' ')
   }
-  const originalMsg = error.message || ''
-  return FRIENDLY_ERROR_MAP[originalMsg] || originalMsg || 'Ocorreu um erro inesperado.'
+  return translateErrorMessage(error.message || 'Ocorreu um erro inesperado.')
 }

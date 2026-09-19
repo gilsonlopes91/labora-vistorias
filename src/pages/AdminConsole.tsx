@@ -108,7 +108,7 @@ export default function AdminConsole() {
             filter: pb.filter('organizacao_id = {:org}', { org: org.id }),
             fields: 'id',
           })
-          const ids = membros.items.map((m) => m.id)
+          const ids = membros.map((m) => m.id)
           if (ids.length > 0) {
             const convs = await pb.collection('ai_conversations').getList(1, 1, {
               filter: pb.filter('user_id ?= {:ids}', { ids }),
