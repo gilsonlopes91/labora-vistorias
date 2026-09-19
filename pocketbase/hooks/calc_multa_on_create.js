@@ -51,13 +51,24 @@ onRecordCreate((e) => {
         vmax = Math.round(tabelaRow.getFloat('valor_max_ufir') * ufirReais * 100) / 100
       } else if (codigo && codigo.startsWith('231')) {
         // NR-31 — trabalho rural (códigos 231xxx do Anexo II da NR-28).
-        // Art. 18 da Lei 5.889/1973: R$ 380,00 por empregado irregular;
-        // dobrado na reincidência (R$ 760,00).
-        const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
+        // Art. 18 da Lei 5.889/1973: R$ 392,89 por empregado irregular
+        // (Portaria MTE 1.131/2025, vigente desde 04/07/2025 — parâmetro
+        // multa_rural_por_empregado); dobrado na reincidência.
+        // O campo numero_funcionarios_irregulares da resposta informa quantos
+        // trabalhadores são afetados pelo item (contratados ou não); o default
+        // na UI é o total de trabalhadores da empresa.
+        let multaRural = 392.89
+        try {
+          const paramRow = $app.findFirstRecordByFilter(
+            'parametros_sistema',
+            "chave = 'multa_rural_por_empregado'",
+          )
+          multaRural = paramRow.getFloat('valor_numero') || 392.89
+        } catch (_) {}
         const nIrregulares = record.getInt('numero_funcionarios_irregulares')
         if (nIrregulares > 0) {
-          vmin = Math.round(380 * nIrregulares * 100) / 100
-          vmax = Math.round(760 * nIrregulares * 100) / 100
+          vmin = Math.round(multaRural * nIrregulares * 100) / 100
+          vmax = Math.round(multaRural * 2 * nIrregulares * 100) / 100
         }
       }
     }

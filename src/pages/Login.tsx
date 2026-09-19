@@ -194,31 +194,6 @@ export default function Login() {
                       >
                         {submitting ? 'Entrando...' : 'Entrar'}
                       </Button>
-
-                      <div className="rounded-2xl border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
-                        <p className="font-medium text-foreground">
-                          Credenciais para teste rápido:
-                        </p>
-                        <p className="mt-1">
-                          E-mail:{' '}
-                          <code className="font-mono text-foreground">admin@labora.com</code>
-                        </p>
-                        <p>
-                          Senha: <code className="font-mono text-foreground">labora123</code>
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 h-7 w-full rounded-full text-xs"
-                          onClick={() => {
-                            loginForm.setValue('email', 'admin@labora.com')
-                            loginForm.setValue('password', 'labora123')
-                          }}
-                        >
-                          Preencher credenciais de teste
-                        </Button>
-                      </div>
                     </form>
                   </Form>
                 </TabsContent>

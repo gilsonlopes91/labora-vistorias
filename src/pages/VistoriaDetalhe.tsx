@@ -89,16 +89,18 @@ const OBSERVACAO_PLACEHOLDER: Record<Situacao, string> = {
 
 // NR-31 (trabalho rural): os itens dela têm código 231xxx no Anexo II da NR-28
 // e NÃO usam a grade UFIR do Anexo I — a sanção segue o art. 18 da Lei
-// 5.889/1973 (R$ 380,00 por empregado em situação irregular, dobrado na
-// reincidência), remetida pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026).
-// Por isso o item pede o nº de empregados irregulares em vez de mostrar grau.
+// 5.889/1973 (R$ 392,89 por trabalhador em situação irregular, dobrado na
+// reincidência — Portaria MTE 1.131/2025), remetida pelo item 28.3.2 da NR-28
+// (Portaria MTE 104/2026). O nº informado no item é de trabalhadores afetados
+// (contratados ou não); o default é o total de trabalhadores da empresa.
 const isItemNr31 = (item: ItemChecklist) => !!(item.codigo && item.codigo.startsWith('231'))
 
 const TEXTO_NR31 =
   'Infração da NR-31 (trabalho rural): a multa não usa a grade de UFIR do Anexo I da NR-28. ' +
   'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973: ' +
-  'R$ 380,00 por empregado em situação irregular, dobrada na reincidência (R$ 760,00). ' +
-  'Informe abaixo quantos empregados estão expostos à não conformidade para o cálculo.'
+  'R$ 392,89 por trabalhador em situação irregular, dobrada na reincidência. ' +
+  'Informe abaixo o número de trabalhadores afetados por esta não conformidade (contratados ou não) — ' +
+  'o padrão é o total de trabalhadores da empresa.'
 
 const NOVO_RESPONSAVEL = '__novo__'
 
@@ -877,16 +879,26 @@ export default function VistoriaDetalhe() {
                             {TEXTO_NR31}
                             <div className="mt-2 flex items-center gap-2">
                               <Label htmlFor={`irreg-${item.id}`} className="text-xs font-medium">
-                                Empregados irregulares:
+                                Trabalhadores afetados:
                               </Label>
                               <Input
                                 id={`irreg-${item.id}`}
                                 type="number"
                                 min={0}
+                                placeholder={
+                                  empresa?.numero_funcionarios
+                                    ? String(empresa.numero_funcionarios)
+                                    : '0'
+                                }
                                 defaultValue={resposta.numero_funcionarios_irregulares ?? ''}
                                 onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
                                 className="h-8 w-28"
                               />
+                              {resposta.numero_funcionarios_irregulares ? null : (
+                                <span className="text-xs text-muted-foreground">
+                                  vazio = {empresa?.numero_funcionarios ?? 0} (total da empresa)
+                                </span>
+                              )}
                               {resposta.valor_multa_min || resposta.valor_multa_max ? (
                                 <span className="text-sm font-medium text-destructive">
                                   Multa: {currency.format(resposta.valor_multa_min || 0)} a{' '}
