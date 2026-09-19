@@ -13,9 +13,6 @@ migrate(
     if (!orgCol.fields.getByName('modulos')) {
       orgCol.fields.add(new JSONField({ name: 'modulos', maxSize: 2000 }))
     }
-    // staff com acesso ao console também pode editar a própria org (pacote)
-    orgCol.updateRule =
-      "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console))"
     app.save(orgCol)
 
     const orgs = app.findRecordsByFilter('organizacoes', 'id != ""', '-created', 0, 0)
@@ -35,6 +32,12 @@ migrate(
       usersCol.fields.add(new BoolField({ name: 'acesso_console' }))
     }
     app.save(usersCol)
+
+    // staff com acesso ao console também pode editar a própria org (pacote).
+    // DEPOIS de users ter os campos — a regra referencia @request.auth.acesso_console.
+    orgCol.updateRule =
+      "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console))"
+    app.save(orgCol)
 
     // --- conteudo_site ---
     let col = null

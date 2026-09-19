@@ -389,8 +389,7 @@ export default function AdminConsole() {
   )
 
   const podeAcessarConsole =
-    user?.papel === 'admin_plataforma' ||
-    (user?.papel === 'staff_labora' && user?.acesso_console)
+    user?.papel === 'admin_plataforma' || (user?.papel === 'staff_labora' && user?.acesso_console)
 
   if (!podeAcessarConsole) {
     return (
@@ -671,9 +670,21 @@ export default function AdminConsole() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             {[
-              { key: 'auditoria', label: 'Auditoria NRs', desc: 'Checklists item a item com cálculo de multa NR-28' },
-              { key: 'relatorios', label: 'Relatórios/PDF', desc: 'Geração do relatório em PDF da vistoria' },
-              { key: 'formularios', label: 'Formulários', desc: 'Modelos e registros de campo (ruído, calor, vibração, químicos)' },
+              {
+                key: 'auditoria',
+                label: 'Auditoria NRs',
+                desc: 'Checklists item a item com cálculo de multa NR-28',
+              },
+              {
+                key: 'relatorios',
+                label: 'Relatórios/PDF',
+                desc: 'Geração do relatório em PDF da vistoria',
+              },
+              {
+                key: 'formularios',
+                label: 'Formulários',
+                desc: 'Modelos e registros de campo (ruído, calor, vibração, químicos)',
+              },
               { key: 'ia', label: 'Assistente IA', desc: 'Perguntas ao assistente dentro do app' },
             ].map((m) => (
               <div key={m.key} className="flex items-start justify-between gap-4">
@@ -683,12 +694,10 @@ export default function AdminConsole() {
                 </div>
                 <Switch
                   checked={pacoteModulos[m.key as keyof Modulos]}
-                  onCheckedChange={(v) =>
-                    setPacoteModulos({ ...pacoteModulos, [m.key]: v })
-                  }
+                  onCheckedChange={(v) => setPacoteModulos({ ...pacoteModulos, [m.key]: v })}
                 />
-              </div)
-            )}
+              </div>
+            ))}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPacoteAlvo(null)}>
