@@ -99,9 +99,10 @@ const TEXTO_NR31 =
   'Infração da NR-31 (trabalho rural): a multa não usa a grade de UFIR do Anexo I da NR-28. ' +
   'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973: ' +
   'R$ 392,89 por empregado prejudicado, dobrada na reincidência — multa per capita. ' +
-  'Informe a relação de empregados prejudicados por esta infração (contratados ou não). ' +
-  'Infrações coletivas (ex.: falta de PGRTR) alcançam todos os empregados do estabelecimento — ' +
-  'deixe vazio para usar o total da empresa. Infrações individuais (ex.: exame médico): liste só os afetados.'
+  'O número usado neste item é o informado no topo da página. Se a infração alcançar menos ' +
+  'trabalhadores que o total do estabelecimento (ex.: falta de exame médico atinge só quem não ' +
+  'fez), clique em "Alterar nº de empregados prejudicados" e informe só os afetados. ' +
+  'Infrações coletivas (ex.: falta de PGRTR) usam o número de cima, sem alterar.'
 
 const NOVO_RESPONSAVEL = '__novo__'
 
@@ -146,6 +147,11 @@ export default function VistoriaDetalhe() {
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingGeo, setSavingGeo] = useState(false)
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null)
+  // NR-31: nº de empregados prejudicados no nível da vistoria (default = total
+  // da empresa). Cada item N/C da NR-31 herda esse número; itens individuais
+  // podem sobrescrever com o próprio nº de afetados.
+  const [nr31Empregados, setNr31Empregados] = useState<string>('')
+  const [nr31Editando, setNr31Editando] = useState(false)
   // Logo e nome usados no laudo e na marca d'água das fotos: os da
   // organização, com os da Labora como padrão pra quem ainda não configurou
   // os próprios (ver /configuracoes).
@@ -199,6 +205,10 @@ export default function VistoriaDetalhe() {
       const map: Record<string, RespostaVistoria> = {}
       for (const r of respostasVistoria) map[r.item_checklist_id] = r
       setRespostas(map)
+      // NR-31: default do nº de empregados prejudicados = total de trabalhadores
+      // da empresa (nomenclatura da Lei 5.889/1973). Editável no topo da página.
+      const emp = v.expand?.empresa_id as { numero_funcionarios?: number } | undefined
+      if (emp?.numero_funcionarios) setNr31Empregados(String(emp.numero_funcionarios))
     } catch (error) {
       toast.error('Não foi possível carregar a vistoria', { description: getErrorMessage(error) })
     } finally {
@@ -794,13 +804,66 @@ export default function VistoriaDetalhe() {
                 <div className="text-xs text-muted-foreground">
                   Soma dos itens marcados como não conforme, pela gradação do Anexo I da NR-28.
                   {temNr31 &&
-                    ' Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — R$ 380,00 por empregado irregular (dobrado na reincidência), calculados conforme o nº informado em cada item.'}
+                    ' Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — R$ 392,89 por empregado prejudicado (dobrado na reincidência), calculados pelo nº informado no topo ou no item.'}
                 </div>
               </div>
             </CardContent>
           </>
         )}
       </Card>
+
+      {temNr31 && (
+        <Card className="mb-6 border-amber-300 bg-amber-50">
+          <CardContent className="pt-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold uppercase tracking-wide text-amber-900">
+                  NR-31 · Número de empregados irregulares
+                </div>
+                <div className="mt-0.5 text-xs leading-relaxed text-amber-900">
+                  Multa per capita pelo art. 18 da Lei 5.889/1973 (R$ 392,89 por empregado
+                  prejudicado, dobrada na reincidência). O padrão é o total de trabalhadores do
+                  estabelecimento — usado quando a infração alcança a coletividade (ex.: falta de
+                  PGRTR). Se a infração atingir menos trabalhadores (ex.: exame médico), altere o
+                  número no item.
+                </div>
+              </div>
+              {nr31Editando ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={nr31Empregados}
+                    onChange={(e) => setNr31Empregados(e.target.value)}
+                    className="h-9 w-28"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-9 rounded-full"
+                    onClick={() => setNr31Editando(false)}
+                  >
+                    OK
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-extrabold text-amber-900">
+                    {nr31Empregados || empresa?.numero_funcionarios || 0}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-full text-xs"
+                    onClick={() => setNr31Editando(true)}
+                  >
+                    Alterar
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-8">
         {grupos.map(([secao, itensGrupo]) => (
@@ -878,27 +941,57 @@ export default function VistoriaDetalhe() {
                         {resposta.situacao === 'N/C' && isItemNr31(item) && (
                           <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
                             {TEXTO_NR31}
-                            <div className="mt-2 flex items-center gap-2">
-                              <Label htmlFor={`irreg-${item.id}`} className="text-xs font-medium">
-                                Trabalhadores afetados:
-                              </Label>
-                              <Input
-                                id={`irreg-${item.id}`}
-                                type="number"
-                                min={0}
-                                placeholder={
-                                  empresa?.numero_funcionarios
-                                    ? String(empresa.numero_funcionarios)
-                                    : '0'
-                                }
-                                defaultValue={resposta.numero_funcionarios_irregulares ?? ''}
-                                onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
-                                className="h-8 w-28"
-                              />
-                              {resposta.numero_funcionarios_irregulares ? null : (
-                                <span className="text-xs text-muted-foreground">
-                                  vazio = {empresa?.numero_funcionarios ?? 0} (total da empresa)
-                                </span>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {resposta.numero_funcionarios_irregulares ? (
+                                <>
+                                  <Label
+                                    htmlFor={`irreg-${item.id}`}
+                                    className="text-xs font-medium"
+                                  >
+                                    Empregados prejudicados neste item:
+                                  </Label>
+                                  <Input
+                                    id={`irreg-${item.id}`}
+                                    type="number"
+                                    min={0}
+                                    defaultValue={resposta.numero_funcionarios_irregulares}
+                                    onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
+                                    className="h-8 w-28"
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-xs text-muted-foreground">
+                                    Usando o nº do topo (
+                                    {nr31Empregados || empresa?.numero_funcionarios || 0}{' '}
+                                    empregados)
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 rounded-full text-xs"
+                                    onClick={() => {
+                                      const el = document.getElementById(
+                                        `irreg-${item.id}`,
+                                      ) as HTMLInputElement | null
+                                      if (el) {
+                                        el.hidden = false
+                                        el.focus()
+                                      }
+                                    }}
+                                  >
+                                    Alterar nº de empregados prejudicados
+                                  </Button>
+                                  <Input
+                                    id={`irreg-${item.id}`}
+                                    type="number"
+                                    min={0}
+                                    hidden
+                                    defaultValue={resposta.numero_funcionarios_irregulares ?? ''}
+                                    onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
+                                    className="h-8 w-28"
+                                  />
+                                </>
                               )}
                               {resposta.valor_multa_min || resposta.valor_multa_max ? (
                                 <span className="text-sm font-medium text-destructive">
@@ -907,7 +1000,7 @@ export default function VistoriaDetalhe() {
                                 </span>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
-                                  Sem nº informado — multa não calculada
+                                  Multa calculada ao salvar o nº
                                 </span>
                               )}
                             </div>
