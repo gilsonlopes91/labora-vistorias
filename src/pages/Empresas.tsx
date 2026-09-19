@@ -282,7 +282,7 @@ export default function Empresas() {
                 <TableHead>Nome fantasia</TableHead>
                 <TableHead>CNPJ</TableHead>
                 <TableHead>Porte</TableHead>
-                <TableHead>Funcionários</TableHead>
+                <TableHead>Trabalhadores</TableHead>
                 <TableHead>Formulários</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -297,7 +297,7 @@ export default function Empresas() {
                   <TableCell>
                     {empresa.porte ? <Badge variant="secondary">{empresa.porte}</Badge> : '—'}
                   </TableCell>
-                  <TableCell>{empresa.numero_funcionarios ?? '—'}</TableCell>
+                  <TableCell>{empresa.numero_funcionarios ?? '—'} trabalhadores</TableCell>
                   <TableCell>
                     {(() => {
                       const total = formularios.filter((f) => f.empresa_id === empresa.id).length
@@ -449,10 +449,15 @@ export default function Empresas() {
                   name="numero_funcionarios"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nº de funcionários</FormLabel>
+                      <FormLabel>Nº de trabalhadores</FormLabel>
                       <FormControl>
-                        <Input type="number" min={0} placeholder="Ex.: 12" {...field} />
-                      </FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="Ex.: 12 (empregados + terceirizados no estabelecimento)"
+                          {...field}
+                        />
+                      </FormControl>{' '}
                       <FormMessage />
                     </FormItem>
                   )}

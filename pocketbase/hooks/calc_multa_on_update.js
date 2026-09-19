@@ -60,10 +60,24 @@ onRecordUpdate((e) => {
           )
           multaRural = paramRow.getFloat('valor_numero') || 392.89
         } catch (_) {}
-        const nIrregulares = record.getInt('numero_funcionarios_irregulares')
-        if (nIrregulares > 0) {
-          vmin = Math.round(multaRural * nIrregulares * 100) / 100
-          vmax = Math.round(multaRural * 2 * nIrregulares * 100) / 100
+        // Critério do AFT (art. 18 da Lei 5.889/73, multa per capita): o auto de
+        // infração traz a relação de empregados prejudicados. Infrações
+        // coletivas (ex.: falta de PGRTR) alcançam TODOS os empregados do
+        // estabelecimento; individuais (ex.: exame médico) listam só os
+        // afetados. Campo vazio = coletiva → usa o total de trabalhadores da
+        // empresa; preenchido = o nº de trabalhadores afetados pelo item.
+        const rawAfetados = record.getString('numero_funcionarios_irregulares').trim()
+        let nAfetados = 0
+        if (rawAfetados === '') {
+          const vistoria = $app.findRecordById('vistorias', record.get('vistoria_id'))
+          const empresa = $app.findRecordById('empresas', vistoria.get('empresa_id'))
+          nAfetados = empresa.getInt('numero_funcionarios')
+        } else {
+          nAfetados = record.getInt('numero_funcionarios_irregulares')
+        }
+        if (nAfetados > 0) {
+          vmin = Math.round(multaRural * nAfetados * 100) / 100
+          vmax = Math.round(multaRural * 2 * nAfetados * 100) / 100
         }
       }
     }

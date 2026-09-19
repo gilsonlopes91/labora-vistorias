@@ -98,9 +98,10 @@ const isItemNr31 = (item: ItemChecklist) => !!(item.codigo && item.codigo.starts
 const TEXTO_NR31 =
   'Infração da NR-31 (trabalho rural): a multa não usa a grade de UFIR do Anexo I da NR-28. ' +
   'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973: ' +
-  'R$ 392,89 por trabalhador em situação irregular, dobrada na reincidência. ' +
-  'Informe abaixo o número de trabalhadores afetados por esta não conformidade (contratados ou não) — ' +
-  'o padrão é o total de trabalhadores da empresa.'
+  'R$ 392,89 por empregado prejudicado, dobrada na reincidência — multa per capita. ' +
+  'Informe a relação de empregados prejudicados por esta infração (contratados ou não). ' +
+  'Infrações coletivas (ex.: falta de PGRTR) alcançam todos os empregados do estabelecimento — ' +
+  'deixe vazio para usar o total da empresa. Infrações individuais (ex.: exame médico): liste só os afetados.'
 
 const NOVO_RESPONSAVEL = '__novo__'
 
