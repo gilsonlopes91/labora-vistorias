@@ -208,9 +208,9 @@ const Index = () => {
     {
       to: '/modelos',
       icon: ListChecks,
-      title: 'Modelos',
+      title: 'Auditoria NRs',
       description: 'Tipos de vistoria/auditoria e seus checklists',
-      cta: 'Ver modelos',
+      cta: 'Ver auditorias NRs',
     },
     {
       to: '/agenda',
