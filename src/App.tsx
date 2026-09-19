@@ -18,6 +18,7 @@ import Agenda from './pages/Agenda'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
 import NotFound from './pages/NotFound'
+import AdminConsole from './pages/AdminConsole'
 import Layout from './components/Layout'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
@@ -117,6 +118,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Equipe />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminConsole />
                 </ProtectedRoute>
               }
             />

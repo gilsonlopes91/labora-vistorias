@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   ListChecks,
   Plus,
+  Settings2,
 } from 'lucide-react'
 import {
   Bar,
@@ -189,6 +190,27 @@ const Index = () => {
     { to: '/agenda', icon: CalendarClock, label: 'Ver agenda' },
   ]
 
+  // Camada PLATAFORMA: admin total e staff veem os 2 caminhos grandes.
+  const ehPlataforma = user?.papel === 'admin_plataforma' || user?.papel === 'staff_labora'
+  const caminhosPlataforma = [
+    {
+      to: '/',
+      icon: Building2,
+      titulo: 'Acessar organizações',
+      descricao: 'App operacional — empresas, vistorias e agenda das suas organizações.',
+    },
+    ...(user?.papel === 'admin_plataforma'
+      ? [
+          {
+            to: '/admin',
+            icon: Settings2,
+            titulo: 'Gerenciar contas',
+            descricao: 'Console: organizações, planos, consumo do assistente IA e bloqueios.',
+          },
+        ]
+      : []),
+  ]
+
   const areas = [
     {
       to: '/empresas',
@@ -255,6 +277,25 @@ const Index = () => {
       <p className="mb-6 text-sm text-muted-foreground">
         Bem-vindo ao LABORA vistorias — gestão de auditorias, vistorias e inspeções de SST.
       </p>
+
+      {/* Camada plataforma: 2 caminhos grandes (admin total / staff) */}
+      {ehPlataforma && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2">
+          {caminhosPlataforma.map((c) => (
+            <Link key={c.to} to={c.to}>
+              <Card className="flex h-full items-center gap-4 rounded-2xl border-none p-5 shadow-subtle transition-shadow hover:shadow-elevation">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                  <c.icon className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-bold">{c.titulo}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{c.descricao}</div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="mb-6 flex flex-wrap items-center gap-3">
