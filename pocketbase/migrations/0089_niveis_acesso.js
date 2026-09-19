@@ -75,8 +75,9 @@ migrate(
     app.save(orgCol)
 
     const MESMA_ORG = 'organizacao_id = @request.auth.organizacao_id'
+    // staff_ids vive em organizacoes — acessar via relação organizacao_id.
     const MESMA_ORG_STAFF =
-      "(organizacao_id = @request.auth.organizacao_id || staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')"
+      "(organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')"
 
     const regras = (nome, orgFiltro, gestorExtra) => {
       const col = app.findCollectionByNameOrId(nome)
@@ -103,7 +104,7 @@ migrate(
     // vistorias: executor só as atribuídas; admin vê/gerencia tudo
     const vistCol = app.findCollectionByNameOrId('vistorias')
     const VIST_ORG =
-      'organizacao_id = @request.auth.organizacao_id || staff_ids.id ?= @request.auth.id'
+      'organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id'
     const vBase = AUTENTICADO + ' && (' + VIST_ORG + ' || ' + ADMIN + ')'
     vistCol.listRule = vBase
     vistCol.viewRule = vBase
@@ -121,7 +122,7 @@ migrate(
     // respostas: segue a vistoria
     const respCol = app.findCollectionByNameOrId('respostas_vistoria')
     const RESP_ORG =
-      'vistoria_id.organizacao_id = @request.auth.organizacao_id || vistoria_id.staff_ids.id ?= @request.auth.id'
+      'vistoria_id.organizacao_id = @request.auth.organizacao_id || vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id'
     const rBase = AUTENTICADO + ' && (' + RESP_ORG + ' || ' + ADMIN + ')'
     respCol.listRule = rBase
     respCol.viewRule = rBase
@@ -138,7 +139,7 @@ migrate(
     // tipos_vistoria e itens_checklist: catálogo global + org + admin
     const tipoCol = app.findCollectionByNameOrId('tipos_vistoria')
     const TIPO_ORG =
-      "organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || staff_ids.id ?= @request.auth.id"
+      "organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id"
     const tBase = AUTENTICADO + ' && (' + TIPO_ORG + ' || ' + ADMIN + ')'
     tipoCol.listRule = tBase
     tipoCol.viewRule = tBase
@@ -149,7 +150,7 @@ migrate(
 
     const itemCol = app.findCollectionByNameOrId('itens_checklist')
     const ITEM_ORG =
-      "(tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.staff_ids.id ?= @request.auth.id)"
+      "(tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id)"
     const iBase = AUTENTICADO + ' && (' + ITEM_ORG + ' || ' + ADMIN + ')'
     itemCol.listRule = iBase
     itemCol.viewRule = iBase
