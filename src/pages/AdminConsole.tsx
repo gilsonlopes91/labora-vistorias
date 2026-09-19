@@ -4,7 +4,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Building2, Ban, ShieldCheck, Users, ClipboardCheck, Bot, Search } from 'lucide-react'
+import {
+  Building2,
+  Ban,
+  ShieldCheck,
+  Users,
+  ClipboardCheck,
+  Bot,
+  Search,
+  UserPlus,
+  Trash2,
+} from 'lucide-react'
 
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -37,6 +47,13 @@ interface OrgRow {
   perguntas_ia: number
 }
 
+interface StaffRow {
+  id: string
+  name: string
+  email: string
+  orgs: string[]
+}
+
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
   ativa: 'default',
   trial: 'secondary',
@@ -50,6 +67,12 @@ export default function AdminConsole() {
   const [busca, setBusca] = useState('')
   const [alvo, setAlvo] = useState<OrgRow | null>(null)
   const [bloqueando, setBloqueando] = useState(false)
+
+  // Staff Labora
+  const [staff, setStaff] = useState<StaffRow[]>([])
+  const [novoStaff, setNovoStaff] = useState({ nome: '', email: '', senha: '' })
+  const [criandoStaff, setCriandoStaff] = useState(false)
+  const [orgParaVincular, setOrgParaVincular] = useState<Record<string, string>>({})
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -80,16 +103,15 @@ export default function AdminConsole() {
             filter: pb.filter('organizacao_id = {:org}', { org: org.id }),
             fields: 'id',
           })
-          for (const m of membros.items) {
-            const convs = await pb
-              .send(`/backend/v1/ai/agents/labora-assistente/conversations?user_id=${m.id}`, {
-                method: 'GET',
-              })
-              .catch(() => null)
-            if (convs && Array.isArray(convs.items)) perguntasIa += convs.items.length
+          const ids = membros.items.map((m) => m.id)
+          if (ids.length > 0) {
+            const convs = await pb.collection('ai_conversations').getList(1, 1, {
+              filter: pb.filter('user_id ?= {:ids}', { ids }),
+            })
+            perguntasIa = convs.totalItems
           }
         } catch (_) {
-          // endpoint indisponível — mantém 0 sem quebrar a tela
+          // coleção indisponível — mantém 0 sem quebrar a tela
         }
         linhas.push({
           id: org.id,
@@ -117,6 +139,94 @@ export default function AdminConsole() {
   useEffect(() => {
     carregar()
   }, [carregar])
+
+  // ---- Staff Labora ----
+  const carregarStaff = useCallback(async () => {
+    try {
+      const lista = await pb.collection('users').getFullList({
+        filter: "papel = 'staff_labora'",
+        sort: 'name',
+      })
+      const orgsAll = await pb.collection('organizacoes').getFullList({ fields: 'id,staff_ids' })
+      const porUsuario: Record<string, string[]> = {}
+      for (const org of orgsAll) {
+        for (const sid of org.staff_ids || [])
+          porUsuario[sid] = [...(porUsuario[sid] || []), org.id]
+      }
+      setStaff(
+        lista.map((u) => ({
+          id: u.id,
+          name: u.name || u.email,
+          email: u.email,
+          orgs: porUsuario[u.id] || [],
+        })),
+      )
+    } catch (_) {
+      // sem permissão ou vazio — mantém lista vazia
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user?.papel === 'admin_plataforma') carregarStaff()
+  }, [user?.papel, carregarStaff])
+
+  const criarStaff = async () => {
+    if (!novoStaff.nome.trim() || !novoStaff.email.trim() || novoStaff.senha.length < 8) {
+      toast.error('Preencha nome, e-mail e senha (mínimo 8 caracteres)')
+      return
+    }
+    setCriandoStaff(true)
+    try {
+      await pb.collection('users').create({
+        name: novoStaff.nome.trim(),
+        email: novoStaff.email.trim(),
+        password: novoStaff.senha,
+        passwordConfirm: novoStaff.senha,
+        papel: 'staff_labora',
+        verified: true,
+      })
+      toast.success('Staff criado com sucesso')
+      setNovoStaff({ nome: '', email: '', senha: '' })
+      carregarStaff()
+    } catch (error) {
+      toast.error('Não foi possível criar o staff', { description: getErrorMessage(error) })
+    } finally {
+      setCriandoStaff(false)
+    }
+  }
+
+  const vincularStaff = async (staffId: string) => {
+    const orgId = orgParaVincular[staffId]
+    if (!orgId) {
+      toast.error('Escolha uma organização para vincular')
+      return
+    }
+    try {
+      const org = await pb.collection('organizacoes').getOne(orgId)
+      const atual = org.staff_ids || []
+      if (!atual.includes(staffId)) {
+        await pb.collection('organizacoes').update(orgId, { staff_ids: [...atual, staffId] })
+      }
+      toast.success('Vínculo criado')
+      carregarStaff()
+    } catch (error) {
+      toast.error('Não foi possível vincular', { description: getErrorMessage(error) })
+    }
+  }
+
+  const desvincularStaff = async (staffId: string, orgId: string) => {
+    try {
+      const org = await pb.collection('organizacoes').getOne(orgId)
+      const atual = org.staff_ids || []
+      await pb
+        .collection('organizacoes')
+        .update(orgId, { staff_ids: atual.filter((id: string) => id !== staffId) })
+      toast.success('Vínculo removido')
+      carregarStaff()
+    } catch (error) {
+      toast.error('Não foi possível remover o vínculo', { description: getErrorMessage(error) })
+    }
+  }
 
   const alternarBloqueio = async () => {
     if (!alvo) return
@@ -273,6 +383,125 @@ export default function AdminConsole() {
           ))}
         </div>
       )}
+
+      {/* Staff Labora */}
+      <div className="mt-10">
+        <h2 className="mb-1 text-xl font-bold">Staff Labora</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Equipe Labora que atua dentro das organizações como executor — sem ver cobrança.
+        </p>
+
+        <Card className="mb-4 rounded-2xl border-none p-4 shadow-subtle">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="sm:col-span-1">
+              <Label htmlFor="staff-nome">Nome</Label>
+              <Input
+                id="staff-nome"
+                value={novoStaff.nome}
+                onChange={(e) => setNovoStaff({ ...novoStaff, nome: e.target.value })}
+                placeholder="Nome da pessoa"
+              />
+            </div>
+            <div className="sm:col-span-1">
+              <Label htmlFor="staff-email">E-mail</Label>
+              <Input
+                id="staff-email"
+                type="email"
+                value={novoStaff.email}
+                onChange={(e) => setNovoStaff({ ...novoStaff, email: e.target.value })}
+                placeholder="email@labora.com"
+              />
+            </div>
+            <div className="sm:col-span-1">
+              <Label htmlFor="staff-senha">Senha inicial</Label>
+              <Input
+                id="staff-senha"
+                type="text"
+                value={novoStaff.senha}
+                onChange={(e) => setNovoStaff({ ...novoStaff, senha: e.target.value })}
+                placeholder="mínimo 8 caracteres"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={criarStaff} disabled={criandoStaff} className="w-full rounded-full">
+                <UserPlus className="mr-2 h-4 w-4" />
+                {criandoStaff ? 'Criando...' : 'Criar staff'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {staff.length === 0 ? (
+          <Card className="rounded-2xl border-dashed p-8 text-center text-sm text-muted-foreground">
+            Nenhum staff cadastrado ainda.
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {staff.map((s) => (
+              <Card key={s.id} className="rounded-2xl border-none p-4 shadow-subtle">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">{s.email}</div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {s.orgs.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">
+                          Sem organização vinculada
+                        </span>
+                      ) : (
+                        s.orgs.map((orgId) => {
+                          const nome = orgs.find((o) => o.id === orgId)?.nome || orgId
+                          return (
+                            <Badge
+                              key={orgId}
+                              variant="secondary"
+                              className="gap-1 rounded-full pr-1.5"
+                            >
+                              {nome}
+                              <button
+                                type="button"
+                                aria-label={`Remover vínculo com ${nome}`}
+                                className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/10"
+                                onClick={() => desvincularStaff(s.id, orgId)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="h-9 rounded-full border bg-background px-3 text-sm"
+                      value={orgParaVincular[s.id] || ''}
+                      onChange={(e) =>
+                        setOrgParaVincular({ ...orgParaVincular, [s.id]: e.target.value })
+                      }
+                    >
+                      <option value="">Vincular à organização...</option>
+                      {orgs.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => vincularStaff(s.id)}
+                    >
+                      Vincular
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Confirmação de bloqueio */}
       <Dialog open={!!alvo} onOpenChange={(open) => !open && setAlvo(null)}>
