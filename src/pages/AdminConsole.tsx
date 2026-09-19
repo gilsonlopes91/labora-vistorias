@@ -89,7 +89,10 @@ export default function AdminConsole() {
         // sem organizacao_id preenchido — ex.: "Labora Vistoria").
         const [usuarios, empresas, vistorias] = await Promise.all([
           pb.collection('users').getList(1, 1, {
-            filter: pb.filter('organizacao_id = {:org} || id = dono_id', { org: org.id }),
+            filter: pb.filter('organizacao_id = {:org} || id = {:dono}', {
+              org: org.id,
+              dono: org.dono_id || '__nenhum__',
+            }),
           }),
           pb.collection('empresas').getList(1, 1, {
             filter: pb.filter('organizacao_id = {:org}', { org: org.id }),
