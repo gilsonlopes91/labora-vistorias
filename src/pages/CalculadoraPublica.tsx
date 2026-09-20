@@ -57,12 +57,7 @@ const faixaDoCalculo = (trabalhadores: string): number => {
   return 7
 }
 
-const GRAU_LABEL: Record<number, string> = {
-  1: 'Grau 1 — risco leve',
-  2: 'Grau 2 — risco médio',
-  3: 'Grau 3 — risco grave',
-  4: 'Grau 4 — risco gravíssimo',
-}
+const GRAU_LABEL: Record<number, string> = { 1: '1', 2: '2', 3: '3', 4: '4' }
 
 export default function CalculadoraPublica() {
   const [nrs, setNrs] = useState<Nr[]>([])
@@ -244,7 +239,7 @@ export default function CalculadoraPublica() {
                 <Label htmlFor="grau">Grau de risco (NR-4)</Label>
                 <Select value={grauEmpresa} onValueChange={setGrauEmpresa}>
                   <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Opcional — para contexto" />
+                    <SelectValue placeholder="1, 2, 3 ou 4" />
                   </SelectTrigger>
                   <SelectContent>
                     {[1, 2, 3, 4].map((g) => (

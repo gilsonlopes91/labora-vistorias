@@ -84,35 +84,21 @@ export default function TabelaAnexoI({
         <div className="overflow-x-auto rounded-2xl border">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-muted/60">
-                <th className="px-2 py-2 text-left font-semibold">Empregados</th>
-                {['Grau 1', 'Grau 2', 'Grau 3', 'Grau 4'].map((g, i) => (
-                  <th key={g} className="px-2 py-2 text-center">
-                    {g}
-                    {ehDestaque(0, i + 1) ? '' : ''}
-                  </th>
-                ))}
-              </tr>
-              <tr className="bg-muted/30">
-                <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">
-                  faixa × grau da infração
-                </th>
-                {['leve', 'médio', 'grave', 'gravíssimo'].map((l) => (
-                  <th
-                    key={l}
-                    className="px-2 py-1 text-center text-[10px] font-medium text-muted-foreground"
-                  >
-                    {l}
-                  </th>
-                ))}
-              </tr>
               <tr className="bg-muted/30">
                 <th
                   colSpan={5}
                   className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground"
                 >
-                  {tipo === 'S' ? 'Segurança do Trabalho' : 'Medicina do Trabalho'}
+                  {tipo === 'S' ? 'SEGURANÇA DO TRABALHO' : 'MEDICINA DO TRABALHO'}
                 </th>
+              </tr>
+              <tr className="bg-muted/60">
+                <th className="px-2 py-2 text-left font-semibold">Número de Empregados</th>
+                {['I1', 'I2', 'I3', 'I4'].map((g) => (
+                  <th key={g} className="px-2 py-2 text-center font-semibold">
+                    {g}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
