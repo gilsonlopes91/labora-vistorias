@@ -56,7 +56,7 @@ export default function TrocarSenha() {
         trocar_senha: false,
       })
       toast.success('Senha alterada com sucesso!')
-      navigate('/', { replace: true })
+      navigate('/painel', { replace: true })
     } catch (error) {
       toast.error('Não foi possível alterar a senha', {
         description: getErrorMessage(error),

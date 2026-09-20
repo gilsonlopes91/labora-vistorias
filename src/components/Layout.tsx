@@ -33,7 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Início', icon: Home },
+  { to: '/painel', label: 'Início', icon: Home },
   { to: '/empresas', label: 'Empresas', icon: Building2 },
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
   { to: '/modelos', label: 'Auditoria NRs', icon: ListChecks },
@@ -68,7 +68,8 @@ export default function Layout() {
 
   const currentLabel = NAV_ITEMS.find(
     (item) =>
-      item.to === location.pathname || (item.to !== '/' && location.pathname.startsWith(item.to)),
+      item.to === location.pathname ||
+      (item.to !== '/painel' && location.pathname.startsWith(item.to)),
   )?.label
 
   const initials = (user?.name || user?.email || 'LV').slice(0, 2).toUpperCase()
@@ -81,7 +82,11 @@ export default function Layout() {
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader>
-          <div className="flex items-center gap-2.5 px-1 py-2">
+          <Link
+            to="/painel"
+            className="flex items-center gap-2.5 px-1 py-2 transition-opacity hover:opacity-90"
+            aria-label="Labora Vistorias — painel"
+          >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 p-0.5">
               <LaboraLogo className="h-8 w-8" />
             </div>
@@ -91,7 +96,7 @@ export default function Layout() {
                 vistorias
               </div>
             </div>
-          </div>
+          </Link>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -100,8 +105,8 @@ export default function Layout() {
                 .filter((item) => !modulos || !moduloDe[item.to] || modulos[moduloDe[item.to]])
                 .map((item) => {
                   const active =
-                    item.to === '/'
-                      ? location.pathname === '/'
+                    item.to === '/painel'
+                      ? location.pathname === '/painel'
                       : location.pathname.startsWith(item.to)
                   return (
                     <SidebarMenuItem key={item.to}>

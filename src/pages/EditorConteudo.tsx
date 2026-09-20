@@ -77,7 +77,7 @@ export default function EditorConteudo() {
           Esta área é exclusiva da administração da plataforma.
         </p>
         <Button asChild className="mt-6 rounded-full">
-          <Link to="/">Voltar para o início</Link>
+          <Link to="/painel">Voltar para o início</Link>
         </Button>
       </div>
     )

@@ -45,7 +45,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
             <Route
-              path="/"
+              path="/painel"
               element={
                 <ProtectedRoute>
                   <Index />

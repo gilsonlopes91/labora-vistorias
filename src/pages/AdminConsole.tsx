@@ -401,7 +401,7 @@ export default function AdminConsole() {
           Esta área é exclusiva do administrador da plataforma.
         </p>
         <Button asChild className="mt-6 rounded-full">
-          <Link to="/">Voltar para o início</Link>
+          <Link to="/painel">Voltar para o início</Link>
         </Button>
       </div>
     )

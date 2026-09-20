@@ -71,7 +71,7 @@ export default function Login() {
   })
 
   if (!loading && isAuthenticated) {
-    const from = (location.state as { from?: string })?.from || '/'
+    const from = (location.state as { from?: string })?.from || '/painel'
     return <Navigate to={from} replace />
   }
 
@@ -89,7 +89,7 @@ export default function Login() {
       navigate('/trocar-senha', { replace: true })
       return
     }
-    navigate('/', { replace: true })
+    navigate('/painel', { replace: true })
   }
 
   const onSignup = async (values: z.infer<typeof signupSchema>) => {
@@ -101,7 +101,7 @@ export default function Login() {
       return
     }
     toast.success('Conta criada com sucesso!')
-    navigate('/', { replace: true })
+    navigate('/painel', { replace: true })
   }
 
   return (

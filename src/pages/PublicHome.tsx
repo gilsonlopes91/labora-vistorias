@@ -1,12 +1,19 @@
 /* Home pública — landing page profissional em largura total: header com acesso,
    hero, prova social, como funciona e CTA final. */
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { ArrowRight, Calculator, ClipboardCheck, FileText, LogIn, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LaboraLogo } from '@/components/LaboraLogo'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function PublicHome() {
+  const { isAuthenticated, loading } = useAuth()
+
+  if (!loading && isAuthenticated) {
+    return <Navigate to="/painel" replace />
+  }
+
   return (
     <div>
       {/* Barra de topo / header simples com acesso à área administrativa */}
