@@ -93,6 +93,7 @@ export default function AdminConsole() {
     auditoria: true,
     relatorios: true,
     formularios: true,
+    ia: true,
   })
   const [salvandoPacote, setSalvandoPacote] = useState(false)
 

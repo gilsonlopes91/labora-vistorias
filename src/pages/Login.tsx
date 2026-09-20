@@ -1,7 +1,7 @@
 /* Tela de login/cadastro — estilo hero: tipografia grande com palavras destacadas,
    rótulo de seção em caixa alta e card flutuante. Paleta Labora preservada. */
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -107,13 +107,31 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background px-6 py-8 lg:px-12">
       <header className="mx-auto flex max-w-7xl items-center justify-between">
-        <LaboraLogoFull />
-        <a
-          href="#acesso"
-          className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-subtle transition-opacity hover:opacity-90"
-        >
-          Começar agora
-        </a>
+        <div className="flex items-center gap-6">
+          <Link to="/" aria-label="Labora Vistorias — início">
+            <LaboraLogoFull />
+          </Link>
+          <Link
+            to="/"
+            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-block"
+          >
+            ← Voltar ao site
+          </Link>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:hidden"
+          >
+            Voltar ao site
+          </Link>
+          <a
+            href="#acesso"
+            className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-subtle transition-opacity hover:opacity-90"
+          >
+            Começar agora
+          </a>
+        </div>
       </header>
 
       <main className="mx-auto grid max-w-7xl items-center gap-12 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">

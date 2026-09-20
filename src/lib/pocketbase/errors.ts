@@ -20,42 +20,10 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-const KNOWN_ERROR_TRANSLATIONS: Record<string, string> = {
-  'Failed to authenticate.': 'E-mail ou senha incorretos.',
-  'Failed to authenticate': 'E-mail ou senha incorretos.',
-  'The request requires valid record authorization token to be set.':
-    'Sessão expirada ou não autorizada. Faça login novamente.',
-  'Something went wrong while processing your request.':
-    'Ocorreu um erro inesperado ao processar sua solicitação.',
-  'Failed to create record.': 'Não foi possível criar o registro.',
-  'Failed to update record.': 'Não foi possível atualizar o registro.',
-  'Failed to delete record.': 'Não foi possível excluir o registro.',
-  'Only superusers can perform this action.': 'Apenas administradores podem executar esta ação.',
-  "The requested resource wasn't found.": 'O recurso solicitado não foi encontrado.',
-}
-
-function translateErrorMessage(msg: string): string {
-  const trimmed = msg.trim()
-  if (KNOWN_ERROR_TRANSLATIONS[trimmed]) {
-    return KNOWN_ERROR_TRANSLATIONS[trimmed]
-  }
-  // Se contiver a mensagem típica de falha de autenticação do PocketBase
-  if (trimmed.toLowerCase().includes('failed to authenticate')) {
-    return 'E-mail ou senha incorretos.'
-  }
-  return msg
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    if (error instanceof Error) {
-      return translateErrorMessage(error.message)
-    }
-    return 'Ocorreu um erro inesperado.'
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  if (msgs.length > 0) {
-    return msgs.map(translateErrorMessage).join(' ')
-  }
-  return translateErrorMessage(error.message || 'Ocorreu um erro inesperado.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
