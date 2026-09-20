@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:57:39.516Z",
+  "generatedAt": "2026-09-20T03:03:31.550Z",
   "collections": [
     {
       "name": "users",
@@ -1130,6 +1130,78 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_conteudo_chave ON conteudo_site (chave)"]
+    },
+    {
+      "name": "artigos",
+      "type": "base",
+      "apiRules": {
+        "list": "status = 'publicado' || @request.auth.id != ''",
+        "view": "status = 'publicado' || @request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "resumo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conteudo",
+          "type": "editor",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "capa",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["rascunho", "publicado"]
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_artigos_slug ON artigos (slug)"]
     }
   ]
 }

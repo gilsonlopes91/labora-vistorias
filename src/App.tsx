@@ -11,6 +11,8 @@ import PublicLayout from './components/PublicLayout'
 import PublicHome from './pages/PublicHome'
 import CalculadoraPublica from './pages/CalculadoraPublica'
 import Blog from './pages/Blog'
+import ArtigoDetalhe from './pages/ArtigoDetalhe'
+import AdminArtigos from './pages/AdminArtigos'
 import Empresas from './pages/Empresas'
 import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
@@ -41,6 +43,7 @@ const App = () => (
             <Route path="/" element={<PublicHome />} />
             <Route path="/calculadora" element={<CalculadoraPublica />} />
             <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<ArtigoDetalhe />} />
           </Route>
           <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
@@ -113,6 +116,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Agenda />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/artigos"
+              element={
+                <ProtectedRoute>
+                  <AdminArtigos />
                 </ProtectedRoute>
               }
             />

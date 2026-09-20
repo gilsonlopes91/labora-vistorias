@@ -12,6 +12,7 @@ import {
   FileText,
   Settings,
   Users,
+  Newspaper,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { to: '/modelos', label: 'Auditoria NRs', icon: ListChecks },
   { to: '/formularios', label: 'Formulários', icon: FileText },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
+  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
 ]
