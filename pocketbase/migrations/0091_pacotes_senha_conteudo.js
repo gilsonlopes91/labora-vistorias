@@ -33,10 +33,11 @@ migrate(
     }
     app.save(usersCol)
 
-    // staff com acesso ao console também pode editar a própria org (pacote).
-    // DEPOIS de users ter os campos — a regra referencia @request.auth.acesso_console.
+    // Regra de edição: dono ou admin. Staff com acesso ao console edita
+    // pacotes pela rota /backend/v1/admin/usuario (roda no servidor com
+    // privilégio elevado — não depende de regra de coleção).
     orgCol.updateRule =
-      "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console))"
+      "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.papel = 'admin_plataforma')"
     app.save(orgCol)
 
     // --- conteudo_site ---
