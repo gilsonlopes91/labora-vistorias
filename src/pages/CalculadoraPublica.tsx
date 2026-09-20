@@ -144,7 +144,7 @@ export default function CalculadoraPublica() {
   }, [itens, busca])
 
   return (
-    <div className="px-8 py-12">
+    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6">
       <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">
         Teste gratuito
       </p>

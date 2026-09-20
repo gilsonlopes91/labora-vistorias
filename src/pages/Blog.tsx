@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 
 export default function Blog() {
   return (
-    <div className="px-8 py-12">
+    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6">
       <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">Blog</p>
       <h1 className="text-4xl font-extrabold tracking-tight">
         Conteúdo de <span className="text-primary">SST na prática</span>
