@@ -1,10 +1,9 @@
 /* Home pública — landing page profissional em largura total: header com acesso,
    hero, prova social, como funciona e CTA final. */
 import { Link, Navigate } from 'react-router-dom'
-import { ArrowRight, Calculator, ClipboardCheck, FileText, LogIn, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Calculator, ClipboardCheck, FileText, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { LaboraLogo } from '@/components/LaboraLogo'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function PublicHome() {
@@ -16,27 +15,6 @@ export default function PublicHome() {
 
   return (
     <div>
-      {/* Barra de topo / header simples com acesso à área administrativa */}
-      <header className="border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2.5">
-            <LaboraLogo className="h-8 w-8" />
-            <div className="flex flex-col leading-none">
-              <span className="text-base font-bold tracking-tight text-foreground">LABORA</span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                vistorias
-              </span>
-            </div>
-          </Link>
-          <Button asChild variant="outline" className="rounded-full px-5 font-medium">
-            <Link to="/login">
-              <LogIn className="mr-2 h-4 w-4" />
-              Entrar
-            </Link>
-          </Button>
-        </div>
-      </header>
-
       {/* Hero — full-width com fundo em degradê suave */}
       <section className="bg-gradient-to-b from-primary/10 via-primary/5 to-background">
         <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:py-28">
