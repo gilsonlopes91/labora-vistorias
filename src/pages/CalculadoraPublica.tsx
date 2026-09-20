@@ -2,7 +2,6 @@
    empresa → valor da multa + explicação. Sem login (rotas /backend/v1/public). */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { toast } from 'sonner'
 import { Calculator, ChevronRight, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
