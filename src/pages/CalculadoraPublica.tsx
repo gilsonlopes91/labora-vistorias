@@ -165,7 +165,7 @@ export default function CalculadoraPublica() {
               <SelectContent>
                 {nrs.map((nr) => (
                   <SelectItem key={nr.id} value={nr.id}>
-                    {nr.nr_referencia ? `${nr.nr_referencia} — ${nr.nome}` : nr.nome}
+                    {nr.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
