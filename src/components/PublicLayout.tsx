@@ -27,8 +27,8 @@ export default function PublicLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" aria-label="Labora Vistorias — início">
+        <div className="mx-auto flex min-h-[5rem] w-full max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
+          <Link to="/" aria-label="Labora Vistorias — início" className="flex items-center">
             <LaboraLogoFull />
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
