@@ -52,9 +52,9 @@ const faixaDoCalculo = (trabalhadores: string): number => {
   if (!(n > 0)) return 0
   const limites = [10, 25, 50, 100, 250, 500, 1000]
   for (let i = 0; i < limites.length; i++) {
-    if (n <= limites[i]) return i + 1
+    if (n <= limites[i]) return i
   }
-  return 8
+  return 7
 }
 
 const GRAU_LABEL: Record<number, string> = {

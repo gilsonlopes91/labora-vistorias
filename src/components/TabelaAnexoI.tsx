@@ -120,8 +120,8 @@ export default function TabelaAnexoI({
                 <tr key={label} className="border-t">
                   <td className="px-2 py-1.5 font-medium">{label}</td>
                   {[1, 2, 3, 4].map((g) => {
-                    const c = celula(f + 1, g)
-                    const destaque = ehDestaque(f + 1, g)
+                    const c = celula(f, g)
+                    const destaque = ehDestaque(f, g)
                     return (
                       <td
                         key={g}
