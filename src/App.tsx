@@ -7,6 +7,10 @@ import { AuthProvider } from '@/hooks/use-auth'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Index from './pages/Index'
 import Login from './pages/Login'
+import PublicLayout from './components/PublicLayout'
+import PublicHome from './pages/PublicHome'
+import CalculadoraPublica from './pages/CalculadoraPublica'
+import Blog from './pages/Blog'
 import Empresas from './pages/Empresas'
 import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
@@ -33,6 +37,11 @@ const App = () => (
         <Toaster />
         <Sonner />
         <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<PublicHome />} />
+            <Route path="/calculadora" element={<CalculadoraPublica />} />
+            <Route path="/blog" element={<Blog />} />
+          </Route>
           <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
             <Route
