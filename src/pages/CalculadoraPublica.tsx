@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Calculator, ChevronRight, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import TabelaAnexoI from '@/components/TabelaAnexoI'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -43,6 +44,18 @@ interface Resultado {
 }
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+// Faixa do Anexo I (1-8) a partir do nº de trabalhadores — mesma regra do
+// hook público e do cálculo interno do app.
+const faixaDoCalculo = (trabalhadores: string): number => {
+  const n = parseInt(trabalhadores, 10)
+  if (!(n > 0)) return 0
+  const limites = [10, 25, 50, 100, 250, 500, 1000]
+  for (let i = 0; i < limites.length; i++) {
+    if (n <= limites[i]) return i + 1
+  }
+  return 8
+}
 
 const GRAU_LABEL: Record<number, string> = {
   1: 'Grau 1 — risco leve',
@@ -297,6 +310,17 @@ export default function CalculadoraPublica() {
                 Valor estimado com base na tabela vigente. A fiscalização considera reincidência e
                 outros fatores. Este teste é informativo — a gestão completa está no app.
               </p>
+
+              {/* Nossa versão da tabela do Anexo I, com a célula do cálculo destacada */}
+              <div className="mt-6 border-t pt-5">
+                <TabelaAnexoI
+                  celulaDestaque={{
+                    faixa_ordem: faixaDoCalculo(trabalhadores),
+                    grau: resultado.item.grau || 1,
+                    tipo: resultado.item.tipo || 'S',
+                  }}
+                />
+              </div>
             </Card>
           )}
         </div>
