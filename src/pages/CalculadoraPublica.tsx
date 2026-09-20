@@ -63,11 +63,10 @@ export default function CalculadoraPublica() {
   const [calculando, setCalculando] = useState(false)
   const [loadingItens, setLoadingItens] = useState(false)
 
-  // Catálogo fixo de NRs (organizacao_id vazio) — via rota pública.
+  // Catálogo fixo de NRs (organizacao_id vazio) — via rota pública do backend.
   useEffect(() => {
-    fetch('/backend/v1/public/nrs')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('falha'))))
-      .then((data) => setNrs(data.nrs || []))
+    pb.send('/backend/v1/public/nrs', { method: 'GET' })
+      .then((data: { nrs?: Nr[] }) => setNrs(data.nrs || []))
       .catch(() => toast.error('Não foi possível carregar as normas'))
   }, [])
 
@@ -77,9 +76,9 @@ export default function CalculadoraPublica() {
     setItemId('')
     setResultado(null)
     try {
-      const res = await fetch(`/backend/v1/public/itens?nr_id=${id}`)
-      if (!res.ok) throw new Error('Falha ao carregar itens')
-      const data = await res.json()
+      const data = await pb.send<{ itens?: ItemNr[] }>(`/backend/v1/public/itens?nr_id=${id}`, {
+        method: 'GET',
+      })
       setItens(data.itens || [])
     } catch (error) {
       toast.error('Não foi possível carregar os itens da norma', {
@@ -107,17 +106,14 @@ export default function CalculadoraPublica() {
     }
     setCalculando(true)
     try {
-      const res = await fetch('/backend/v1/public/multa', {
+      const data = await pb.send<Resultado>('/backend/v1/public/multa', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           item_id: itemId,
           trabalhadores: n,
           grau_risco: grauEmpresa ? parseInt(grauEmpresa, 10) : undefined,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Falha no cálculo')
       setResultado(data)
     } catch (error) {
       toast.error('Não foi possível calcular', { description: getErrorMessage(error) })
