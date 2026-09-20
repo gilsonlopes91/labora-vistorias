@@ -77,7 +77,7 @@ export default function CalculadoraPublica() {
     setItemId('')
     setResultado(null)
     try {
-      const res = await fetch(`/backend/v1/public/nr/${id}/itens`)
+      const res = await fetch(`/backend/v1/public/itens?nr_id=${id}`)
       if (!res.ok) throw new Error('Falha ao carregar itens')
       const data = await res.json()
       setItens(data.itens || [])
@@ -107,7 +107,7 @@ export default function CalculadoraPublica() {
     }
     setCalculando(true)
     try {
-      const res = await fetch('/backend/v1/public/calculadora', {
+      const res = await fetch('/backend/v1/public/multa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
