@@ -63,11 +63,11 @@ export default function CalculadoraPublica() {
   const [calculando, setCalculando] = useState(false)
   const [loadingItens, setLoadingItens] = useState(false)
 
-  // Catálogo fixo de NRs (organizacao_id vazio) — público.
+  // Catálogo fixo de NRs (organizacao_id vazio) — via rota pública.
   useEffect(() => {
-    pb.collection('tipos_vistoria')
-      .getFullList({ filter: "organizacao_id = '' && ativo = true", sort: 'nome' })
-      .then((lista) => setNrs(lista as unknown as Nr[]))
+    fetch('/backend/v1/public/nrs')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('falha'))))
+      .then((data) => setNrs(data.nrs || []))
       .catch(() => toast.error('Não foi possível carregar as normas'))
   }, [])
 
