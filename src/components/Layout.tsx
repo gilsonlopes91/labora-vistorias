@@ -43,7 +43,7 @@ const NAV_ITEMS = [
   { to: '/formularios', label: 'Formulários', icon: FileText },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
   { to: '/orcamentos', label: 'Orçamentos', icon: FileSpreadsheet, gestor: true },
-  { to: '/multas', label: 'Multas e penalidades', icon: Scale },
+  { to: '/multas', label: 'Multas e penalidades', icon: Scale, gestor: true },
   { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
