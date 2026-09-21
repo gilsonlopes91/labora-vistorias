@@ -13,6 +13,7 @@ import {
   Settings,
   Users,
   Newspaper,
+  Scale,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
@@ -37,9 +38,10 @@ const NAV_ITEMS = [
   { to: '/painel', label: 'Início', icon: Home },
   { to: '/empresas', label: 'Empresas', icon: Building2 },
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
-  { to: '/modelos', label: 'Auditoria NRs', icon: ListChecks },
+  { to: '/modelos', label: 'Auditoria de NRs', icon: ListChecks },
   { to: '/formularios', label: 'Formulários', icon: FileText },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
+  { to: '/multas', label: 'Multas e penalidades', icon: Scale },
   { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },

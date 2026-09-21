@@ -1,6 +1,11 @@
-/* Tabela do Anexo I da NR-28 na identidade Labora — grade de faixas de
-   trabalhadores × grau de infração, valores em reais (UFIR já convertida).
-   A célula usada no cálculo vem destacada (célulaDestaque). */
+/* Tabela de gradação de multas da NR-28 na identidade Labora — grade de faixas
+   de trabalhadores × grau de infração, valores em reais. A célula usada no
+   cálculo vem destacada (celulaDestaque).
+
+   anexo="i"  (padrão) → Anexo I, regra geral (valores da norma em UFIR, já
+                         convertidos para reais).
+   anexo="ia"          → Anexo I-A, trabalho portuário (NR-29), cujos valores
+                         já são fixados em reais na norma. */
 import { useEffect, useState } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,18 +36,22 @@ const brl = new Intl.NumberFormat('pt-BR', {
 
 export default function TabelaAnexoI({
   celulaDestaque,
+  anexo = 'i',
 }: {
   celulaDestaque?: { faixa_ordem: number; grau: number; tipo: string } | null
+  anexo?: 'i' | 'ia'
 }) {
   const [grade, setGrade] = useState<Celula[] | null>(null)
   const [tipo, setTipo] = useState<'S' | 'M'>('S')
 
   useEffect(() => {
     setGrade(null)
-    pb.send<{ grade?: Celula[] }>(`/backend/v1/public/tabela?tipo=${tipo}`, { method: 'GET' })
+    pb.send<{ grade?: Celula[] }>(`/backend/v1/public/tabela?tipo=${tipo}&anexo=${anexo}`, {
+      method: 'GET',
+    })
       .then((data) => setGrade(data.grade || []))
       .catch(() => setGrade([]))
-  }, [tipo])
+  }, [tipo, anexo])
 
   const celula = (f: number, g: number) => grade?.find((c) => c.faixa_ordem === f && c.grau === g)
   const ehDestaque = (f: number, g: number) =>
@@ -55,9 +64,15 @@ export default function TabelaAnexoI({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <div className="text-sm font-bold">Anexo I da NR-28 — valores da multa</div>
+          <div className="text-sm font-bold">
+            {anexo === 'ia'
+              ? 'Anexo I-A da NR-28 — trabalho portuário'
+              : 'Anexo I da NR-28 — valores da multa'}
+          </div>
           <div className="text-xs text-muted-foreground">
-            Nossa versão da tabela oficial, já em reais (UFIR R$ 1,0641)
+            {anexo === 'ia'
+              ? 'Valores fixados em reais na própria norma (Portaria SIT 319/2012)'
+              : 'Nossa versão da tabela oficial, já em reais (UFIR R$ 1,0641)'}
           </div>
         </div>
         <div className="flex gap-1 rounded-full border p-1">
