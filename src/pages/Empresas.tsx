@@ -124,7 +124,10 @@ const emptyValues: EmpresaFormValues = {
 
 export default function Empresas() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const tabInicial = searchParams.get('aba') === 'orcamentos' ? 'orcamentos' : 'empresas'
+  const gestor = isGestor()
+
+  // Não-gestor nunca pode iniciar na aba orçamentos
+  const tabInicial = gestor && searchParams.get('aba') === 'orcamentos' ? 'orcamentos' : 'empresas'
   const [abaAtiva, setAbaAtiva] = useState<string>(tabInicial)
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -136,19 +139,32 @@ export default function Empresas() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
 
-  const gestor = isGestor()
-
-  // Sincroniza tab com searchParams se mudou externamente
+  // Sincroniza tab com searchParams se mudou externamente, protegendo a aba orçamentos
   useEffect(() => {
     const abaParam = searchParams.get('aba')
-    if (abaParam === 'orcamentos' && abaAtiva !== 'orcamentos') {
-      setAbaAtiva('orcamentos')
+    if (abaParam === 'orcamentos') {
+      if (gestor) {
+        if (abaAtiva !== 'orcamentos') setAbaAtiva('orcamentos')
+      } else {
+        // Usuário não-gestor tentou acessar ?aba=orcamentos: remove query e volta para empresas
+        setAbaAtiva('empresas')
+        setSearchParams({}, { replace: true })
+        toast.error('Acesso restrito', {
+          description: 'A área de orçamentos é restrita aos gestores da organização.',
+        })
+      }
     } else if (abaParam !== 'orcamentos' && abaAtiva === 'orcamentos' && !searchParams.has('aba')) {
       setAbaAtiva('empresas')
     }
-  }, [searchParams, abaAtiva])
+  }, [searchParams, abaAtiva, gestor, setSearchParams])
 
   const handleTrocaAba = (novaAba: string) => {
+    if (novaAba === 'orcamentos' && !gestor) {
+      toast.error('Acesso restrito', {
+        description: 'A área de orçamentos é restrita aos gestores da organização.',
+      })
+      return
+    }
     setAbaAtiva(novaAba)
     if (novaAba === 'orcamentos') {
       setSearchParams({ aba: 'orcamentos' })

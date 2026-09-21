@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
 import AssistantWidget from '@/components/AssistantWidget'
 import { isGestor } from '@/services/equipe'
+import { NAV_ITEMS } from '@/config/navigation'
 import {
   Sidebar,
   SidebarContent,
@@ -34,18 +35,6 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-
-const NAV_ITEMS = [
-  { to: '/painel', label: 'Início', icon: Home },
-  { to: '/empresas', label: 'Empresas', icon: Building2 },
-  { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
-  { to: '/auditoria-formularios', label: 'Auditoria e Formulários', icon: ListChecks },
-  { to: '/agenda', label: 'Agenda', icon: CalendarClock },
-  { to: '/multas', label: 'Multas e penalidades', icon: Scale, gestor: true },
-  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, gestor: true },
-  { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
-]
 
 export default function Layout() {
   const { isAuthenticated, user, signOut } = useAuth()

@@ -133,7 +133,7 @@ const App = () => (
             <Route
               path="/orcamentos"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute gestorOnly>
                   <Orcamentos />
                 </ProtectedRoute>
               }
@@ -141,7 +141,7 @@ const App = () => (
             <Route
               path="/multas"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute gestorOnly>
                   <MultasPenalidades />
                 </ProtectedRoute>
               }
@@ -149,7 +149,7 @@ const App = () => (
             <Route
               path="/artigos"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute gestorOnly>
                   <AdminArtigos />
                 </ProtectedRoute>
               }
@@ -157,7 +157,7 @@ const App = () => (
             <Route
               path="/configuracoes"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute gestorOnly>
                   <Configuracoes />
                 </ProtectedRoute>
               }
@@ -165,7 +165,7 @@ const App = () => (
             <Route
               path="/equipe"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute gestorOnly>
                   <Equipe />
                 </ProtectedRoute>
               }
@@ -173,7 +173,7 @@ const App = () => (
             <Route
               path="/admin"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <AdminConsole />
                 </ProtectedRoute>
               }
@@ -189,7 +189,7 @@ const App = () => (
             <Route
               path="/conteudo"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <EditorConteudo />
                 </ProtectedRoute>
               }
