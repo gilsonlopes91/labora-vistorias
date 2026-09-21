@@ -39,6 +39,10 @@ interface ItemNr {
 
 interface Resultado {
   item: ItemNr
+  // Regime de cálculo devolvido pelo backend: 'anexo_i' (regra geral),
+  // 'anexo_ia_portuario' (NR-29) ou 'rural_art18' (NR-31). Decide qual tabela
+  // desenhar embaixo do resultado — e se faz sentido desenhar alguma.
+  regime?: string
   multa: { min: number; max: number }
   explicacao_extra?: string
 }
@@ -289,8 +293,11 @@ export default function CalculadoraPublica() {
                   {brl.format(resultado.multa.max)}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Faixa calculada pelo nº de trabalhadores × grau da infração (Anexo I da NR-28 ×
-                  UFIR).
+                  {resultado.regime === 'rural_art18'
+                    ? 'Valor por trabalhador atingido (art. 18 da Lei 5.889/1973), dobrado na reincidência.'
+                    : resultado.regime === 'anexo_ia_portuario'
+                      ? 'Faixa calculada pelo nº de trabalhadores × grau da infração (Anexo I-A da NR-28, valores já em reais).'
+                      : 'Faixa calculada pelo nº de trabalhadores × grau da infração (Anexo I da NR-28 × UFIR).'}
                 </p>
               </div>
 
@@ -306,16 +313,20 @@ export default function CalculadoraPublica() {
                 outros fatores. Este teste é informativo — a gestão completa está no app.
               </p>
 
-              {/* Nossa versão da tabela do Anexo I, com a célula do cálculo destacada */}
-              <div className="mt-6 border-t pt-5">
-                <TabelaAnexoI
-                  celulaDestaque={{
-                    faixa_ordem: faixaDoCalculo(trabalhadores),
-                    grau: resultado.item.grau || 1,
-                    tipo: resultado.item.tipo || 'S',
-                  }}
-                />
-              </div>
+              {/* Nossa versão da tabela de gradação, com a célula do cálculo
+                  destacada. O rural não usa tabela — a multa é por trabalhador. */}
+              {resultado.regime !== 'rural_art18' && (
+                <div className="mt-6 border-t pt-5">
+                  <TabelaAnexoI
+                    anexo={resultado.regime === 'anexo_ia_portuario' ? 'ia' : 'i'}
+                    celulaDestaque={{
+                      faixa_ordem: faixaDoCalculo(trabalhadores),
+                      grau: resultado.item.grau || 1,
+                      tipo: resultado.item.tipo || 'S',
+                    }}
+                  />
+                </div>
+              )}
             </Card>
           )}
         </div>
