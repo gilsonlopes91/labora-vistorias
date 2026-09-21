@@ -126,8 +126,8 @@ export default function Empresas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
 
-  const tabInicial = searchParams.get('aba') === 'orcamentos' ? 'orcamentos' : 'empresas'
-  const [abaAtiva, setAbaAtiva] = useState<string>(tabInicial)
+  const abaParam = searchParams.get('aba')
+  const abaAtiva = abaParam === 'orcamentos' ? 'orcamentos' : 'empresas'
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [formularios, setFormularios] = useState<Formulario[]>([])
@@ -138,18 +138,7 @@ export default function Empresas() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
 
-  // Sincroniza tab com searchParams se mudou externamente
-  useEffect(() => {
-    const abaParam = searchParams.get('aba')
-    if (abaParam === 'orcamentos') {
-      if (abaAtiva !== 'orcamentos') setAbaAtiva('orcamentos')
-    } else if (abaParam !== 'orcamentos' && abaAtiva === 'orcamentos' && !searchParams.has('aba')) {
-      setAbaAtiva('empresas')
-    }
-  }, [searchParams, abaAtiva, user])
-
   const handleTrocaAba = (novaAba: string) => {
-    setAbaAtiva(novaAba)
     if (novaAba === 'orcamentos') {
       setSearchParams({ aba: 'orcamentos' })
     } else {

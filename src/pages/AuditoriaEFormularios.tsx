@@ -1,5 +1,4 @@
 /* Auditoria e Formulários — tela unificada que agrupa Auditoria de NRs e Formulários em sub-abas */
-import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { AuditoriaNRsTab } from '@/components/AuditoriaNRsTab'
@@ -7,24 +6,14 @@ import { FormulariosTab } from '@/components/FormulariosTab'
 
 export default function AuditoriaEFormularios() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const tabInicial = searchParams.get('aba') === 'formularios' ? 'formularios' : 'auditoria'
-  const [abaAtiva, setAbaAtiva] = useState<string>(tabInicial)
-
-  useEffect(() => {
-    const param = searchParams.get('aba')
-    if (param === 'formularios' && abaAtiva !== 'formularios') {
-      setAbaAtiva('formularios')
-    } else if (param !== 'formularios' && abaAtiva === 'formularios' && !searchParams.has('aba')) {
-      setAbaAtiva('auditoria')
-    }
-  }, [searchParams, abaAtiva])
+  const abaParam = searchParams.get('aba')
+  const abaAtiva = abaParam === 'formularios' ? 'formularios' : 'auditoria'
 
   const handleTrocaAba = (novaAba: string) => {
-    setAbaAtiva(novaAba)
     if (novaAba === 'formularios') {
       setSearchParams({ aba: 'formularios' })
     } else {
-      setSearchParams({})
+      setSearchParams({ aba: 'auditoria' })
     }
   }
 
