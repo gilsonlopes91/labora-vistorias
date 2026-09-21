@@ -16,6 +16,7 @@ import AdminArtigos from './pages/AdminArtigos'
 import Empresas from './pages/Empresas'
 import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
+import AuditoriaEFormularios from './pages/AuditoriaEFormularios'
 import ModelosVistoria from './pages/ModelosVistoria'
 import Formularios from './pages/Formularios'
 import BuilderFormulario from './pages/BuilderFormulario'
@@ -78,6 +79,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <VistoriaDetalhe />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/auditoria-formularios"
+              element={
+                <ProtectedRoute>
+                  <AuditoriaEFormularios />
                 </ProtectedRoute>
               }
             />

@@ -309,7 +309,7 @@ export default function PreencherFormulario() {
         await enviarAnexos(registro.id, listaAnexos)
       }
       toast.success(status === 'concluido' ? 'Formulário concluído' : 'Rascunho salvo')
-      navigate('/formularios')
+      navigate('/auditoria-formularios?aba=formularios')
     } catch (error) {
       toast.error('Não foi possível salvar o formulário', {
         description: getErrorMessage(error),
@@ -707,12 +707,12 @@ export default function PreencherFormulario() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <Link
-            to="/formularios"
+            to="/auditoria-formularios?aba=formularios"
             className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
-            Formulários
-          </Link>
+            Auditoria e Formulários
+          </Link>{' '}
           <h1 className="text-2xl font-bold">{modelo.nome}</h1>
           {modelo.descricao && <p className="text-sm text-muted-foreground">{modelo.descricao}</p>}
         </div>

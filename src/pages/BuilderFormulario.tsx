@@ -276,7 +276,7 @@ export default function BuilderFormulario() {
         campos,
       })
       toast.success('Formulário criado — já pode ser preenchido e agendado')
-      navigate('/formularios')
+      navigate('/auditoria-formularios?aba=formularios')
     } catch (error) {
       toast.error('Não foi possível criar o formulário', { description: getErrorMessage(error) })
     } finally {
@@ -289,11 +289,11 @@ export default function BuilderFormulario() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <Link
-            to="/formularios"
+            to="/auditoria-formularios?aba=formularios"
             className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
-            Formulários
+            Auditoria e Formulários
           </Link>
           <h1 className="text-2xl font-bold">Criar formulário</h1>
           <p className="text-sm text-muted-foreground">

@@ -1,14 +1,16 @@
-/* Cadastro e listagem de empresas (clientes) da organização logada. */
+/* Cadastro e listagem de empresas (clientes) da organização logada e aba de orçamentos vinculada. */
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Building2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Building2, FileSpreadsheet } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
+import { isGestor } from '@/services/equipe'
 import {
   getEmpresas,
   createEmpresa,
@@ -17,10 +19,12 @@ import {
   type Empresa,
 } from '@/services/empresas'
 import { getFormularios, type Formulario } from '@/services/registrosFormulario'
+import { OrcamentosTab } from '@/components/OrcamentosTab'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -119,6 +123,10 @@ const emptyValues: EmpresaFormValues = {
 }
 
 export default function Empresas() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabInicial = searchParams.get('aba') === 'orcamentos' ? 'orcamentos' : 'empresas'
+  const [abaAtiva, setAbaAtiva] = useState<string>(tabInicial)
+
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [formularios, setFormularios] = useState<Formulario[]>([])
   const [organizacaoId, setOrganizacaoId] = useState<string | null>(null)
@@ -127,6 +135,27 @@ export default function Empresas() {
   const [editing, setEditing] = useState<Empresa | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
+
+  const gestor = isGestor()
+
+  // Sincroniza tab com searchParams se mudou externamente
+  useEffect(() => {
+    const abaParam = searchParams.get('aba')
+    if (abaParam === 'orcamentos' && abaAtiva !== 'orcamentos') {
+      setAbaAtiva('orcamentos')
+    } else if (abaParam !== 'orcamentos' && abaAtiva === 'orcamentos' && !searchParams.has('aba')) {
+      setAbaAtiva('empresas')
+    }
+  }, [searchParams, abaAtiva])
+
+  const handleTrocaAba = (novaAba: string) => {
+    setAbaAtiva(novaAba)
+    if (novaAba === 'orcamentos') {
+      setSearchParams({ aba: 'orcamentos' })
+    } else {
+      setSearchParams({})
+    }
+  }
 
   const form = useForm<EmpresaFormValues>({
     resolver: zodResolver(empresaSchema),
@@ -249,96 +278,137 @@ export default function Empresas() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Empresas</h1>
-          <p className="text-sm text-muted-foreground">
-            Cadastre as empresas onde suas vistorias de SST serão realizadas.
-          </p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova empresa
-        </Button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Empresas e Gestão Comercial</h1>
+        <p className="text-sm text-muted-foreground">
+          Cadastre as empresas clientes das vistorias e controle os orçamentos e propostas
+          comerciais.
+        </p>
       </div>
 
-      {loading ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
-      ) : empresas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
-          <Building2 className="mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="mb-4 text-sm text-muted-foreground">Nenhuma empresa cadastrada ainda.</p>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Cadastrar primeira empresa
-          </Button>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border-none bg-card shadow-subtle">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Razão social</TableHead>
-                <TableHead>Nome fantasia</TableHead>
-                <TableHead>CNPJ</TableHead>
-                <TableHead>Porte</TableHead>
-                <TableHead>Trabalhadores</TableHead>
-                <TableHead>Formulários</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {empresas.map((empresa) => (
-                <TableRow key={empresa.id}>
-                  <TableCell className="font-medium">{empresa.razao_social}</TableCell>
-                  <TableCell>{empresa.nome_fantasia || '—'}</TableCell>
-                  <TableCell>{empresa.cnpj || '—'}</TableCell>
-                  <TableCell>
-                    {empresa.porte ? <Badge variant="secondary">{empresa.porte}</Badge> : '—'}
-                  </TableCell>
-                  <TableCell>{empresa.numero_funcionarios ?? '—'} trabalhadores</TableCell>
-                  <TableCell>
-                    {(() => {
-                      const total = formularios.filter((f) => f.empresa_id === empresa.id).length
-                      if (total === 0) return <span className="text-muted-foreground">—</span>
-                      const concluidos = formularios.filter(
-                        (f) => f.empresa_id === empresa.id && f.status === 'concluido',
-                      ).length
-                      return (
-                        <Badge variant="secondary">
-                          {total} registro{total > 1 ? 's' : ''}
-                          {concluidos > 0 ? ` · ${concluidos} concl.` : ''}
-                        </Badge>
-                      )
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    {empresa.contato_nome || empresa.contato_telefone ? (
-                      <div className="text-sm">
-                        {empresa.contato_nome && <div>{empresa.contato_nome}</div>}
-                        {empresa.contato_telefone && (
-                          <div className="text-muted-foreground">{empresa.contato_telefone}</div>
+      <Tabs value={abaAtiva} onValueChange={handleTrocaAba} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="empresas" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            <span>Empresas ({empresas.length})</span>
+          </TabsTrigger>
+          {gestor && (
+            <TabsTrigger value="orcamentos" className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Orçamentos</span>
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="empresas" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Empresas clientes</h2>
+              <p className="text-sm text-muted-foreground">
+                Empresas onde suas vistorias e auditorias de SST serão realizadas.
+              </p>
+            </div>
+            <Button onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova empresa
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
+          ) : empresas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
+              <Building2 className="mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="mb-4 text-sm text-muted-foreground">
+                Nenhuma empresa cadastrada ainda.
+              </p>
+              <Button onClick={openCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar primeira empresa
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border-none bg-card shadow-subtle">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Razão social</TableHead>
+                    <TableHead>Nome fantasia</TableHead>
+                    <TableHead>CNPJ</TableHead>
+                    <TableHead>Porte</TableHead>
+                    <TableHead>Trabalhadores</TableHead>
+                    <TableHead>Formulários</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {empresas.map((empresa) => (
+                    <TableRow key={empresa.id}>
+                      <TableCell className="font-medium">{empresa.razao_social}</TableCell>
+                      <TableCell>{empresa.nome_fantasia || '—'}</TableCell>
+                      <TableCell>{empresa.cnpj || '—'}</TableCell>
+                      <TableCell>
+                        {empresa.porte ? <Badge variant="secondary">{empresa.porte}</Badge> : '—'}
+                      </TableCell>
+                      <TableCell>{empresa.numero_funcionarios ?? '—'} trabalhadores</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const total = formularios.filter(
+                            (f) => f.empresa_id === empresa.id,
+                          ).length
+                          if (total === 0) return <span className="text-muted-foreground">—</span>
+                          const concluidos = formularios.filter(
+                            (f) => f.empresa_id === empresa.id && f.status === 'concluido',
+                          ).length
+                          return (
+                            <Badge variant="secondary">
+                              {total} registro{total > 1 ? 's' : ''}
+                              {concluidos > 0 ? ` · ${concluidos} concl.` : ''}
+                            </Badge>
+                          )
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        {empresa.contato_nome || empresa.contato_telefone ? (
+                          <div className="text-sm">
+                            {empresa.contato_nome && <div>{empresa.contato_nome}</div>}
+                            {empresa.contato_telefone && (
+                              <div className="text-muted-foreground">
+                                {empresa.contato_telefone}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          '—'
                         )}
-                      </div>
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(empresa)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(empresa)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(empresa)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteTarget(empresa)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        {gestor && (
+          <TabsContent value="orcamentos">
+            <OrcamentosTab />
+          </TabsContent>
+        )}
+      </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">

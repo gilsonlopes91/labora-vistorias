@@ -39,12 +39,10 @@ const NAV_ITEMS = [
   { to: '/painel', label: 'Início', icon: Home },
   { to: '/empresas', label: 'Empresas', icon: Building2 },
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
-  { to: '/modelos', label: 'Auditoria de NRs', icon: ListChecks },
-  { to: '/formularios', label: 'Formulários', icon: FileText },
+  { to: '/auditoria-formularios', label: 'Auditoria e Formulários', icon: ListChecks },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
-  { to: '/orcamentos', label: 'Orçamentos', icon: FileSpreadsheet, gestor: true },
   { to: '/multas', label: 'Multas e penalidades', icon: Scale, gestor: true },
-  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper },
+  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, gestor: true },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
 ]
@@ -62,10 +60,8 @@ export default function Layout() {
         .then(setModulos)
         .catch(() => {})
   }, [isAuthenticated])
-  const moduloDe: Record<string, keyof Modulos> = {
-    '/modelos': 'auditoria',
-    '/formularios': 'formularios',
-    '/orcamentos': 'orcamentos',
+  const moduloDe: Record<string, (m: Modulos) => boolean> = {
+    '/auditoria-formularios': (m) => m.auditoria || m.formularios,
   }
 
   const handleSignOut = () => {
@@ -109,7 +105,7 @@ export default function Layout() {
           <SidebarGroup>
             <SidebarMenu>
               {NAV_ITEMS.filter((item) => !item.gestor || isGestor())
-                .filter((item) => !modulos || !moduloDe[item.to] || modulos[moduloDe[item.to]])
+                .filter((item) => !modulos || !moduloDe[item.to] || moduloDe[item.to](modulos))
                 .map((item) => {
                   const active =
                     item.to === '/painel'

@@ -209,7 +209,8 @@ export default function Agenda() {
       key={v.id}
       onClick={(e) => {
         e.stopPropagation()
-        if ((v as unknown as { __form?: string }).__form) navigate('/formularios')
+        if ((v as unknown as { __form?: string }).__form)
+          navigate('/auditoria-formularios?aba=formularios')
         else navigate(`/vistorias/${v.id}`)
       }}
       className="cursor-pointer truncate rounded bg-accent px-1.5 py-0.5 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
@@ -240,7 +241,7 @@ export default function Agenda() {
               className="cursor-pointer transition-colors hover:border-primary"
               onClick={() =>
                 (v as unknown as { __form?: string }).__form
-                  ? navigate('/formularios')
+                  ? navigate('/auditoria-formularios?aba=formularios')
                   : navigate(`/vistorias/${v.id}`)
               }
             >
@@ -426,7 +427,7 @@ export default function Agenda() {
                           onClick={(e) => {
                             e.stopPropagation()
                             if ((v as unknown as { __form?: string }).__form)
-                              navigate('/formularios')
+                              navigate('/auditoria-formularios?aba=formularios')
                             else navigate(`/vistorias/${v.id}`)
                           }}
                           className="cursor-pointer rounded bg-accent px-1.5 py-1 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
