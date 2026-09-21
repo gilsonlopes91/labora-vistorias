@@ -9,13 +9,25 @@ import {
   Newspaper,
   Users,
   Settings,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react'
+
+export interface NavSubItemConfig {
+  to: string
+  label: string
+  icon?: LucideIcon
+  gestor?: boolean
+  /** Módulo opcional necessário da organização (ex.: 'auditoria' ou 'formularios') */
+  moduloKey?: 'auditoria' | 'formularios'
+}
 
 export interface NavItemConfig {
   to: string
   label: string
   icon: LucideIcon
   gestor?: boolean
+  children?: NavSubItemConfig[]
 }
 
 /**
@@ -24,9 +36,44 @@ export interface NavItemConfig {
  */
 export const NAV_ITEMS: NavItemConfig[] = [
   { to: '/painel', label: 'Início', icon: Home },
-  { to: '/empresas', label: 'Empresas', icon: Building2 },
+  {
+    to: '/empresas',
+    label: 'Empresas',
+    icon: Building2,
+    children: [
+      {
+        to: '/empresas',
+        label: 'Cadastro de empresas',
+        icon: Building2,
+      },
+      {
+        to: '/empresas?aba=orcamentos',
+        label: 'Orçamentos',
+        icon: FileSpreadsheet,
+        gestor: true,
+      },
+    ],
+  },
   { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
-  { to: '/auditoria-formularios', label: 'Auditoria e Formulários', icon: ListChecks },
+  {
+    to: '/auditoria-formularios',
+    label: 'Auditoria e Formulários',
+    icon: ListChecks,
+    children: [
+      {
+        to: '/auditoria-formularios?aba=auditoria',
+        label: 'Auditoria NRs',
+        icon: ListChecks,
+        moduloKey: 'auditoria',
+      },
+      {
+        to: '/auditoria-formularios?aba=formularios',
+        label: 'Formulários',
+        icon: FileText,
+        moduloKey: 'formularios',
+      },
+    ],
+  },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
   { to: '/multas', label: 'Multas e penalidades', icon: Scale, gestor: true },
   { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, gestor: true },
@@ -35,20 +82,24 @@ export const NAV_ITEMS: NavItemConfig[] = [
 ]
 
 /**
- * Conjunto de caminhos restritos apenas a gestores baseados no NAV_ITEMS.
+ * Conjunto de caminhos restritos apenas a gestores baseados no NAV_ITEMS (itens de rota inteira restrita).
+ * Nota: rotas onde apenas uma sub-aba é gestor (ex: /empresas com sub-item orcamentos)
+ * são protegidas na própria página/aba, não bloqueando a rota /empresas como um todo.
  */
-export const GESTOR_ONLY_PATHS = new Set(
-  NAV_ITEMS.filter((item) => item.gestor).map((item) => item.to),
-)
+export const GESTOR_ONLY_PATHS = new Set<string>([
+  ...NAV_ITEMS.filter((item) => item.gestor).map((item) => item.to.split('?')[0]),
+  '/orcamentos', // Redirecionamento legado exclusivo de gestores
+])
 
 /**
  * Verifica se um caminho de rota deve ser restrito exclusivamente a gestores.
  */
 export function isGestorOnlyPath(path: string): boolean {
-  if (GESTOR_ONLY_PATHS.has(path)) return true
+  const cleanPath = path.split('?')[0]
+  if (GESTOR_ONLY_PATHS.has(cleanPath)) return true
   // Trata sub-rotas como /artigos/novo, /artigos/:id/editar
   for (const restricted of GESTOR_ONLY_PATHS) {
-    if (path === restricted || path.startsWith(`${restricted}/`)) {
+    if (cleanPath === restricted || cleanPath.startsWith(`${restricted}/`)) {
       return true
     }
   }

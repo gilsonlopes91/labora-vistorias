@@ -1,26 +1,13 @@
-/* Layout — barra lateral com a identidade da Labora + área de conteúdo, presente em todas as páginas protegidas. */
-import { useEffect, useState } from 'react'
+/* Layout — barra lateral com a identidade da Labora + navegação em árvore por níveis (com chevron rotativo e subitens indentados). */
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { getModulos, type Modulos } from '@/services/modulos'
-import {
-  LogOut,
-  Building2,
-  Home,
-  ClipboardCheck,
-  CalendarClock,
-  ListChecks,
-  FileText,
-  Settings,
-  Users,
-  Newspaper,
-  Scale,
-  FileSpreadsheet,
-} from 'lucide-react'
+import { LogOut, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
 import AssistantWidget from '@/components/AssistantWidget'
 import { isGestor } from '@/services/equipe'
-import { NAV_ITEMS } from '@/config/navigation'
+import { NAV_ITEMS, type NavItemConfig, type NavSubItemConfig } from '@/config/navigation'
 import {
   Sidebar,
   SidebarContent,
@@ -31,15 +18,217 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { cn } from '@/lib/utils'
+
+/**
+ * Avalia se um sub-item está ativo comparando pathname e search (aba)
+ */
+function isSubItemActive(subTo: string, pathname: string, search: string): boolean {
+  const [subPath, subQuery] = subTo.split('?')
+  const currentParams = new URLSearchParams(search)
+
+  // Tratamento para a rota /empresas
+  if (subPath === '/empresas') {
+    if (pathname !== '/empresas') return false
+    const currentAba = currentParams.get('aba')
+    if (subQuery) {
+      const targetParams = new URLSearchParams(subQuery)
+      return currentAba === targetParams.get('aba')
+    }
+    // Subitem principal /empresas fica ativo se não há aba ou aba=empresas
+    return !currentAba || currentAba === 'empresas'
+  }
+
+  // Tratamento para /auditoria-formularios
+  if (subPath === '/auditoria-formularios') {
+    if (
+      pathname !== '/auditoria-formularios' &&
+      pathname !== '/modelos' &&
+      pathname !== '/formularios'
+    ) {
+      return false
+    }
+    const currentAba = currentParams.get('aba')
+    const targetParams = new URLSearchParams(subQuery || '')
+    const targetAba = targetParams.get('aba')
+
+    if (targetAba === 'formularios') {
+      return currentAba === 'formularios' || pathname === '/formularios'
+    }
+    if (targetAba === 'auditoria') {
+      return !currentAba || currentAba === 'auditoria' || pathname === '/modelos'
+    }
+  }
+
+  // Padrão genérico
+  if (!subQuery) {
+    return pathname === subPath
+  }
+  const targetParams = new URLSearchParams(subQuery)
+  for (const [key, value] of targetParams.entries()) {
+    if (currentParams.get(key) !== value) return false
+  }
+  return pathname === subPath
+}
+
+/**
+ * Avalia se o item pai ou alguma rota pertencente ao grupo está ativa
+ */
+function isGroupActive(item: NavItemConfig, pathname: string, search: string): boolean {
+  if (item.to === '/painel') {
+    return pathname === '/painel'
+  }
+
+  if (item.to === '/empresas') {
+    return pathname === '/empresas' || pathname === '/orcamentos'
+  }
+
+  if (item.to === '/auditoria-formularios') {
+    return (
+      pathname.startsWith('/auditoria-formularios') ||
+      pathname.startsWith('/modelos') ||
+      pathname === '/formularios'
+    )
+  }
+
+  if (item.children && item.children.length > 0) {
+    return item.children.some((child) => isSubItemActive(child.to, pathname, search))
+  }
+
+  return pathname.startsWith(item.to)
+}
+
+function NavItemTree({
+  item,
+  pathname,
+  search,
+  userGestor,
+  modulos,
+}: {
+  item: NavItemConfig
+  pathname: string
+  search: string
+  userGestor: boolean
+  modulos: Modulos | null
+}) {
+  const { state: sidebarState, setOpen } = useSidebar()
+
+  // Filtra sub-itens disponíveis de acordo com perfil e módulos
+  const visibleChildren = useMemo(() => {
+    if (!item.children) return []
+    return item.children.filter((sub) => {
+      if (sub.gestor && !userGestor) return false
+      if (sub.moduloKey && modulos && !modulos[sub.moduloKey]) return false
+      return true
+    })
+  }, [item.children, userGestor, modulos])
+
+  const hasChildren = visibleChildren.length > 0
+  const groupActive = isGroupActive(item, pathname, search)
+
+  // Estado de expansão do grupo (inicia expandido se ativo)
+  const [isOpen, setIsOpen] = useState<boolean>(groupActive)
+
+  // Quando a URL muda para uma rota filha, garante que o grupo expanda automaticamente
+  useEffect(() => {
+    if (groupActive) {
+      setIsOpen(true)
+    }
+  }, [groupActive])
+
+  // Se não tem filhos, renderiza item simples
+  if (!hasChildren) {
+    const active = item.to === '/painel' ? pathname === '/painel' : pathname.startsWith(item.to)
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+          <Link to={item.to}>
+            <item.icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{item.label}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
+  // Item pai com filhos: Collapsible com chevron rotativo
+  return (
+    <SidebarMenuItem>
+      <Collapsible
+        open={isOpen}
+        onOpenChange={(nextOpen) => {
+          // Se a sidebar estiver colapsada em modo ícones, ao clicar expande a sidebar inteira para melhor UX
+          if (sidebarState === 'collapsed') {
+            setOpen(true)
+          }
+          setIsOpen(nextOpen)
+        }}
+        className="group/collapsible"
+      >
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            isActive={groupActive}
+            tooltip={item.label}
+            className="w-full justify-between"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{item.label}</span>
+            </div>
+            <ChevronDown
+              className={cn(
+                'h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform duration-200 group-data-[collapsible=icon]:hidden',
+                isOpen && 'rotate-180 text-foreground',
+              )}
+            />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub className="my-1 ml-4 border-l border-border/60 pl-2">
+            {visibleChildren.map((sub: NavSubItemConfig) => {
+              const SubIcon = sub.icon
+              const active = isSubItemActive(sub.to, pathname, search)
+              return (
+                <SidebarMenuSubItem key={sub.to}>
+                  <SidebarMenuSubButton
+                    asChild
+                    size="sm"
+                    isActive={active}
+                    className={cn(
+                      'h-8 text-xs font-normal transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                      active &&
+                        'bg-sidebar-accent/80 font-semibold text-primary shadow-xs data-[active=true]:text-primary',
+                    )}
+                  >
+                    <Link to={sub.to} className="flex items-center gap-2">
+                      {SubIcon && <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-80" />}
+                      <span className="truncate">{sub.label}</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              )
+            })}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarMenuItem>
+  )
+}
 
 export default function Layout() {
   const { isAuthenticated, user, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const userGestor = isGestor()
 
   // Pacotes da organização: módulos desligados saem do menu.
   const [modulos, setModulos] = useState<Modulos | null>(null)
@@ -49,6 +238,7 @@ export default function Layout() {
         .then(setModulos)
         .catch(() => {})
   }, [isAuthenticated])
+
   const moduloDe: Record<string, (m: Modulos) => boolean> = {
     '/auditoria-formularios': (m) => m.auditoria || m.formularios,
   }
@@ -58,11 +248,25 @@ export default function Layout() {
     navigate('/login', { replace: true })
   }
 
-  const currentLabel = NAV_ITEMS.find(
-    (item) =>
-      item.to === location.pathname ||
-      (item.to !== '/painel' && location.pathname.startsWith(item.to)),
-  )?.label
+  // Encontra o rótulo atual para o topo (cabeçalho)
+  const currentLabel = useMemo(() => {
+    // 1. Tenta encontrar sub-item correspondente
+    for (const item of NAV_ITEMS) {
+      if (item.children) {
+        for (const sub of item.children) {
+          if (isSubItemActive(sub.to, location.pathname, location.search)) {
+            return `${item.label} · ${sub.label}`
+          }
+        }
+      }
+    }
+    // 2. Se não encontrou sub-item, tenta pelo item pai
+    return NAV_ITEMS.find((item) =>
+      item.to === '/painel'
+        ? location.pathname === '/painel'
+        : location.pathname.startsWith(item.to),
+    )?.label
+  }, [location.pathname, location.search])
 
   const initials = (user?.name || user?.email || 'LV').slice(0, 2).toUpperCase()
 
@@ -93,24 +297,18 @@ export default function Layout() {
         <SidebarContent>
           <SidebarGroup>
             <SidebarMenu>
-              {NAV_ITEMS.filter((item) => !item.gestor || isGestor())
+              {NAV_ITEMS.filter((item) => !item.gestor || userGestor)
                 .filter((item) => !modulos || !moduloDe[item.to] || moduloDe[item.to](modulos))
-                .map((item) => {
-                  const active =
-                    item.to === '/painel'
-                      ? location.pathname === '/painel'
-                      : location.pathname.startsWith(item.to)
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                        <Link to={item.to}>
-                          <item.icon />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
+                .map((item) => (
+                  <NavItemTree
+                    key={item.to}
+                    item={item}
+                    pathname={location.pathname}
+                    search={location.search}
+                    userGestor={userGestor}
+                    modulos={modulos}
+                  />
+                ))}
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
