@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, Building2, FileSpreadsheet } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
+import { useAuth } from '@/hooks/use-auth'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { isGestor } from '@/services/equipe'
 import {
@@ -124,6 +125,7 @@ const emptyValues: EmpresaFormValues = {
 
 export default function Empresas() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuth()
   const gestor = isGestor()
 
   // Não-gestor nunca pode iniciar na aba orçamentos
@@ -156,7 +158,7 @@ export default function Empresas() {
     } else if (abaParam !== 'orcamentos' && abaAtiva === 'orcamentos' && !searchParams.has('aba')) {
       setAbaAtiva('empresas')
     }
-  }, [searchParams, abaAtiva, gestor, setSearchParams])
+  }, [searchParams, abaAtiva, gestor, setSearchParams, user])
 
   const handleTrocaAba = (novaAba: string) => {
     if (novaAba === 'orcamentos' && !gestor) {
@@ -303,20 +305,32 @@ export default function Empresas() {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTrocaAba} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="empresas" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+        <TabsList
+          className={
+            gestor
+              ? 'grid h-auto w-full grid-cols-2 rounded-2xl bg-muted/60 p-1.5 shadow-sm sm:inline-grid sm:h-14 sm:w-auto sm:min-w-[420px]'
+              : 'inline-grid h-auto w-full grid-cols-1 rounded-2xl bg-muted/60 p-1.5 shadow-sm sm:h-14 sm:w-auto sm:min-w-[220px]'
+          }
+        >
+          <TabsTrigger
+            value="empresas"
+            className="flex h-12 items-center justify-center gap-2.5 rounded-xl px-5 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md sm:text-base"
+          >
+            <Building2 className="h-5 w-5 shrink-0" />
             <span>Empresas ({empresas.length})</span>
           </TabsTrigger>
           {gestor && (
-            <TabsTrigger value="orcamentos" className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4" />
+            <TabsTrigger
+              value="orcamentos"
+              className="flex h-12 items-center justify-center gap-2.5 rounded-xl px-5 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md sm:text-base"
+            >
+              <FileSpreadsheet className="h-5 w-5 shrink-0" />
               <span>Orçamentos</span>
             </TabsTrigger>
           )}
         </TabsList>
 
-        <TabsContent value="empresas" className="space-y-6">
+        <TabsContent value="empresas" className="space-y-6 mt-0 focus-visible:outline-none">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold">Empresas clientes</h2>
@@ -420,7 +434,7 @@ export default function Empresas() {
         </TabsContent>
 
         {gestor && (
-          <TabsContent value="orcamentos">
+          <TabsContent value="orcamentos" className="mt-0 focus-visible:outline-none">
             <OrcamentosTab />
           </TabsContent>
         )}
