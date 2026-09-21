@@ -9,15 +9,34 @@ export interface MembroEquipe {
   papel: Papel
 }
 
-export const getPapelUsuarioLogado = (): Papel => {
+export const getPapelUsuarioLogado = (): Papel | 'admin_plataforma' | 'staff_labora' => {
   const record = pb.authStore.record as (Record<string, unknown> & { papel?: string }) | null
   const papel = record?.papel
-  return (papel as Papel) || 'dono' // usuários antigos sem papel = dono
+  return (papel as Papel | 'admin_plataforma' | 'staff_labora') || 'dono' // usuários antigos sem papel = dono
 }
 
 export const isGestor = () => {
   if (!pb.authStore.isValid || !pb.authStore.record) return false
   return getPapelUsuarioLogado() !== 'executor'
+}
+
+/**
+ * Verifica se o usuário logado possui privilégios de administrador da plataforma/sistema (SaaS admin).
+ * Papéis considerados administradores: 'admin_plataforma' e 'admin'.
+ * Também contempla staff_labora com acesso ao console administrativo.
+ */
+export const isAdmin = (): boolean => {
+  if (!pb.authStore.isValid || !pb.authStore.record) return false
+  const record = pb.authStore.record as Record<string, unknown> & {
+    papel?: string
+    acesso_console?: boolean
+  }
+  const papel = record?.papel
+  return (
+    papel === 'admin_plataforma' ||
+    papel === 'admin' ||
+    (papel === 'staff_labora' && Boolean(record?.acesso_console))
+  )
 }
 
 export const getEquipe = async (): Promise<MembroEquipe[]> => {

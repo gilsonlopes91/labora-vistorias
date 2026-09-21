@@ -5,6 +5,7 @@ import { Upload, FileUp, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { parseCsv } from '@/lib/csv'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { createItensChecklistBulk, type ItemChecklistInput } from '@/services/itensChecklist'
+import { isAdmin } from '@/services/equipe'
 import type { TipoVistoria } from '@/services/tiposVistoria'
 
 import { Button } from '@/components/ui/button'
@@ -151,6 +152,12 @@ export function ImportarChecklistCsvDialog({
   }
 
   const handleImportar = async () => {
+    if (!isAdmin()) {
+      toast.error('Apenas administradores da plataforma podem importar checklists.')
+      setOpen(false)
+      return
+    }
+
     if (!tipoId || validas.length === 0) return
     setImportando(true)
     try {
@@ -181,15 +188,33 @@ export function ImportarChecklistCsvDialog({
     }
   }
 
+  if (!isAdmin()) {
+    return null
+  }
+
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
+        if (!isAdmin()) {
+          setOpen(false)
+          return
+        }
         setOpen(v)
         if (!v) resetar()
       }}
     >
-      <Button variant="outline" className="gap-2" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        className="gap-2"
+        onClick={() => {
+          if (!isAdmin()) {
+            toast.error('Ação restrita a administradores.')
+            return
+          }
+          setOpen(true)
+        }}
+      >
         <Upload className="h-4 w-4" />
         Importar checklist (CSV)
       </Button>

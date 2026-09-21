@@ -16,6 +16,7 @@ import { ListChecks, Lock, Search, Shapes } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
 import { getItensChecklist, type ItemChecklist } from '@/services/itensChecklist'
+import { isAdmin } from '@/services/equipe'
 import { ImportarChecklistCsvDialog } from '@/components/ImportarChecklistCsvDialog'
 
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +39,7 @@ export function AuditoriaNRsTab() {
   const [carregandoItens, setCarregandoItens] = useState<Record<string, boolean>>({})
   const [busca, setBusca] = useState('')
   const [abertosManual, setAbertosManual] = useState<string[]>([])
+  const usuarioAdmin = isAdmin()
 
   const carregarTipos = () =>
     getTiposVistoria()
@@ -145,7 +147,7 @@ export function AuditoriaNRsTab() {
             <span className="font-medium">Formulários</span>.
           </p>
         </div>
-        <ImportarChecklistCsvDialog tipos={tipos} onImportado={handleImportado} />
+        {usuarioAdmin && <ImportarChecklistCsvDialog tipos={tipos} onImportado={handleImportado} />}
       </div>
 
       <div className="relative">
@@ -261,8 +263,10 @@ export function AuditoriaNRsTab() {
                       </div>
                     ) : (
                       <p className="py-2 text-sm text-muted-foreground">
-                        Este checklist ainda não tem itens. Use "Importar checklist (CSV)" acima
-                        para preenchê-lo.
+                        Este checklist ainda não tem itens.
+                        {usuarioAdmin
+                          ? ' Use "Importar checklist (CSV)" acima para preenchê-lo.'
+                          : ''}
                       </p>
                     )}
                   </AccordionContent>
