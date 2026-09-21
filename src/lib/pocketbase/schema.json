@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T18:50:58.764Z",
+  "generatedAt": "2026-09-21T18:56:03.967Z",
   "collections": [
     {
       "name": "users",
@@ -1446,6 +1446,193 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_tabela_multas_portuario_lookup ON tabela_multas_portuario (faixa_ordem, grau, tipo)"
+      ]
+    },
+    {
+      "name": "orcamentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
+        "view": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
+        "create": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "servico",
+            "treinamento"
+          ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_entrada",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "enviado",
+            "em_negociacao",
+            "aprovado",
+            "recusado",
+            "cancelado",
+            "em_execucao",
+            "concluido"
+          ]
+        },
+        {
+          "name": "data_proposta",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "validade_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condicao_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "forma_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_entrega",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "normas_referencia",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens_inclusos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens_exclusos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_engenheiro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "crea",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_orcamentos_organizacao ON orcamentos (organizacao_id)",
+        "CREATE INDEX idx_orcamentos_empresa ON orcamentos (empresa_id)",
+        "CREATE INDEX idx_orcamentos_status ON orcamentos (status)",
+        "CREATE UNIQUE INDEX idx_orcamentos_numero_org ON orcamentos (organizacao_id, numero)"
       ]
     }
   ]

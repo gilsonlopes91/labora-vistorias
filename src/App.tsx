@@ -22,6 +22,7 @@ import BuilderFormulario from './pages/BuilderFormulario'
 import PreencherFormulario from './pages/PreencherFormulario'
 import Agenda from './pages/Agenda'
 import MultasPenalidades from './pages/MultasPenalidades'
+import Orcamentos from './pages/Orcamentos'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
 import NotFound from './pages/NotFound'
@@ -117,6 +118,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Agenda />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orcamentos"
+              element={
+                <ProtectedRoute>
+                  <Orcamentos />
                 </ProtectedRoute>
               }
             />

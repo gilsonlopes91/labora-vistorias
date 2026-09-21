@@ -8,6 +8,7 @@ export interface Modulos {
   relatorios: boolean
   formularios: boolean
   ia: boolean
+  orcamentos: boolean
 }
 
 export const MODULOS_DEFAULT: Modulos = {
@@ -15,6 +16,7 @@ export const MODULOS_DEFAULT: Modulos = {
   relatorios: true,
   formularios: true,
   ia: true,
+  orcamentos: true,
 }
 
 export const getModulos = async (): Promise<Modulos> => {

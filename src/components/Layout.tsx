@@ -14,6 +14,7 @@ import {
   Users,
   Newspaper,
   Scale,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
   { to: '/modelos', label: 'Auditoria de NRs', icon: ListChecks },
   { to: '/formularios', label: 'Formulários', icon: FileText },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
+  { to: '/orcamentos', label: 'Orçamentos', icon: FileSpreadsheet, gestor: true },
   { to: '/multas', label: 'Multas e penalidades', icon: Scale },
   { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
@@ -63,6 +65,7 @@ export default function Layout() {
   const moduloDe: Record<string, keyof Modulos> = {
     '/modelos': 'auditoria',
     '/formularios': 'formularios',
+    '/orcamentos': 'orcamentos',
   }
 
   const handleSignOut = () => {
