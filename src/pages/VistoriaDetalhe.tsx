@@ -18,6 +18,7 @@ import {
   type StatusVistoria,
 } from '@/services/vistorias'
 import { getItensChecklist, type ItemChecklist } from '@/services/itensChecklist'
+import type { RegimeMulta } from '@/services/tiposVistoria'
 import {
   getRespostasByVistoria,
   createResposta,
@@ -88,22 +89,24 @@ const OBSERVACAO_PLACEHOLDER: Record<Situacao, string> = {
   'N/A': 'Observação (opcional)',
 }
 
-// NR-31 (trabalho rural): os itens dela têm código 231xxx no Anexo II da NR-28
-// e NÃO usam a grade UFIR do Anexo I — a sanção segue o art. 18 da Lei
-// 5.889/1973 (R$ 392,89 por trabalhador em situação irregular, dobrado na
-// reincidência — Portaria MTE 1.131/2025), remetida pelo item 28.3.2 da NR-28
-// (Portaria MTE 104/2026). O nº informado no item é de trabalhadores afetados
-// (contratados ou não); o default é o total de trabalhadores da empresa.
-const isItemNr31 = (item: ItemChecklist) => !!(item.codigo && item.codigo.startsWith('231'))
+// Regime de cálculo de multa de cada checklist — vem do campo regime_multa de
+// tipos_vistoria (migration 0095):
+//   anexo_i            → grade do Anexo I da NR-28, em UFIR (regra geral)
+//   anexo_ia_portuario → Anexo I-A, já em reais (NR-29, Portaria SIT 319/2012)
+//   rural_art18        → art. 18 da Lei 5.889/1973, por empregado em situação
+//                        irregular (NR-31, via item 28.3.2 da NR-28)
+// Fallback para bases antigas, anteriores ao campo: código de ementa 231xxx = NR-31.
+const regimePeloCodigo = (codigo?: string): RegimeMulta =>
+  codigo && codigo.startsWith('231') ? 'rural_art18' : 'anexo_i'
 
 const TEXTO_NR31 =
   'Infração da NR-31 (trabalho rural): a multa não usa a grade de UFIR do Anexo I da NR-28. ' +
   'Pelo item 28.3.2 da NR-28 (Portaria MTE 104/2026), a sanção segue o art. 18 da Lei 5.889/1973 — ' +
-  'multa per capita por empregado prejudicado, dobrada na reincidência. O valor por empregado é o ' +
-  'escolhido no topo da página (R$ 392,89 pela Portaria MTE 1.131/2025 ou R$ 380,00 pelo texto da ' +
-  'lei). O número usado neste item é o informado no topo. Se a infração alcançar menos ' +
-  'trabalhadores que o total do estabelecimento (ex.: falta de exame médico atinge só quem não ' +
-  'fez), clique em "Alterar nº de empregados prejudicados" e informe só os afetados. ' +
+  'multa per capita por empregado em situação irregular, dobrada na reincidência. O valor por ' +
+  'empregado é o escolhido no topo da página (R$ 392,89 pela Portaria MTE 1.131/2025 ou ' +
+  'R$ 380,00 pelo texto da lei). O número usado neste item é o informado no topo. Se a infração ' +
+  'alcançar menos empregados que o total do estabelecimento (ex.: falta de exame médico atinge só ' +
+  'quem não fez), clique em "Alterar nº de empregados prejudicados" e informe só os afetados. ' +
   'Infrações coletivas (ex.: falta de PGRTR) usam o número de cima, sem alterar.'
 
 const NOVO_RESPONSAVEL = '__novo__'
@@ -482,6 +485,12 @@ export default function VistoriaDetalhe() {
           itens: itensOrdenados,
           respostas,
           resumo,
+          // O laudo precisa saber de qual tabela saiu cada item para não
+          // afirmar "Anexo I" numa vistoria portuária ou rural.
+          regimePorItem: Object.fromEntries(
+            itensOrdenados.map((item) => [item.id, regimeDoItem(item)]),
+          ),
+          valorRuralPorEmpregado,
         })
       } catch (pdfError) {
         toast.error('Vistoria finalizada, mas o PDF não pôde ser gerado', {
@@ -538,9 +547,48 @@ export default function VistoriaDetalhe() {
     return { conforme, naoConforme, naoAplica, semResposta, multaMin, multaMax }
   }, [itensOrdenados, respostas])
 
-  // NR-31 presente na vistoria? O resumo avisa que a parte rural usa outro
-  // critério legal (Lei 5.889/1973), somado à grade UFIR das demais NRs.
-  const temNr31 = useMemo(() => itensOrdenados.some((item) => isItemNr31(item)), [itensOrdenados])
+  // Regime de cada checklist vinculado à vistoria (principal + adicionais).
+  const regimePorChecklist = useMemo(() => {
+    const mapa: Record<string, RegimeMulta> = {}
+    const principal = vistoria?.expand?.tipo_vistoria_id
+    if (principal) mapa[principal.id] = principal.regime_multa || 'anexo_i'
+    for (const checklist of vistoria?.expand?.checklists || []) {
+      mapa[checklist.id] = checklist.regime_multa || 'anexo_i'
+    }
+    return mapa
+  }, [vistoria])
+
+  const regimeDoItem = useCallback(
+    (item: ItemChecklist): RegimeMulta =>
+      regimePorChecklist[item.tipo_vistoria_id] || regimePeloCodigo(item.codigo),
+    [regimePorChecklist],
+  )
+
+  const isItemRural = useCallback(
+    (item: ItemChecklist) => regimeDoItem(item) === 'rural_art18',
+    [regimeDoItem],
+  )
+
+  // O resumo precisa dizer de qual tabela saiu cada parcela: o rural usa outro
+  // critério legal (Lei 5.889/1973) e o portuário usa o Anexo I-A, em reais.
+  const temNr31 = useMemo(
+    () => itensOrdenados.some((item) => isItemRural(item)),
+    [itensOrdenados, isItemRural],
+  )
+
+  const temPortuario = useMemo(
+    () => itensOrdenados.some((item) => regimeDoItem(item) === 'anexo_ia_portuario'),
+    [itensOrdenados, regimeDoItem],
+  )
+
+  const temAnexoI = useMemo(
+    () => itensOrdenados.some((item) => regimeDoItem(item) === 'anexo_i'),
+    [itensOrdenados, regimeDoItem],
+  )
+
+  // Valor por empregado do critério rural, conforme a base legal escolhida na
+  // vistoria. Mesmo valor mostrado nos cartões de escolha logo abaixo.
+  const valorRuralPorEmpregado = vistoria?.nr31_base_legal === 'lei_380' ? 380 : 392.89
 
   const progressoPct = itensOrdenados.length
     ? Math.round(((itensOrdenados.length - resumo.semResposta) / itensOrdenados.length) * 100)
@@ -814,9 +862,12 @@ export default function VistoriaDetalhe() {
                   {currency.format(resumo.multaMax)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Soma dos itens marcados como não conforme, pela gradação do Anexo I da NR-28.
+                  Soma dos itens marcados como não conforme.
+                  {temAnexoI && ' Gradação do Anexo I da NR-28, convertida da UFIR.'}
+                  {temPortuario &&
+                    ' Itens da NR-29 (trabalho portuário) usam o Anexo I-A da NR-28, cujos valores já são fixados em reais.'}
                   {temNr31 &&
-                    ' Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — R$ 392,89 por empregado prejudicado (dobrado na reincidência), calculados pelo nº informado no topo ou no item.'}
+                    ` Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRuralPorEmpregado)} por empregado em situação irregular (dobrado na reincidência), calculados pelo nº informado no topo ou no item.`}
                 </div>
               </div>
             </CardContent>
@@ -963,10 +1014,13 @@ export default function VistoriaDetalhe() {
                             </Badge>
                             {item.grau && (
                               <Badge variant="outline" className="text-xs">
-                                Grau {item.grau} · {item.tipo === 'S' ? 'Severidade' : 'Moderada'}
+                                Infração I{item.grau} ·{' '}
+                                {item.tipo === 'S'
+                                  ? 'Segurança do Trabalho'
+                                  : 'Medicina do Trabalho'}
                               </Badge>
                             )}
-                            {!item.grau && isItemNr31(item) && (
+                            {!item.grau && isItemRural(item) && (
                               <Badge variant="outline" className="text-xs">
                                 NR-31 · multa por empregado irregular
                               </Badge>
@@ -976,7 +1030,7 @@ export default function VistoriaDetalhe() {
                             {item.descricao}
                           </CardTitle>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            Código {item.codigo}
+                            Código da ementa {item.codigo}
                           </div>
                           {item.observacao && (
                             <p className="mt-1 text-xs italic text-muted-foreground">
@@ -1010,7 +1064,7 @@ export default function VistoriaDetalhe() {
                     </CardHeader>
                     {resposta?.situacao && (
                       <CardContent className="pt-0">
-                        {resposta.situacao === 'N/C' && isItemNr31(item) && (
+                        {resposta.situacao === 'N/C' && isItemRural(item) && (
                           <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
                             {TEXTO_NR31}
                             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1083,7 +1137,7 @@ export default function VistoriaDetalhe() {
                           </div>
                         )}
                         {resposta.situacao === 'N/C' &&
-                          !isItemNr31(item) &&
+                          !isItemRural(item) &&
                           (resposta.valor_multa_min || resposta.valor_multa_max) && (
                             <div className="mb-2 text-sm font-medium text-destructive">
                               Multa estimada: {currency.format(resposta.valor_multa_min || 0)} a{' '}

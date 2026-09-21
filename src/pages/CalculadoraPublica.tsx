@@ -49,8 +49,9 @@ interface Resultado {
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-// Faixa do Anexo I (1-8) a partir do nº de trabalhadores — mesma regra do
-// hook público e do cálculo interno do app.
+// Faixa do Anexo I (1-8) a partir do nº de empregados — mesma regra do
+// hook público e do cálculo interno do app. A norma usa "empregados"; "grau"
+// aqui é sempre o grau de risco da NR-4, nunca a infração da NR-28 (I1 a I4).
 const faixaDoCalculo = (trabalhadores: string): number => {
   const n = parseInt(trabalhadores, 10)
   if (!(n > 0)) return 0
@@ -113,7 +114,7 @@ export default function CalculadoraPublica() {
     }
     const n = parseInt(trabalhadores, 10)
     if (!(n > 0)) {
-      toast.error('Informe o número de trabalhadores')
+      toast.error('Informe o número de empregados')
       return
     }
     setCalculando(true)
@@ -151,7 +152,7 @@ export default function CalculadoraPublica() {
         Calculadora de <span className="text-primary">multas NR-28</span>
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-        Escolha a norma e o item, informe o número de trabalhadores e veja o valor da multa com
+        Escolha a norma e o item, informe o número de empregados e veja o valor da multa com
         explicação simples.
       </p>
 
@@ -211,7 +212,7 @@ export default function CalculadoraPublica() {
                       <span className="font-mono text-xs font-bold text-primary">
                         {it.item_ref}
                       </span>
-                      {it.grau ? <Badge variant="secondary">G{it.grau}</Badge> : null}
+                      {it.grau ? <Badge variant="secondary">I{it.grau}</Badge> : null}
                     </div>
                     <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                       {it.descricao}
@@ -228,7 +229,7 @@ export default function CalculadoraPublica() {
             </div>
             <div className="mt-3 space-y-3">
               <div>
-                <Label htmlFor="trab">Número de trabalhadores</Label>
+                <Label htmlFor="trab">Número de empregados</Label>
                 <Input
                   id="trab"
                   type="number"
@@ -273,7 +274,7 @@ export default function CalculadoraPublica() {
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold">{resultado.item.item_ref}</span>
                 {resultado.item.grau ? (
-                  <Badge variant="destructive">Grau {resultado.item.grau}</Badge>
+                  <Badge variant="destructive">Infração I{resultado.item.grau}</Badge>
                 ) : null}
                 {resultado.item.tipo ? (
                   <Badge variant="secondary">
@@ -294,10 +295,10 @@ export default function CalculadoraPublica() {
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {resultado.regime === 'rural_art18'
-                    ? 'Valor por trabalhador atingido (art. 18 da Lei 5.889/1973), dobrado na reincidência.'
+                    ? 'Valor por empregado em situação irregular (art. 18 da Lei 5.889/1973), dobrado na reincidência.'
                     : resultado.regime === 'anexo_ia_portuario'
-                      ? 'Faixa calculada pelo nº de trabalhadores × grau da infração (Anexo I-A da NR-28, valores já em reais).'
-                      : 'Faixa calculada pelo nº de trabalhadores × grau da infração (Anexo I da NR-28 × UFIR).'}
+                      ? 'Faixa calculada pelo nº de empregados × infração I1 a I4 (Anexo I-A da NR-28, valores já em reais).'
+                      : 'Faixa calculada pelo nº de empregados × infração I1 a I4 (Anexo I da NR-28 × UFIR).'}
                 </p>
               </div>
 

@@ -1,6 +1,6 @@
 /* Tabela de gradação de multas da NR-28 na identidade Labora — grade de faixas
-   de trabalhadores × grau de infração, valores em reais. A célula usada no
-   cálculo vem destacada (celulaDestaque).
+   de empregados × infração (I1 a I4, como a norma nomeia a escala), valores em
+   reais. A célula usada no cálculo vem destacada (celulaDestaque).
 
    anexo="i"  (padrão) → Anexo I, regra geral (valores da norma em UFIR, já
                          convertidos para reais).
@@ -143,8 +143,8 @@ export default function TabelaAnexoI({
         </div>
       )}
       <p className="mt-2 text-[10px] text-muted-foreground">
-        Valores por infração. A célula destacada é a aplicada ao cálculo (nº de trabalhadores × grau
-        da infração).
+        Valores por infração. A célula destacada é a aplicada ao cálculo (nº de empregados ×
+        infração I1 a I4).
       </p>
     </div>
   )

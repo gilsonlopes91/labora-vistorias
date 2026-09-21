@@ -59,15 +59,16 @@ export default function MultasPenalidades() {
           <div>
             <div className="font-medium">Anexo I — regra geral</div>
             <p className="text-muted-foreground">
-              Vale para a maioria das NRs. O Anexo II da NR-28 dá o grau (1 a 4) e o tipo do item —
-              S de segurança ou M de medicina do trabalho. O Anexo I cruza isso com a faixa de
-              número de empregados da empresa e devolve um intervalo em UFIR, convertido para reais.
+              Vale para a maioria das NRs. O Anexo II da NR-28 dá a infração (1 a 4) e o tipo do
+              item — S de Segurança do Trabalho ou M de Medicina do Trabalho. O Anexo I cruza isso
+              com a faixa de número de empregados da empresa e devolve um intervalo em UFIR,
+              convertido para reais. Na grade do Anexo I essa escala aparece como I1, I2, I3 e I4.
             </p>
           </div>
           <div>
             <div className="font-medium">Anexo I-A — trabalho portuário (NR-29)</div>
             <p className="text-muted-foreground">
-              Mesma estrutura de grau, tipo e faixa, mas em uma tabela própria, cujos valores já
+              Mesma estrutura de infração, tipo e faixa, mas em uma tabela própria, cujos valores já
               estão fixados em reais na norma. Não entra a conversão da UFIR.
             </p>
           </div>
@@ -75,8 +76,8 @@ export default function MultasPenalidades() {
             <div className="font-medium">Art. 18 da Lei 5.889/1973 — rural (NR-31)</div>
             <p className="text-muted-foreground">
               Desde a Portaria MTE nº 104/2026, o item 28.3.2 tirou o rural da grade do Anexo I. Não
-              existe grau, tipo nem faixa de porte: é um valor fixo por empregado em situação
-              irregular.
+              existe infração I1 a I4, tipo nem faixa de porte: é um valor fixo por empregado em
+              situação irregular.
             </p>
           </div>
         </div>
@@ -87,18 +88,20 @@ export default function MultasPenalidades() {
         chamada="O caminho percorrido pelo cálculo em todo item fora do portuário e do rural."
       >
         <div className="space-y-4">
-          <Passo n={1} titulo="Grau e tipo do item">
-            Vêm do Anexo II da NR-28, já gravados em cada item do checklist. O grau mede a gravidade
-            (1 a 4). O tipo separa segurança de medicina do trabalho, porque o art. 201 da CLT fixa
-            tetos diferentes para as duas — por isso a tabela de medicina é sempre menor.
+          <Passo n={1} titulo="Infração e tipo do item">
+            Vêm do Anexo II da NR-28, já gravados em cada item do checklist. A infração mede a
+            gravidade, de 1 a 4 — I1 a I4 na grade do Anexo I. O tipo separa Segurança do Trabalho
+            de Medicina do Trabalho, porque o art. 201 da CLT fixa tetos diferentes para as duas —
+            por isso a tabela de medicina é sempre menor. Cuidado para não confundir essa escala com
+            o grau de risco da NR-4, que também vai de 1 a 4 e é outra coisa.
           </Passo>
           <Passo n={2} titulo="Faixa de número de empregados">
             São oito faixas, da menor (01 a 10) à maior (mais de 1000). O app usa o número de
-            funcionários cadastrado na empresa.
+            empregados cadastrado na empresa.
           </Passo>
           <Passo n={3} titulo="Cruzamento na tabela">
-            Faixa, grau e tipo apontam uma célula do Anexo I, que traz um valor mínimo e um máximo
-            em UFIR.
+            Faixa, infração e tipo apontam uma célula do Anexo I, que traz um valor mínimo e um
+            máximo em UFIR.
           </Passo>
           <Passo n={4} titulo="Conversão para reais">
             A UFIR foi extinta em 2000 e congelada em R$ 1,0641. O app multiplica mínimo e máximo
@@ -108,9 +111,9 @@ export default function MultasPenalidades() {
         <Separator />
         <p className="text-muted-foreground">
           O resultado é sempre um intervalo, nunca um valor único. Quem arbitra o ponto dentro dele
-          é o auditor-fiscal, pelos critérios do art. 75 da Portaria MTP nº 667/2021 — natureza da
-          infração, intenção do infrator, meios ao seu alcance para cumprir a lei, extensão da
-          infração e situação econômico-financeira.
+          é o agente da inspeção do trabalho, pelos critérios do art. 75 da Portaria MTP nº 667/2021
+          — natureza da infração, intenção do infrator, meios ao seu alcance para cumprir a lei,
+          extensão da infração e situação econômico-financeira.
         </p>
       </Secao>
 
@@ -126,9 +129,9 @@ export default function MultasPenalidades() {
       >
         <p className="text-muted-foreground">
           A diferença que mais engana: esta tabela não é expressa em UFIR. A norma já publica os
-          valores em reais, então aplicar o fator de 1,0641 sobre ela infla a multa. No grau 1, tipo
-          segurança, faixa de 01 a 10 empregados, a diferença é entre R$ 575,00 pelo Anexo I-A e R$
-          670,38 se fosse calculado pela grade geral.
+          valores em reais, então aplicar o fator de 1,0641 sobre ela infla a multa. Na infração I1,
+          tipo Segurança do Trabalho, faixa de 01 a 10 empregados, a diferença é entre R$ 575,00
+          pelo Anexo I-A e R$ 670,38 se fosse calculado pela grade geral.
         </p>
         <p className="text-muted-foreground">
           O teto também é outro: R$ 5.750,00 em segurança e R$ 3.450,00 em medicina, contra 6.304 e
@@ -152,8 +155,8 @@ export default function MultasPenalidades() {
         <p className="text-muted-foreground">
           Quantos empregados entram na conta depende da natureza do item. Infração coletiva — falta
           de PGRTR, por exemplo — alcança todos os empregados do estabelecimento. Infração
-          individual, como exame médico, alcança só os trabalhadores efetivamente atingidos. Deixar
-          o campo em branco na resposta faz o app tratar como coletiva.
+          individual, como exame médico, alcança só os empregados efetivamente atingidos. Deixar o
+          campo em branco na resposta faz o app tratar como coletiva.
         </p>
       </Secao>
 
@@ -166,7 +169,7 @@ export default function MultasPenalidades() {
             <span className="font-medium text-foreground">Reincidência e agravantes.</span> Em caso
             de reincidência, embaraço ou resistência à fiscalização, artifício ou simulação para
             fraudar a lei, o art. 201, parágrafo único, da CLT manda aplicar o valor máximo da
-            tabela — 6.304 UFIR em segurança e 3.782 em medicina. Isso anula porte e grau: uma
+            tabela — 6.304 UFIR em segurança e 3.782 em medicina. Isso anula porte e infração: uma
             empresa de quatro empregados reincidente paga o mesmo que uma de três mil. Reincidente,
             pelo art. 25 da Portaria MTP nº 667/2021, é quem é autuado pelo mesmo dispositivo antes
             de dois anos da decisão definitiva da autuação anterior.

@@ -54,6 +54,9 @@ export interface ResumoVistoria {
   multaMax: number
 }
 
+/** Regime de cálculo de multa da NR-28 aplicado a cada item (ver migration 0095). */
+export type RegimeMultaItem = 'anexo_i' | 'anexo_ia_portuario' | 'rural_art18'
+
 export interface DadosRelatorioVistoria {
   vistoria: Vistoria
   empresaNome: string
@@ -66,6 +69,10 @@ export interface DadosRelatorioVistoria {
   itens: ItemChecklist[]
   respostas: Record<string, RespostaVistoria>
   resumo: ResumoVistoria
+  /** Regime de cada item, por id. Sem isso o laudo não sabe de qual anexo saiu o valor. */
+  regimePorItem?: Record<string, RegimeMultaItem>
+  /** Valor por empregado do critério rural, conforme a base legal escolhida na vistoria. */
+  valorRuralPorEmpregado?: number
 }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -144,6 +151,14 @@ async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada |
 }
 
 export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<void> {
+  // Regime de cada item. Fallback para laudos gerados por chamadas antigas,
+  // sem o mapa: código de ementa 231xxx = NR-31 (rural).
+  const regimeDoItem = (item: ItemChecklist): RegimeMultaItem =>
+    dados.regimePorItem?.[item.id] ||
+    (item.codigo && item.codigo.startsWith('231') ? 'rural_art18' : 'anexo_i')
+
+  const valorRural = dados.valorRuralPorEmpregado ?? 392.89
+
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -247,19 +262,30 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     y += 13
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
-    doc.text('Soma dos itens não conformes, pela gradação do Anexo I da NR-28.', margin, y)
-    y += 11
-    if (dados.itens.some((item) => item.codigo && item.codigo.startsWith('231'))) {
-      doc.setFontSize(8)
-      doc.setTextColor(120)
-      const linhasNr31 = doc.splitTextToSize(
-        'Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — R$ 380,00 por empregado em situação irregular (dobrado na reincidência), conforme o nº de empregados informado em cada item.',
-        larguraUtil,
-      )
-      doc.text(linhasNr31, margin, y)
-      doc.setTextColor(0)
-      y += linhasNr31.length * 10
+
+    // A nota de rodapé do resumo tem que refletir os regimes realmente
+    // presentes na vistoria — afirmar "Anexo I" numa vistoria portuária ou
+    // rural seria incorreto.
+    const regimes = new Set(dados.itens.map((item) => regimeDoItem(item)))
+    const notas: string[] = ['Soma dos itens não conformes.']
+    if (regimes.has('anexo_i')) {
+      notas.push('Gradação do Anexo I da NR-28, convertida da UFIR.')
     }
+    if (regimes.has('anexo_ia_portuario')) {
+      notas.push(
+        'Itens da NR-29 (trabalho portuário) usam o Anexo I-A da NR-28, cujos valores já são fixados em reais.',
+      )
+    }
+    if (regimes.has('rural_art18')) {
+      notas.push(
+        `Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRural)} por empregado em situação irregular (dobrado na reincidência), conforme o nº de empregados informado em cada item.`,
+      )
+    }
+    doc.setTextColor(120)
+    const linhasNota = doc.splitTextToSize(notas.join(' '), larguraUtil)
+    doc.text(linhasNota, margin, y)
+    doc.setTextColor(0)
+    y += linhasNota.length * 10
     y += 9
   } else {
     y += 4
@@ -302,7 +328,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       const yInicioItem = y
       const temMulta =
         resposta.situacao === 'N/C' && !!(resposta.valor_multa_min || resposta.valor_multa_max)
-      const ehNr31 = resposta.situacao === 'N/C' && !!item.codigo && item.codigo.startsWith('231')
+      const ehNr31 = resposta.situacao === 'N/C' && regimeDoItem(item) === 'rural_art18'
 
       // Coluna esquerda: identificação do item + descrição + observação
       doc.setFont('helvetica', 'bold')
@@ -312,7 +338,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
       doc.setTextColor(110)
-      doc.text(`Código ${item.codigo}`, margin, y)
+      doc.text(`Código da ementa ${item.codigo}`, margin, y)
       doc.setTextColor(0)
       y += 12
 
@@ -367,7 +393,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         doc.setTextColor(120)
         const linhasNr31 = doc.splitTextToSize(
           resposta.numero_funcionarios_irregulares
-            ? `NR-31 (Lei 5.889/1973, art. 18): R$ 380,00 por empregado irregular × ${resposta.numero_funcionarios_irregulares} empregado(s); dobrada na reincidência (R$ 760,00).`
+            ? `NR-31 (Lei 5.889/1973, art. 18): ${currency.format(valorRural)} por empregado em situação irregular × ${resposta.numero_funcionarios_irregulares} empregado(s); dobrada na reincidência (${currency.format(valorRural * 2)}).`
             : 'NR-31 (Lei 5.889/1973, art. 18): multa por empregado em situação irregular — informe o nº de empregados irregulares para calcular.',
           larguraColunaDescricao,
         )

@@ -1,5 +1,8 @@
 import pb from '@/lib/pocketbase/client'
 
+/** Qual regime de cálculo de multa da NR-28 o checklist segue (migration 0095). */
+export type RegimeMulta = 'anexo_i' | 'anexo_ia_portuario' | 'rural_art18'
+
 export interface TipoVistoria {
   id: string
   organizacao_id?: string
@@ -7,6 +10,7 @@ export interface TipoVistoria {
   nr_referencia?: string
   descricao?: string
   ativo?: boolean
+  regime_multa?: RegimeMulta
   created: string
   updated: string
 }
@@ -22,6 +26,7 @@ export interface TipoVistoriaInput {
   nr_referencia?: string
   descricao?: string
   ativo?: boolean
+  regime_multa?: RegimeMulta
 }
 
 // Modelo customizado da organização (organizacao_id preenchido = visível/editável só pelo dono).
