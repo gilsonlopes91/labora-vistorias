@@ -1,9 +1,14 @@
-/* Auditoria NRs — catálogo das Normas Regulamentadoras oficiais vigentes
+/* Auditoria de NRs — catálogo das Normas Regulamentadoras oficiais vigentes
    e seus checklists, mantido pela Labora via migration. Somente
-   leitura pela UI padrão: criação/edição de modelos fica em Formulários
+   leitura pela UI padrão: criação/edição fica em Formulários
    (builder customizado). A exceção é a importação de checklist via CSV,
-   usada para popular rapidamente um tipo de vistoria "rascunho" (criado
-   sem itens por migration) sem precisar digitar a lista inteira. */
+   usada para popular rapidamente um checklist "rascunho" (criado
+   sem itens por migration) sem precisar digitar a lista inteira.
+
+   Nomenclatura (glossário do app): a seção é "Auditoria de NRs", cada entrada
+   do catálogo é um "checklist", e suas linhas são "itens do checklist".
+   Evitar "modelo" e "tipo de vistoria" em texto visível ao usuário — são
+   nomes internos (coleção tipos_vistoria). */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ListChecks, Lock, Search, Shapes } from 'lucide-react'
@@ -49,7 +54,7 @@ export default function ModelosVistoria() {
         setTipos(globais)
       })
       .catch((error) =>
-        toast.error('Não foi possível carregar os modelos de vistoria', {
+        toast.error('Não foi possível carregar os checklists', {
           description: getErrorMessage(error),
         }),
       )
@@ -130,7 +135,7 @@ export default function ModelosVistoria() {
 
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
 
-  // O catálogo lista NRs e anexos como tipos separados (ex.: NR-12 Anexo V).
+  // O catálogo lista NRs e anexos como checklists separados (ex.: NR-12 Anexo V).
   // O badge mostra o total oficial da lista (NR-1 a NR-38): as revogadas
   // (NR-2 e NR-27) não geram tipos, então contamos pelo maior nº da NR.
   const qtdNrs = tipos.reduce((max, t) => {
@@ -143,7 +148,7 @@ export default function ModelosVistoria() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-extrabold tracking-tight">Auditoria NRs</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight">Auditoria de NRs</h1>
             <Badge variant="secondary" className="gap-1">
               <Lock className="h-3 w-3" />
               Catálogo fixo ({qtdNrs} NRs e seus anexos)
@@ -151,7 +156,7 @@ export default function ModelosVistoria() {
           </div>
           <p className="text-sm text-muted-foreground">
             Catálogo com todas as Normas Regulamentadoras brasileiras vigentes, mantido pela Labora.
-            Para criar seus próprios modelos customizados, use{' '}
+            Para criar seus próprios checklists, use{' '}
             <span className="font-medium">Formulários</span>.
           </p>
         </div>
@@ -173,9 +178,7 @@ export default function ModelosVistoria() {
       ) : tipos.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
           <ListChecks className="mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Nenhum modelo de vistoria cadastrado ainda.
-          </p>
+          <p className="text-sm text-muted-foreground">Nenhum checklist cadastrado ainda.</p>
         </div>
       ) : buscando && (tiposComMatch?.length ?? 0) === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
@@ -273,8 +276,8 @@ export default function ModelosVistoria() {
                       </div>
                     ) : (
                       <p className="py-2 text-sm text-muted-foreground">
-                        Este modelo ainda não tem itens de checklist. Use "Importar checklist (CSV)"
-                        acima para preenchê-lo.
+                        Este checklist ainda não tem itens. Use "Importar checklist (CSV)" acima
+                        para preenchê-lo.
                       </p>
                     )}
                   </AccordionContent>
