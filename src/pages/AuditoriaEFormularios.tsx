@@ -1,9 +1,7 @@
 /* Auditoria e Formulários — tela unificada que agrupa Auditoria de NRs e Formulários em sub-abas */
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { ListChecks, FileText } from 'lucide-react'
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { AuditoriaNRsTab } from '@/components/AuditoriaNRsTab'
 import { FormulariosTab } from '@/components/FormulariosTab'
 
@@ -41,23 +39,6 @@ export default function AuditoriaEFormularios() {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTrocaAba} className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl bg-muted/60 p-1.5 shadow-sm sm:inline-grid sm:h-14 sm:w-auto sm:min-w-[420px]">
-          <TabsTrigger
-            value="auditoria"
-            className="flex h-12 items-center justify-center gap-2.5 rounded-xl px-5 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md sm:text-base"
-          >
-            <ListChecks className="h-5 w-5 shrink-0" />
-            <span>Auditoria NRs</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="formularios"
-            className="flex h-12 items-center justify-center gap-2.5 rounded-xl px-5 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md sm:text-base"
-          >
-            <FileText className="h-5 w-5 shrink-0" />
-            <span>Formulários</span>
-          </TabsTrigger>
-        </TabsList>
-
         <TabsContent value="auditoria" className="mt-0 focus-visible:outline-none">
           <AuditoriaNRsTab />
         </TabsContent>

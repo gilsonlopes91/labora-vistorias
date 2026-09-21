@@ -133,7 +133,7 @@ const App = () => (
             <Route
               path="/orcamentos"
               element={
-                <ProtectedRoute gestorOnly>
+                <ProtectedRoute>
                   <Orcamentos />
                 </ProtectedRoute>
               }

@@ -33,11 +33,17 @@ export interface ModeloFormulario {
   updated: string
 }
 
-export const getModelosFormulario = () =>
-  pb.collection('modelos_formulario').getFullList<ModeloFormulario>({
-    filter: 'ativo = true',
+export const getModelosFormulario = async (organizacaoId?: string) => {
+  let filter = 'ativo = true'
+  if (organizacaoId) {
+    // Garante retorno apenas dos modelos fixos globais (sem org) e dos modelos da organização solicitada
+    filter += ` && (organizacao_id = '' || organizacao_id = '${organizacaoId}')`
+  }
+  return pb.collection('modelos_formulario').getFullList<ModeloFormulario>({
+    filter,
     sort: '-fixo,nome', // fixos primeiro
   })
+}
 
 export const getModeloFormulario = (id: string) =>
   pb.collection('modelos_formulario').getOne<ModeloFormulario>(id)

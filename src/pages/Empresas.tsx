@@ -5,13 +5,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Building2, FileSpreadsheet } from 'lucide-react'
+import { Plus, Pencil, Trash2, Building2 } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/hooks/use-auth'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
-import { isGestor } from '@/services/equipe'
 import {
   getEmpresas,
   createEmpresa,
@@ -25,7 +24,7 @@ import { OrcamentosTab } from '@/components/OrcamentosTab'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -126,10 +125,8 @@ const emptyValues: EmpresaFormValues = {
 export default function Empresas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
-  const gestor = isGestor()
 
-  // Não-gestor nunca pode iniciar na aba orçamentos
-  const tabInicial = gestor && searchParams.get('aba') === 'orcamentos' ? 'orcamentos' : 'empresas'
+  const tabInicial = searchParams.get('aba') === 'orcamentos' ? 'orcamentos' : 'empresas'
   const [abaAtiva, setAbaAtiva] = useState<string>(tabInicial)
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -141,32 +138,17 @@ export default function Empresas() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
 
-  // Sincroniza tab com searchParams se mudou externamente, protegendo a aba orçamentos
+  // Sincroniza tab com searchParams se mudou externamente
   useEffect(() => {
     const abaParam = searchParams.get('aba')
     if (abaParam === 'orcamentos') {
-      if (gestor) {
-        if (abaAtiva !== 'orcamentos') setAbaAtiva('orcamentos')
-      } else {
-        // Usuário não-gestor tentou acessar ?aba=orcamentos: remove query e volta para empresas
-        setAbaAtiva('empresas')
-        setSearchParams({}, { replace: true })
-        toast.error('Acesso restrito', {
-          description: 'A área de orçamentos é restrita aos gestores da organização.',
-        })
-      }
+      if (abaAtiva !== 'orcamentos') setAbaAtiva('orcamentos')
     } else if (abaParam !== 'orcamentos' && abaAtiva === 'orcamentos' && !searchParams.has('aba')) {
       setAbaAtiva('empresas')
     }
-  }, [searchParams, abaAtiva, gestor, setSearchParams, user])
+  }, [searchParams, abaAtiva, user])
 
   const handleTrocaAba = (novaAba: string) => {
-    if (novaAba === 'orcamentos' && !gestor) {
-      toast.error('Acesso restrito', {
-        description: 'A área de orçamentos é restrita aos gestores da organização.',
-      })
-      return
-    }
     setAbaAtiva(novaAba)
     if (novaAba === 'orcamentos') {
       setSearchParams({ aba: 'orcamentos' })
@@ -305,31 +287,6 @@ export default function Empresas() {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTrocaAba} className="space-y-6">
-        <TabsList
-          className={
-            gestor
-              ? 'grid h-auto w-full grid-cols-2 rounded-2xl bg-muted/60 p-1.5 shadow-sm sm:inline-grid sm:h-14 sm:w-auto sm:min-w-[420px]'
-              : 'inline-grid h-auto w-full grid-cols-1 rounded-2xl bg-muted/60 p-1.5 shadow-sm sm:h-14 sm:w-auto sm:min-w-[220px]'
-          }
-        >
-          <TabsTrigger
-            value="empresas"
-            className="flex h-12 items-center justify-center gap-2.5 rounded-xl px-5 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md sm:text-base"
-          >
-            <Building2 className="h-5 w-5 shrink-0" />
-            <span>Empresas ({empresas.length})</span>
-          </TabsTrigger>
-          {gestor && (
-            <TabsTrigger
-              value="orcamentos"
-              className="flex h-12 items-center justify-center gap-2.5 rounded-xl px-5 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md sm:text-base"
-            >
-              <FileSpreadsheet className="h-5 w-5 shrink-0" />
-              <span>Orçamentos</span>
-            </TabsTrigger>
-          )}
-        </TabsList>
-
         <TabsContent value="empresas" className="space-y-6 mt-0 focus-visible:outline-none">
           <div className="flex items-center justify-between">
             <div>
@@ -433,11 +390,9 @@ export default function Empresas() {
           )}
         </TabsContent>
 
-        {gestor && (
-          <TabsContent value="orcamentos" className="mt-0 focus-visible:outline-none">
-            <OrcamentosTab />
-          </TabsContent>
-        )}
+        <TabsContent value="orcamentos" className="mt-0 focus-visible:outline-none">
+          <OrcamentosTab />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

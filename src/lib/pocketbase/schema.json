@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T20:48:53.901Z",
+  "generatedAt": "2026-09-21T20:55:36.208Z",
   "collections": [
     {
       "name": "users",
@@ -934,9 +934,9 @@
       "apiRules": {
         "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id)",
         "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id)",
-        "create": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
-        "update": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
-        "delete": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'"
+        "create": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id",
+        "update": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id",
+        "delete": "@request.auth.id != '' && organizacao_id != '' && organizacao_id = @request.auth.organizacao_id"
       },
       "fields": [
         {
@@ -1291,11 +1291,11 @@
       "name": "orcamentos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
-        "view": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
-        "create": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
-        "update": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'",
-        "delete": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id && @request.auth.papel != 'executor'"
+        "list": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "view": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "create": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "update": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "delete": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id"
       },
       "fields": [
         {

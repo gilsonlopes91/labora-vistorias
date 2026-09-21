@@ -50,7 +50,6 @@ export const NAV_ITEMS: NavItemConfig[] = [
         to: '/empresas?aba=orcamentos',
         label: 'Orçamentos',
         icon: FileSpreadsheet,
-        gestor: true,
       },
     ],
   },
@@ -88,7 +87,6 @@ export const NAV_ITEMS: NavItemConfig[] = [
  */
 export const GESTOR_ONLY_PATHS = new Set<string>([
   ...NAV_ITEMS.filter((item) => item.gestor).map((item) => item.to.split('?')[0]),
-  '/orcamentos', // Redirecionamento legado exclusivo de gestores
 ])
 
 /**
