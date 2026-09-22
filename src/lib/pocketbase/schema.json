@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T20:20:58.250Z",
+  "generatedAt": "2026-09-22T20:36:37.024Z",
   "collections": [
     {
       "name": "users",
@@ -2108,7 +2108,7 @@
       "apiRules": {
         "list": "",
         "view": "",
-        "create": "@request.auth.id != ''",
+        "create": "@request.auth.papel = 'admin_plataforma'",
         "update": "@request.auth.papel = 'admin_plataforma'",
         "delete": "@request.auth.papel = 'admin_plataforma'"
       },

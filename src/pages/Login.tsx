@@ -1,12 +1,12 @@
 /* Tela de login/cadastro — estilo hero: tipografia grande com palavras destacadas,
    rótulo de seção em caixa alta e card flutuante. Paleta Labora preservada. */
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { CalendarClock, ClipboardCheck, ShieldCheck, KeyRound, Building2 } from 'lucide-react'
+import { CalendarClock, ClipboardCheck, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
@@ -30,16 +30,20 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Informe sua senha'),
 })
 
+// Fase "em breve": "Criar conta" só registra nome + e-mail na lista de espera
+// e leva para a página /em-breve (manual do app). O cadastro de usuário
+// continua fechado ao público (users.createRule = admin).
 const signupSchema = z.object({
-  name: z.string().min(1, 'Informe seu nome'),
-  email: z.string().email('Informe um e-mail válido'),
-  password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres'),
+  name: z.string().trim().min(1, 'Informe seu nome'),
+  email: z.string().trim().email('Informe um e-mail válido'),
 })
 
 export default function Login() {
-  const { isAuthenticated, loading, signIn, signUp } = useAuth()
+  const { isAuthenticated, loading, signIn } = useAuth()
   const [submitting, setSubmitting] = useState(false)
   const [conteudo, setConteudo] = useState<Record<string, string>>({})
+  const [searchParams] = useSearchParams()
+  const [aba, setAba] = useState(searchParams.get('criar') ? 'signup' : 'login')
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -68,7 +72,7 @@ export default function Login() {
 
   const signupForm = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: '', email: '', password: '' },
+    defaultValues: { name: '', email: '' },
   })
 
   if (loading) {
@@ -99,14 +103,23 @@ export default function Login() {
 
   const onSignup = async (values: z.infer<typeof signupSchema>) => {
     setSubmitting(true)
-    const { error } = await signUp(values.email, values.password, values.name)
-    setSubmitting(false)
-    if (error) {
-      toast.error('Não foi possível criar a conta', { description: getErrorMessage(error) })
-      return
+    const nome = values.name.trim()
+    const email = values.email.trim().toLowerCase()
+    try {
+      await pb.collection('lista_espera').create({ nome, email, origem: 'criar_conta' })
+    } catch (error) {
+      // E-mail já inscrito (índice único) segue normalmente para a página.
+      const dados = (error as { response?: { data?: Record<string, unknown> } })?.response?.data
+      if (!dados || !('email' in dados)) {
+        setSubmitting(false)
+        toast.error('Não foi possível registrar seu cadastro', {
+          description: getErrorMessage(error),
+        })
+        return
+      }
     }
-    toast.success('Conta criada com sucesso!')
-    navigate('/painel', { replace: true })
+    setSubmitting(false)
+    navigate('/em-breve', { state: { nome, email } })
   }
 
   return (
@@ -121,6 +134,7 @@ export default function Login() {
         </Link>
         <a
           href="#acesso"
+          onClick={() => setAba('signup')}
           className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-subtle transition-opacity hover:opacity-90"
         >
           Começar agora
@@ -168,7 +182,7 @@ export default function Login() {
         <div id="acesso">
           <Card className="w-full rounded-3xl border-none shadow-elevation">
             <CardContent className="p-6 lg:p-8">
-              <Tabs defaultValue="login" className="w-full">
+              <Tabs value={aba} onValueChange={setAba} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 rounded-full">
                   <TabsTrigger value="login" className="rounded-full">
                     Entrar
@@ -235,80 +249,6 @@ export default function Login() {
                       </div>
                     </form>
                   </Form>
-
-                  {/* Credenciais de demonstração / teste com preenchimento em 1 clique */}
-                  <div className="mt-6 border-t pt-5">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Acesso rápido para teste
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {/* Card Administrador */}
-                      <div className="flex flex-col justify-between rounded-2xl border bg-muted/40 p-3.5 text-xs transition-colors hover:bg-muted/60">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 font-semibold text-foreground">
-                            <KeyRound className="h-3.5 w-3.5 text-primary" />
-                            <span>Administrador</span>
-                          </div>
-                          <p className="font-mono text-[11px] text-foreground">admin@labora.com</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            Senha:{' '}
-                            <span className="font-mono font-medium text-foreground">labora123</span>
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 h-8 w-full rounded-xl text-xs font-medium"
-                          disabled={submitting}
-                          onClick={() => {
-                            loginForm.setValue('email', 'admin@labora.com', {
-                              shouldValidate: true,
-                            })
-                            loginForm.setValue('password', 'labora123', { shouldValidate: true })
-                            onLogin({ email: 'admin@labora.com', password: 'labora123' })
-                          }}
-                        >
-                          Entrar como admin
-                        </Button>
-                      </div>
-
-                      {/* Card Cliente (Empresa Contratante) */}
-                      <div className="flex flex-col justify-between rounded-2xl border border-primary/20 bg-primary/5 p-3.5 text-xs transition-colors hover:bg-primary/10">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 font-semibold text-foreground">
-                            <Building2 className="h-3.5 w-3.5 text-primary" />
-                            <span>Cliente (empresa contratante)</span>
-                          </div>
-                          <p className="font-mono text-[11px] text-foreground">
-                            cliente@empresaexemplo.com.br
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            Senha:{' '}
-                            <span className="font-mono font-medium text-foreground">labora123</span>
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="mt-3 h-8 w-full rounded-xl text-xs font-semibold shadow-subtle"
-                          disabled={submitting}
-                          onClick={() => {
-                            loginForm.setValue('email', 'cliente@empresaexemplo.com.br', {
-                              shouldValidate: true,
-                            })
-                            loginForm.setValue('password', 'labora123', { shouldValidate: true })
-                            onLogin({
-                              email: 'cliente@empresaexemplo.com.br',
-                              password: 'labora123',
-                            })
-                          }}
-                        >
-                          Entrar como cliente
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
                 </TabsContent>
 
                 <TabsContent value="signup" className="mt-6">
@@ -349,33 +289,15 @@ export default function Login() {
                           </FormItem>
                         )}
                       />
-                      <FormField
-                        control={signupForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Senha</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="password"
-                                placeholder="Mínimo 8 caracteres"
-                                className="h-11 rounded-xl"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       <Button
                         type="submit"
                         className="h-11 w-full rounded-full text-base font-semibold"
                         disabled={submitting}
                       >
-                        {submitting ? 'Criando conta...' : 'Criar conta grátis'}
+                        {submitting ? 'Enviando...' : 'Avançar'}
                       </Button>
                       <p className="text-center text-xs text-muted-foreground">
-                        Grátis, sem cartão de crédito.
+                        Só nome e e-mail. Avisamos quando o acesso for liberado.
                       </p>
                     </form>
                   </Form>

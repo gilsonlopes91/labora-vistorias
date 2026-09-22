@@ -37,6 +37,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import ListaEsperaPanel from '@/components/ListaEsperaPanel'
 
 interface OrgRow {
   id: string
@@ -533,6 +534,9 @@ export default function AdminConsole() {
           ))}
         </div>
       )}
+
+      {/* Lista de espera (inscritos do site) — só admin da plataforma lê */}
+      {user?.papel === 'admin_plataforma' && <ListaEsperaPanel />}
 
       {/* Staff Labora */}
       <div className="mt-10">
