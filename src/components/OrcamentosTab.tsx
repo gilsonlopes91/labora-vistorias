@@ -5,7 +5,6 @@
    /orcamentos e a aba dentro de Empresas renderizam este mesmo componente, para
    não existirem duas versões da tela. */
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   Archive,
@@ -13,7 +12,6 @@ import {
   Copy,
   FileDown,
   FileSpreadsheet,
-  Palette,
   Pencil,
   Plus,
   Search,
@@ -220,7 +218,7 @@ export function OrcamentosTab({
 
       if (!modelo) {
         toast.error('Nenhum modelo de proposta disponível', {
-          description: 'Abra Modelos de proposta e salve um modelo antes de gerar o PDF.',
+          description: 'Não foi possível encontrar um modelo de proposta ativo para gerar o PDF.',
         })
         return
       }
@@ -293,12 +291,6 @@ export function OrcamentosTab({
           <p className="text-sm text-muted-foreground">{descricao}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/orcamentos/modelos">
-              <Palette className="mr-2 h-4 w-4" />
-              Modelos de proposta
-            </Link>
-          </Button>
           <Button
             onClick={() => {
               setEmEdicao(null)
