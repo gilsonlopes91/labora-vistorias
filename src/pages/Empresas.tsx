@@ -1,11 +1,11 @@
 /* Cadastro e listagem de empresas (clientes) da organização logada e aba de orçamentos vinculada. */
-import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Building2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Building2, Search, Mail, MapPin, Phone, Users } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
@@ -50,14 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -137,6 +130,26 @@ export default function Empresas() {
   const [editing, setEditing] = useState<Empresa | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
+  const [busca, setBusca] = useState('')
+
+  const empresasFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    if (!termo) return empresas
+    return empresas.filter((e) =>
+      [e.razao_social, e.nome_fantasia, e.cnpj, e.contato_email, e.endereco]
+        .filter(Boolean)
+        .some((campo) => String(campo).toLowerCase().includes(termo)),
+    )
+  }, [empresas, busca])
+
+  const formatarDesde = (iso?: string) => {
+    if (!iso) return ''
+    try {
+      return new Date(iso).toLocaleDateString('pt-BR')
+    } catch {
+      return ''
+    }
+  }
 
   const handleTrocaAba = (novaAba: string) => {
     if (novaAba === 'orcamentos') {
@@ -281,7 +294,7 @@ export default function Empresas() {
             <div>
               <h2 className="text-xl font-bold">Empresas clientes</h2>
               <p className="text-sm text-muted-foreground">
-                Empresas onde suas vistorias e auditorias de SST serão realizadas.
+                Clique em uma empresa para ver as vistorias, os orçamentos e os números dela.
               </p>
             </div>
             <Button onClick={openCreate}>
@@ -290,93 +303,136 @@ export default function Empresas() {
             </Button>
           </div>
 
-          {loading ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
-          ) : empresas.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
-              <Building2 className="mb-3 h-10 w-10 text-muted-foreground" />
-              <p className="mb-4 text-sm text-muted-foreground">
-                Nenhuma empresa cadastrada ainda.
-              </p>
-              <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" />
-                Cadastrar primeira empresa
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border-none bg-card shadow-subtle">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Razão social</TableHead>
-                    <TableHead>Nome fantasia</TableHead>
-                    <TableHead>CNPJ</TableHead>
-                    <TableHead>Porte</TableHead>
-                    <TableHead>Trabalhadores</TableHead>
-                    <TableHead>Formulários</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {empresas.map((empresa) => (
-                    <TableRow key={empresa.id}>
-                      <TableCell className="font-medium">{empresa.razao_social}</TableCell>
-                      <TableCell>{empresa.nome_fantasia || '—'}</TableCell>
-                      <TableCell>{empresa.cnpj || '—'}</TableCell>
-                      <TableCell>
-                        {empresa.porte ? <Badge variant="secondary">{empresa.porte}</Badge> : '—'}
-                      </TableCell>
-                      <TableCell>{empresa.numero_funcionarios ?? '—'} trabalhadores</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const total = formularios.filter(
-                            (f) => f.empresa_id === empresa.id,
-                          ).length
-                          if (total === 0) return <span className="text-muted-foreground">—</span>
-                          const concluidos = formularios.filter(
-                            (f) => f.empresa_id === empresa.id && f.status === 'concluido',
-                          ).length
-                          return (
-                            <Badge variant="secondary">
-                              {total} registro{total > 1 ? 's' : ''}
-                              {concluidos > 0 ? ` · ${concluidos} concl.` : ''}
-                            </Badge>
-                          )
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        {empresa.contato_nome || empresa.contato_telefone ? (
-                          <div className="text-sm">
-                            {empresa.contato_nome && <div>{empresa.contato_nome}</div>}
-                            {empresa.contato_telefone && (
-                              <div className="text-muted-foreground">
-                                {empresa.contato_telefone}
-                              </div>
-                            )}
+          <Card>
+            <CardContent className="space-y-4 p-4">
+              <div className="relative max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome, documento, e-mail..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {loading ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">Carregando...</div>
+              ) : empresasFiltradas.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Building2 className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    {busca
+                      ? 'Nenhuma empresa encontrada com esse filtro.'
+                      : 'Nenhuma empresa cadastrada ainda.'}
+                  </p>
+                  {!busca && (
+                    <Button onClick={openCreate}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Cadastrar primeira empresa
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {empresasFiltradas.map((empresa) => {
+                    const totalFormularios = formularios.filter(
+                      (f) => f.empresa_id === empresa.id,
+                    ).length
+                    return (
+                      <Card key={empresa.id} className="transition-shadow hover:shadow-md">
+                        <CardContent className="space-y-2 p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <Link to={`/empresas/${empresa.id}`} className="min-w-0 flex-1">
+                              <p className="font-semibold leading-snug hover:text-primary">
+                                {empresa.razao_social}
+                              </p>
+                              {empresa.nome_fantasia && (
+                                <p className="text-xs text-muted-foreground">
+                                  {empresa.nome_fantasia}
+                                </p>
+                              )}
+                            </Link>
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => openEdit(empresa)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => setDeleteTarget(empresa)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </div>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(empresa)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteTarget(empresa)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+
+                          <Link to={`/empresas/${empresa.id}`} className="block space-y-1">
+                            {empresa.cnpj && (
+                              <p className="text-xs text-muted-foreground">
+                                CPF/CNPJ: {empresa.cnpj}
+                              </p>
+                            )}
+                            {empresa.contato_nome && (
+                              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Users className="h-3 w-3" />
+                                {empresa.contato_nome}
+                              </p>
+                            )}
+                            {empresa.contato_telefone && (
+                              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                {empresa.contato_telefone}
+                              </p>
+                            )}
+                            {empresa.contato_email && (
+                              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <Mail className="h-3 w-3 shrink-0" />
+                                {empresa.contato_email}
+                              </p>
+                            )}
+                            {empresa.endereco && (
+                              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                {empresa.endereco}
+                              </p>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                              {empresa.porte && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {empresa.porte}
+                                </Badge>
+                              )}
+                              {empresa.numero_funcionarios != null && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {empresa.numero_funcionarios} empregados
+                                </Badge>
+                              )}
+                              {totalFormularios > 0 && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {totalFormularios} formulário{totalFormularios > 1 ? 's' : ''}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <p className="pt-1 text-xs text-muted-foreground/70">
+                              Desde {formatarDesde(empresa.created)}
+                            </p>
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="orcamentos" className="mt-0 focus-visible:outline-none">

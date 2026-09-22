@@ -14,6 +14,7 @@ import Blog from './pages/Blog'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
 import AdminArtigos from './pages/AdminArtigos'
 import Empresas from './pages/Empresas'
+import EmpresaDetalhe from './pages/EmpresaDetalhe'
 import Vistorias from './pages/Vistorias'
 import VistoriaDetalhe from './pages/VistoriaDetalhe'
 import AuditoriaEFormularios from './pages/AuditoriaEFormularios'
@@ -64,6 +65,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Empresas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/empresas/:id"
+              element={
+                <ProtectedRoute>
+                  <EmpresaDetalhe />
                 </ProtectedRoute>
               }
             />

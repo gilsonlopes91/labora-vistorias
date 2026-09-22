@@ -90,7 +90,16 @@ const VARIANTE_STATUS: Record<StatusOrcamento, 'default' | 'secondary' | 'destru
   concluido: 'default',
 }
 
-export function OrcamentosTab() {
+export function OrcamentosTab({
+  empresaId,
+  titulo = 'Gestão de orçamentos',
+  descricao = 'Propostas comerciais emitidas para as empresas cadastradas, do rascunho ao recebimento.',
+}: {
+  /** Quando informado, a carteira e os indicadores ficam restritos a essa empresa. */
+  empresaId?: string
+  titulo?: string
+  descricao?: string
+} = {}) {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
   const [modelos, setModelos] = useState<ModeloProposta[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -126,6 +135,7 @@ export function OrcamentosTab() {
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
     return orcamentos.filter((o) => {
+      if (empresaId && o.empresa_id !== empresaId) return false
       if (!!o.arquivado !== mostrarArquivados) return false
       if (filtroStatus !== 'todos' && o.status !== filtroStatus) return false
       if (filtroFinanceiro !== 'todos' && o.status_financeiro !== filtroFinanceiro) return false
@@ -140,7 +150,7 @@ export function OrcamentosTab() {
         (empresa?.cnpj || '').toLowerCase().includes(termo)
       )
     })
-  }, [orcamentos, busca, filtroStatus, filtroFinanceiro, mostrarArquivados])
+  }, [orcamentos, busca, filtroStatus, filtroFinanceiro, mostrarArquivados, empresaId])
 
   const indicadores = useMemo(() => calcularIndicadores(filtrados), [filtrados])
 
@@ -279,10 +289,8 @@ export function OrcamentosTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Gestão de orçamentos</h2>
-          <p className="text-sm text-muted-foreground">
-            Propostas comerciais emitidas para as empresas cadastradas, do rascunho ao recebimento.
-          </p>
+          <h2 className="text-xl font-bold">{titulo}</h2>
+          <p className="text-sm text-muted-foreground">{descricao}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
@@ -392,7 +400,12 @@ export function OrcamentosTab() {
                     </div>
                     <div className="font-medium leading-snug">{orcamento.titulo}</div>
                     <div className="text-xs text-muted-foreground">
-                      {empresa?.nome_fantasia || empresa?.razao_social || 'Empresa removida'} ·{' '}
+                      {!empresaId && (
+                        <>
+                          {empresa?.nome_fantasia || empresa?.razao_social || 'Empresa removida'}{' '}
+                          ·{' '}
+                        </>
+                      )}
                       {formatarData(orcamento.data_proposta)}
                       {orcamento.proximo_contato && (
                         <> · retomar em {formatarData(orcamento.proximo_contato)}</>

@@ -27,6 +27,8 @@ export type EmpresaInput = Partial<
 export const getEmpresas = () =>
   pb.collection('empresas').getFullList<Empresa>({ sort: '-created' })
 
+export const getEmpresa = (id: string) => pb.collection('empresas').getOne<Empresa>(id)
+
 export const createEmpresa = (data: EmpresaInput) => pb.collection('empresas').create<Empresa>(data)
 
 export const updateEmpresa = (id: string, data: Partial<EmpresaInput>) =>
