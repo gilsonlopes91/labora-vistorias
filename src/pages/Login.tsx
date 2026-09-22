@@ -108,8 +108,12 @@ export default function Login() {
     <div className="min-h-screen bg-background px-6 py-8 lg:px-12">
       <header className="mx-auto flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" aria-label="Labora Vistorias — início">
-            <LaboraLogoFull />
+          <Link
+            to="/"
+            aria-label="Labora Vistorias — início"
+            className="rounded-xl transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <LaboraLogoFull size="md" />
           </Link>
           <Link
             to="/"

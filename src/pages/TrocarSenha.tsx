@@ -71,8 +71,8 @@ export default function TrocarSenha() {
       <Card className="w-full max-w-md rounded-3xl border-none shadow-elevation">
         <CardContent className="p-8">
           <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <LaboraLogoFull />
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <LaboraLogoFull size="md" />
+            <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <KeyRound className="h-6 w-6 text-primary" />
             </div>
             <h1 className="text-2xl font-extrabold">Defina sua nova senha</h1>
