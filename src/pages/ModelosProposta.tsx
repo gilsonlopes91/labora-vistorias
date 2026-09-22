@@ -90,7 +90,16 @@ export default function ModelosProposta() {
   const [corSecundaria, setCorSecundaria] = useState(COR_SECUNDARIA_PADRAO)
   const [apresentacao, setApresentacao] = useState('')
   const [encerramento, setEncerramento] = useState('')
+  const [inclusosPadrao, setInclusosPadrao] = useState('')
+  const [exclusosPadrao, setExclusosPadrao] = useState('')
   const [secoes, setSecoes] = useState<Record<string, boolean>>({})
+
+  const listaParaLinhas = (lista?: string[]) => (lista || []).join('\n')
+  const linhasParaLista = (texto: string) =>
+    texto
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
 
   const selecionado = modelos.find((m) => m.id === selecionadoId) || null
 
@@ -119,6 +128,8 @@ export default function ModelosProposta() {
     setCorSecundaria(selecionado.cor_secundaria || COR_SECUNDARIA_PADRAO)
     setApresentacao(selecionado.texto_apresentacao || '')
     setEncerramento(selecionado.texto_encerramento || '')
+    setInclusosPadrao(listaParaLinhas(selecionado.itens_inclusos_padrao))
+    setExclusosPadrao(listaParaLinhas(selecionado.itens_exclusos_padrao))
     const mapa: Record<string, boolean> = {}
     for (const secao of SECOES_PROPOSTA) {
       mapa[secao.chave] = secaoAtiva(selecionado, secao.chave as ChaveSecao)
@@ -136,6 +147,8 @@ export default function ModelosProposta() {
         cor_secundaria: corSecundaria,
         texto_apresentacao: apresentacao,
         texto_encerramento: encerramento,
+        itens_inclusos_padrao: linhasParaLista(inclusosPadrao),
+        itens_exclusos_padrao: linhasParaLista(exclusosPadrao),
         secoes,
       })
       toast.success('Modelo salvo')
@@ -355,6 +368,38 @@ export default function ModelosProposta() {
                     </div>
                   </label>
                 ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <Label>Escopo padrão</Label>
+              <p className="mb-3 mt-1 text-xs text-muted-foreground">
+                Entra preenchido em todo orçamento novo que usar este modelo, e pode ser ajustado
+                proposta a proposta sem alterar o modelo. Um item por linha.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="incl">Itens inclusos</Label>
+                  <Textarea
+                    id="incl"
+                    value={inclusosPadrao}
+                    onChange={(e) => setInclusosPadrao(e.target.value)}
+                    rows={6}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="excl">Itens não inclusos</Label>
+                  <Textarea
+                    id="excl"
+                    value={exclusosPadrao}
+                    onChange={(e) => setExclusosPadrao(e.target.value)}
+                    rows={6}
+                    className="mt-1.5"
+                  />
+                </div>
               </div>
             </div>
 

@@ -76,6 +76,9 @@ export interface ModeloProposta extends RecordModel {
   secoes?: SecoesProposta
   texto_apresentacao?: string
   texto_encerramento?: string
+  /** Escopo que vem preenchido no orçamento novo. Editável por proposta. */
+  itens_inclusos_padrao?: string[]
+  itens_exclusos_padrao?: string[]
   padrao?: boolean
   ativo?: boolean
   created: string

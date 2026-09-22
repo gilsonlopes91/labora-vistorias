@@ -226,6 +226,17 @@ export function OrcamentoDialog({
     if (padrao) setModeloId(padrao.id)
   }, [open, editando, modeloId, modelos])
 
+  // O escopo padrão do modelo entra preenchido no orçamento novo. Só completa o
+  // que está em branco, para não apagar o que já foi digitado nem sobrescrever
+  // o escopo de um orçamento em edição.
+  useEffect(() => {
+    if (!open || editando || !modeloId) return
+    const modelo = modelos.find((m) => m.id === modeloId)
+    if (!modelo) return
+    setInclusos((atual) => (atual.trim() ? atual : listaParaLinhas(modelo.itens_inclusos_padrao)))
+    setExclusos((atual) => (atual.trim() ? atual : listaParaLinhas(modelo.itens_exclusos_padrao)))
+  }, [open, editando, modeloId, modelos])
+
   const trocarTipo = (novo: TipoOrcamento) => {
     setTipo(novo)
     setItens([novo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio()])

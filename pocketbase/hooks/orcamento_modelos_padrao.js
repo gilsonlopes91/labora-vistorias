@@ -50,6 +50,20 @@ onRecordAfterCreateSuccess((e) => {
       'escopo ao que a empresa precisa. A aprovação pode ser formalizada pela assinatura deste ' +
       'documento ou por confirmação por escrito.'
 
+    const INCLUSOS = [
+      'Visita técnica para levantamento e avaliação em campo',
+      'Elaboração de laudo e relatório técnico conclusivo',
+      'Emissão de ART/RRT junto ao respectivo conselho de classe',
+      'Envio de via digital em formato PDF',
+    ]
+
+    const EXCLUSOS = [
+      'Taxas e emolumentos de ART/RRT junto aos conselhos regionais',
+      'Implementação de adequações estruturais, físicas ou de maquinários',
+      'Realização de exames médicos ocupacionais e laboratoriais',
+      'Despesas com deslocamento e hospedagem fora da região metropolitana',
+    ]
+
     const MODELOS = [
       {
         nome: 'Clássico',
@@ -87,6 +101,8 @@ onRecordAfterCreateSuccess((e) => {
       rec.set('secoes', modelo.secoes)
       rec.set('texto_apresentacao', APRESENTACAO)
       rec.set('texto_encerramento', ENCERRAMENTO)
+      rec.set('itens_inclusos_padrao', INCLUSOS)
+      rec.set('itens_exclusos_padrao', EXCLUSOS)
       rec.set('padrao', modelo.padrao)
       rec.set('ativo', true)
       $app.save(rec)
