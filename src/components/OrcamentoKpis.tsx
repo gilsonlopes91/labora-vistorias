@@ -109,22 +109,34 @@ export function OrcamentoKpis({ dados }: { dados: IndicadoresOrcamento }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
       {itens.map((item) => {
         const Icone = item.icone
         return (
-          <Card key={item.rotulo} className={item.destaque ? 'border-amber-400' : undefined}>
-            <CardContent className="flex items-center gap-2 p-3">
+          <Card
+            key={item.rotulo}
+            className={`transition-all duration-150 hover:shadow-sm ${
+              item.destaque
+                ? 'border-amber-400/80 bg-amber-500/[0.03] shadow-xs dark:bg-amber-500/[0.05]'
+                : 'border-border/70 hover:border-border'
+            }`}
+          >
+            <CardContent className="flex min-h-[72px] items-center gap-2.5 p-3">
               <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.cor}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-xs ${item.cor}`}
               >
                 <Icone className="h-4 w-4 text-white" />
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-[10px] leading-tight text-muted-foreground">
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                <p
+                  className="text-[11px] font-medium leading-tight text-muted-foreground line-clamp-2"
+                  title={item.rotulo}
+                >
                   {item.rotulo}
                 </p>
-                <p className="truncate text-xs font-bold tabular-nums">{item.valor}</p>
+                <p className="mt-0.5 text-sm font-bold tracking-tight text-foreground tabular-nums break-words leading-tight">
+                  {item.valor}
+                </p>
               </div>
             </CardContent>
           </Card>
