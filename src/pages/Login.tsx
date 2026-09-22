@@ -112,35 +112,19 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background px-6 py-8 lg:px-12">
       <header className="mx-auto flex max-w-7xl items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link
-            to="/"
-            aria-label="Labora Vistorias — início"
-            className="rounded-xl transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <LaboraLogoFull size="md" />
-          </Link>
-          <Link
-            to="/"
-            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-block"
-          >
-            ← Voltar ao site
-          </Link>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:hidden"
-          >
-            Voltar ao site
-          </Link>
-          <a
-            href="#acesso"
-            className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-subtle transition-opacity hover:opacity-90"
-          >
-            Começar agora
-          </a>
-        </div>
+        <Link
+          to="/"
+          aria-label="Labora Vistorias — início"
+          className="rounded-xl transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <LaboraLogoFull size="md" />
+        </Link>
+        <a
+          href="#acesso"
+          className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-subtle transition-opacity hover:opacity-90"
+        >
+          Começar agora
+        </a>
       </header>
 
       <main className="mx-auto grid max-w-7xl items-center gap-12 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
@@ -240,6 +224,15 @@ export default function Login() {
                       >
                         {submitting ? 'Entrando...' : 'Entrar'}
                       </Button>
+
+                      <div className="pt-2 text-center">
+                        <Link
+                          to="/"
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          ← Voltar ao site
+                        </Link>
+                      </div>
                     </form>
                   </Form>
 
