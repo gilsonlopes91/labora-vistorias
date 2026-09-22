@@ -18,7 +18,9 @@ import {
   SECOES_PROPOSTA,
   COR_PRIMARIA_PADRAO,
   COR_SECUNDARIA_PADRAO,
+  type CampoImagemModelo,
   type ChaveSecao,
+  type DadosInstitucionais,
   type ModeloProposta,
 } from '@/services/modelosProposta'
 
@@ -50,6 +52,20 @@ function Miniatura({
           <div className="mt-1 h-1.5 w-8 rounded-sm bg-white" />
         </div>
         <div className="mt-2 h-9 w-full" style={{ background: secundaria }} />
+      </div>
+    )
+  }
+  if (layout === 'labora') {
+    return (
+      <div className="h-24 w-16 overflow-hidden rounded border bg-white">
+        <div className="h-1 w-full" style={{ background: primaria }} />
+        <div className="flex flex-col items-center p-1.5">
+          <div className="h-4 w-4 rounded" style={{ background: primaria }} />
+          <div className="mt-1 h-1 w-8 rounded-sm" style={{ background: secundaria }} />
+          <div className="mt-1.5 h-3 w-11 rounded-sm border" style={{ borderColor: primaria }} />
+        </div>
+        <div className="mt-1 h-6 w-full bg-neutral-200" />
+        <div className="h-4 w-full" style={{ background: primaria }} />
       </div>
     )
   }
@@ -93,6 +109,7 @@ export default function ModelosProposta() {
   const [inclusosPadrao, setInclusosPadrao] = useState('')
   const [exclusosPadrao, setExclusosPadrao] = useState('')
   const [secoes, setSecoes] = useState<Record<string, boolean>>({})
+  const [inst, setInst] = useState<DadosInstitucionais>({})
 
   const listaParaLinhas = (lista?: string[]) => (lista || []).join('\n')
   const linhasParaLista = (texto: string) =>
@@ -130,6 +147,7 @@ export default function ModelosProposta() {
     setEncerramento(selecionado.texto_encerramento || '')
     setInclusosPadrao(listaParaLinhas(selecionado.itens_inclusos_padrao))
     setExclusosPadrao(listaParaLinhas(selecionado.itens_exclusos_padrao))
+    setInst(selecionado.dados_institucionais || {})
     const mapa: Record<string, boolean> = {}
     for (const secao of SECOES_PROPOSTA) {
       mapa[secao.chave] = secaoAtiva(selecionado, secao.chave as ChaveSecao)
@@ -150,6 +168,7 @@ export default function ModelosProposta() {
         itens_inclusos_padrao: linhasParaLista(inclusosPadrao),
         itens_exclusos_padrao: linhasParaLista(exclusosPadrao),
         secoes,
+        ...(selecionado.layout === 'labora' ? { dados_institucionais: inst } : {}),
       })
       toast.success('Modelo salvo')
       await carregar()
@@ -160,7 +179,7 @@ export default function ModelosProposta() {
     }
   }
 
-  const enviarArquivo = async (campo: 'logo' | 'imagem_capa', arquivo: File | null) => {
+  const enviarArquivo = async (campo: CampoImagemModelo, arquivo: File | null) => {
     if (!selecionado) return
     try {
       await enviarArquivoModelo(selecionado.id, campo, arquivo)
@@ -370,6 +389,98 @@ export default function ModelosProposta() {
                 ))}
               </div>
             </div>
+
+            {selecionado.layout === 'labora' && (
+              <>
+                <Separator />
+                <div>
+                  <Label>Dados institucionais</Label>
+                  <p className="mb-3 mt-1 text-xs text-muted-foreground">
+                    Aparecem na capa, no rodapé e na página de valores deste modelo. Campo em branco
+                    simplesmente não é desenhado no PDF.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        ['razao_social', 'Razão social'],
+                        ['cnpj', 'CNPJ'],
+                        ['telefone', 'Telefone'],
+                        ['email', 'E-mail'],
+                        ['tagline', 'Linha de apoio da capa'],
+                        ['subtitulo', 'Subtítulo da capa'],
+                        ['cidade_emissao', 'Cidade de emissão'],
+                        ['lema', 'Lema institucional'],
+                      ] as [keyof DadosInstitucionais, string][]
+                    ).map(([chave, rotulo]) => (
+                      <div key={chave}>
+                        <Label htmlFor={`inst-${chave}`} className="text-xs">
+                          {rotulo}
+                        </Label>
+                        <Input
+                          id={`inst-${chave}`}
+                          value={(inst[chave] as string) || ''}
+                          onChange={(e) =>
+                            setInst((atual) => ({ ...atual, [chave]: e.target.value }))
+                          }
+                          className="mt-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="mb-2 mt-4 text-xs font-medium">Dados bancários</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        ['favorecido', 'Favorecido'],
+                        ['instituicao', 'Instituição'],
+                        ['agencia', 'Agência'],
+                        ['conta', 'Conta'],
+                        ['pix', 'Chave PIX'],
+                      ] as [string, string][]
+                    ).map(([chave, rotulo]) => (
+                      <div key={chave}>
+                        <Label htmlFor={`banco-${chave}`} className="text-xs">
+                          {rotulo}
+                        </Label>
+                        <Input
+                          id={`banco-${chave}`}
+                          value={((inst.banco || {}) as Record<string, string>)[chave] || ''}
+                          onChange={(e) =>
+                            setInst((atual) => ({
+                              ...atual,
+                              banco: { ...(atual.banco || {}), [chave]: e.target.value },
+                            }))
+                          }
+                          className="mt-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4">
+                    <Label htmlFor="servicos" className="text-xs">
+                      Portfólio de serviços (um por linha)
+                    </Label>
+                    <Textarea
+                      id="servicos"
+                      value={(inst.servicos || []).join('\n')}
+                      onChange={(e) =>
+                        setInst((atual) => ({
+                          ...atual,
+                          servicos: e.target.value
+                            .split('\n')
+                            .map((l) => l.trim())
+                            .filter(Boolean),
+                        }))
+                      }
+                      rows={6}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <Separator />
 

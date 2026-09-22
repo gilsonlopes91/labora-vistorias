@@ -24,6 +24,7 @@ import {
   COR_SECUNDARIA_PADRAO,
   type ModeloProposta,
 } from '@/services/modelosProposta'
+import { gerarPdfPropostaLabora } from '@/lib/propostaPdfLabora'
 
 type RGB = [number, number, number]
 
@@ -119,6 +120,19 @@ export interface DadosProposta {
 
 export async function gerarPdfProposta(dados: DadosProposta): Promise<void> {
   const { orcamento, empresa, modelo, organizacaoNome } = dados
+
+  // O layout "labora" é um documento de cinco páginas com estrutura própria,
+  // então tem gerador separado.
+  if (modelo?.layout === 'labora') {
+    return gerarPdfPropostaLabora({
+      orcamento,
+      empresa,
+      modelo,
+      organizacaoNome,
+      logoOrganizacaoUrl: dados.logoOrganizacaoUrl,
+    })
+  }
+
   const layout = modelo?.layout || 'classico'
   const primaria = hexParaRgb(modelo?.cor_primaria, hexParaRgb(COR_PRIMARIA_PADRAO))
   const secundaria = hexParaRgb(modelo?.cor_secundaria, hexParaRgb(COR_SECUNDARIA_PADRAO))

@@ -2,12 +2,13 @@ import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 
 /** Desenho do PDF. Cada layout tem capa, tipografia e tabela próprias. */
-export type LayoutProposta = 'classico' | 'moderno' | 'minimalista'
+export type LayoutProposta = 'classico' | 'moderno' | 'minimalista' | 'labora'
 
 export const LAYOUT_LABEL: Record<LayoutProposta, string> = {
   classico: 'Clássico',
   moderno: 'Moderno',
   minimalista: 'Minimalista',
+  labora: 'Labora completo',
 }
 
 export const LAYOUT_DESCRICAO: Record<LayoutProposta, string> = {
@@ -16,8 +17,40 @@ export const LAYOUT_DESCRICAO: Record<LayoutProposta, string> = {
   moderno:
     'Capa colorida ocupando a página inteira, títulos de seção em blocos na cor da marca e tabela zebrada. Chama mais atenção na primeira página.',
   minimalista:
-    'Sem capa, muito espaço em branco e tabela sem linhas. O documento começa direto no objeto da proposta, em duas ou três páginas.',
+    'Sem capa, muito espaço em branco e tabela sem linhas. O documento começa direto no objeto da proposta, em duas ou três páginas. É o mais curto dos quatro.',
+  labora:
+    'Documento completo de cinco páginas, no desenho da proposta original da Labora: capa com logo e foto, página institucional com metodologia, valores e portfólio, escopo com normas e exclusões, página de investimento com dados bancários, e fechamento com responsabilidade técnica e termo de aceite.',
 }
+
+/** Bloco institucional usado só pelo layout "labora". */
+export interface DadosInstitucionais {
+  tagline?: string
+  subtitulo?: string
+  lema?: string
+  telefone?: string
+  email?: string
+  cnpj?: string
+  razao_social?: string
+  cidade_emissao?: string
+  banco?: {
+    instituicao?: string
+    agencia?: string
+    conta?: string
+    pix?: string
+    favorecido?: string
+  }
+  etapas?: { num: string; titulo: string; desc: string }[]
+  valores?: { titulo: string; desc: string }[]
+  servicos?: string[]
+}
+
+export type CampoImagemModelo =
+  | 'logo'
+  | 'imagem_capa'
+  | 'imagem_institucional'
+  | 'imagem_servicos'
+  | 'imagem_valores'
+  | 'imagem_encerramento'
 
 /** Seções que podem entrar ou sair do PDF, na ordem em que aparecem. */
 export const SECOES_PROPOSTA = [
@@ -79,6 +112,11 @@ export interface ModeloProposta extends RecordModel {
   /** Escopo que vem preenchido no orçamento novo. Editável por proposta. */
   itens_inclusos_padrao?: string[]
   itens_exclusos_padrao?: string[]
+  imagem_institucional?: string
+  imagem_servicos?: string
+  imagem_valores?: string
+  imagem_encerramento?: string
+  dados_institucionais?: DadosInstitucionais
   padrao?: boolean
   ativo?: boolean
   created: string
@@ -99,11 +137,7 @@ export const updateModeloProposta = (
   dados: Partial<Omit<ModeloProposta, 'logo' | 'imagem_capa'>>,
 ) => pb.collection('modelos_proposta').update<ModeloProposta>(id, dados)
 
-export const enviarArquivoModelo = (
-  id: string,
-  campo: 'logo' | 'imagem_capa',
-  arquivo: File | null,
-) => {
+export const enviarArquivoModelo = (id: string, campo: CampoImagemModelo, arquivo: File | null) => {
   if (arquivo === null) {
     return pb.collection('modelos_proposta').update<ModeloProposta>(id, { [campo]: null })
   }
@@ -125,7 +159,7 @@ export const definirModeloPadrao = async (id: string) => {
 
 export const urlArquivoModelo = (
   modelo: ModeloProposta,
-  campo: 'logo' | 'imagem_capa',
+  campo: CampoImagemModelo,
 ): string | null => {
   const nome = modelo[campo]
   return nome ? pb.files.getURL(modelo, nome) : null
