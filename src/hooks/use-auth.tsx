@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface AuthContextType {
   user: RecordModel | null
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, signUp, signIn, signOut, loading }}>
-      {children}
+      {loading ? <LoadingScreen fullScreen mensagem="Iniciando sistema..." /> : children}
     </AuthContext.Provider>
   )
 }

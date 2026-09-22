@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import LoadingScreen from '@/components/LoadingScreen'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getEmpresas, type Empresa } from '@/services/empresas'
 import {
@@ -322,7 +323,7 @@ export default function PreencherFormulario() {
   if (loading) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-8">
-        <p className="py-16 text-center text-sm text-muted-foreground">Carregando...</p>
+        <LoadingScreen fullScreen={false} mensagem="Carregando formulário..." />
       </div>
     )
   }

@@ -22,6 +22,7 @@ import {
   type ResponsavelTecnico,
   type TipoRegistroRT,
 } from '@/services/responsaveisTecnicos'
+import LoadingScreen from '@/components/LoadingScreen'
 import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png'
 
 import { Button } from '@/components/ui/button'
@@ -156,7 +157,11 @@ export default function Configuracoes() {
   }
 
   if (loading) {
-    return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
+    return (
+      <div className="container mx-auto max-w-2xl px-4 py-8">
+        <LoadingScreen fullScreen={false} mensagem="Carregando configurações..." />
+      </div>
+    )
   }
 
   const logoAtual = org ? urlLogoOrganizacao(org) : null

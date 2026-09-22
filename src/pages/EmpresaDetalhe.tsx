@@ -22,6 +22,7 @@ import {
 import { formatBrazilianDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresa, type Empresa } from '@/services/empresas'
+import LoadingScreen from '@/components/LoadingScreen'
 import { getVistorias, type Vistoria } from '@/services/vistorias'
 import { calcularIndicadores, getOrcamentos, type Orcamento } from '@/services/orcamentos'
 import { OrcamentosTab } from '@/components/OrcamentosTab'
@@ -110,7 +111,11 @@ export default function EmpresaDetalhe() {
   const comercial = useMemo(() => calcularIndicadores(orcamentos), [orcamentos])
 
   if (carregando) {
-    return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <LoadingScreen fullScreen={false} mensagem="Carregando informações da empresa..." />
+      </div>
+    )
   }
 
   if (!empresa) {

@@ -10,6 +10,7 @@ import { CalendarClock, ClipboardCheck, ShieldCheck, KeyRound, Building2 } from 
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
+import LoadingScreen from '@/components/LoadingScreen'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,7 +71,11 @@ export default function Login() {
     defaultValues: { name: '', email: '', password: '' },
   })
 
-  if (!loading && isAuthenticated) {
+  if (loading) {
+    return <LoadingScreen fullScreen mensagem="Carregando..." />
+  }
+
+  if (isAuthenticated) {
     const from = (location.state as { from?: string })?.from || '/painel'
     return <Navigate to={from} replace />
   }

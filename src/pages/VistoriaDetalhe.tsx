@@ -10,6 +10,7 @@ import { formatBrazilianDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
+import LoadingScreen from '@/components/LoadingScreen'
 import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png'
 import {
   getVistoria,
@@ -633,7 +634,11 @@ export default function VistoriaDetalhe() {
   }, [itensOrdenados, nomesChecklist])
 
   if (loading) {
-    return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <LoadingScreen fullScreen={false} mensagem="Carregando dados da vistoria..." />
+      </div>
+    )
   }
 
   if (!vistoria) {

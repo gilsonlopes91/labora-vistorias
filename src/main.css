@@ -240,6 +240,15 @@
     }
   }
 
+  @keyframes loading-progress {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
   .animate-accordion-down {
     animation: accordion-down 0.2s ease-out;
   }

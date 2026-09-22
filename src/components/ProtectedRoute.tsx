@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { isGestor } from '@/services/equipe'
 import { isGestorOnlyPath } from '@/config/navigation'
 import AcessoNegado from '@/components/AcessoNegado'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -22,11 +23,7 @@ export default function ProtectedRoute({
   const location = useLocation()
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-sm text-muted-foreground">Carregando...</div>
-      </div>
-    )
+    return <LoadingScreen fullScreen mensagem="Iniciando sessão com segurança..." />
   }
 
   if (!isAuthenticated) {
