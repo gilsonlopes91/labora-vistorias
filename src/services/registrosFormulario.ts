@@ -14,6 +14,8 @@ export interface Formulario {
     empresa_id?: { razao_social: string; nome_fantasia?: string }
   }
   dados: Record<string, unknown>
+  // cópia dos campos do modelo no momento do registro
+  campos_snapshot?: CampoFormulario[] | null
   anexos: string[]
   status: 'rascunho' | 'concluido'
   data_campo?: string

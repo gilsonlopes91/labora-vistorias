@@ -45,6 +45,12 @@ export default function FormularioPreenchivel({
   compacto,
 }: FormularioPreenchivelProps) {
   const [dados, setDados] = useState<Record<string, unknown>>(registroExistente?.dados || {})
+  // Registro já existente abre com os campos que o modelo tinha quando foi
+  // preenchido (cópia guardada no registro), mesmo que o modelo tenha mudado.
+  const campos =
+    Array.isArray(registroExistente?.campos_snapshot) && registroExistente.campos_snapshot.length
+      ? registroExistente.campos_snapshot
+      : modelo.campos
   const [repetiveis, setRepetiveis] = useState<Record<string, number>>({})
   const [salvando, setSalvando] = useState(false)
   const arquivos = useRef<Record<string, File>>({})
@@ -116,7 +122,7 @@ export default function FormularioPreenchivel({
 
   const obrigatoriosPendentes = useMemo(() => {
     const pendentes: string[] = []
-    for (const campo of modelo.campos) {
+    for (const campo of campos) {
       if (!campo.obrigatorio || !visivel(campo)) continue
       if (campo.tipo === 'secao') continue
       const valor = dados[campo.id]
@@ -557,7 +563,7 @@ export default function FormularioPreenchivel({
         </p>
       )}
       <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
-        {modelo.campos.map(renderCampo)}
+        {campos.map(renderCampo)}
       </Card>
     </div>
   )

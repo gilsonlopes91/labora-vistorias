@@ -11,10 +11,11 @@ export const VIGENCIA_TERMOS = '23 de setembro de 2026'
 export const CONTROLADOR = {
   razao: 'Labora Engenharia e SST Ltda',
   cnpj: '54.106.204/0001-30',
-  endereco: 'Rua Riachuelo, 1457, Sala 02, Vermelha, Teresina (PI), CEP 64018-060',
-  email: 'eng.amaury.sousa@gmail.com',
-  telefone: '(86) 8127-4370',
 }
+
+// Enquanto não houver e-mail próprio de atendimento, os textos remetem ao canal
+// divulgado no aplicativo.
+const CANAL = 'pelo canal de atendimento divulgado no aplicativo'
 
 export interface SecaoLegal {
   titulo: string
@@ -27,7 +28,7 @@ export const TERMOS_DE_USO: SecaoLegal[] = [
   {
     titulo: '1. Quem somos e aceitação destes termos',
     paragrafos: [
-      `O Labora Vistorias é um aplicativo de gestão de vistorias e inspeções de segurança e saúde no trabalho, mantido pela ${C.razao}, CNPJ ${C.cnpj}, com sede na ${C.endereco} ("Labora").`,
+      `O Labora Vistorias é um aplicativo de gestão de vistorias e inspeções de segurança e saúde no trabalho, mantido pela ${C.razao}, CNPJ ${C.cnpj} ("Labora").`,
       'Estes Termos de Uso regulam o acesso ao site, à calculadora pública de multas e ao aplicativo. Ao criar uma conta, entrar na lista de espera ou usar o aplicativo, você declara que leu e concorda com estes termos e com a Política de Privacidade. Se não concordar, não utilize o serviço.',
       'Se você usa o aplicativo em nome de uma empresa, declara que tem autorização para aceitar estes termos por ela.',
     ],
@@ -51,7 +52,7 @@ export const TERMOS_DE_USO: SecaoLegal[] = [
     titulo: '4. Conta e acesso',
     paragrafos: [
       'O aplicativo é destinado a profissionais e empresas maiores de 18 anos. Você deve informar dados verdadeiros no cadastro e mantê-los atualizados.',
-      'Você é responsável pela guarda da sua senha e por todas as ações realizadas com a sua conta. Se perceber uso não autorizado, avise a Labora imediatamente pelo e-mail indicado ao final.',
+      `Você é responsável pela guarda da sua senha e por todas as ações realizadas com a sua conta. Se perceber uso não autorizado, avise a Labora imediatamente ${CANAL}.`,
       'O gestor de uma organização pode convidar membros para a sua equipe e definir o nível de acesso de cada um. Os dados de uma organização ficam visíveis apenas para os usuários vinculados a ela e para a equipe da Labora que presta suporte, quando necessário.',
     ],
   },
@@ -94,7 +95,7 @@ export const TERMOS_DE_USO: SecaoLegal[] = [
   {
     titulo: '10. Encerramento da conta',
     paragrafos: [
-      'Você pode pedir o encerramento da sua conta a qualquer momento pelo e-mail indicado ao final. Antes de encerrar, baixe os relatórios que quiser manter.',
+      `Você pode pedir o encerramento da sua conta a qualquer momento ${CANAL}. Antes de encerrar, baixe os relatórios que quiser manter.`,
       'Após o encerramento, os dados são eliminados nos prazos descritos na Política de Privacidade, salvo quando a lei exigir a sua conservação.',
     ],
   },
@@ -108,7 +109,7 @@ export const TERMOS_DE_USO: SecaoLegal[] = [
     titulo: '12. Lei aplicável, foro e contato',
     paragrafos: [
       'Estes termos são regidos pelas leis brasileiras. Fica eleito o foro da comarca de Teresina (PI), ressalvado o direito do consumidor de propor ação no foro do seu domicílio.',
-      `Dúvidas, pedidos e reclamações: ${C.email} ou ${C.telefone}.`,
+      `Dúvidas, pedidos e reclamações podem ser enviados ${CANAL}.`,
     ],
   },
 ]
@@ -118,7 +119,7 @@ export const POLITICA_PRIVACIDADE: SecaoLegal[] = [
     titulo: '1. Sobre esta política',
     paragrafos: [
       'Esta política explica quais dados pessoais o Labora Vistorias trata, para quê, com quem compartilha, por quanto tempo guarda e como você pode exercer os seus direitos, conforme a Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018, LGPD).',
-      `A controladora dos dados é a ${C.razao}, CNPJ ${C.cnpj}, com sede na ${C.endereco}.`,
+      `A controladora dos dados é a ${C.razao}, CNPJ ${C.cnpj}.`,
     ],
   },
   {
@@ -194,7 +195,7 @@ export const POLITICA_PRIVACIDADE: SecaoLegal[] = [
   {
     titulo: '11. Canal de atendimento ao titular',
     paragrafos: [
-      `Pedidos sobre dados pessoais, dúvidas sobre esta política e comunicações da ANPD: ${C.email}, telefone ${C.telefone}, ou por correspondência para ${C.razao}, ${C.endereco}.`,
+      `Pedidos sobre dados pessoais, dúvidas sobre esta política e comunicações da ANPD podem ser enviados ${CANAL}.`,
     ],
   },
   {
