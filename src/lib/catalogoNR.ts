@@ -118,11 +118,11 @@ export function lerAnexoII(linhas: string[]): LinhaAnexoII[] {
     if (ultima && (aberta || /(,| e)$/.test(ultima.item))) ultima.item += ' ' + s
     else pend = (pend + ' ' + s).trim()
   }
-  // Um mesmo código pode aparecer duas vezes (ex.: NR-05 corpo e NR-05 Anexo I):
-  // vale a última ocorrência, que é a da seção específica.
+  // O mesmo código pode aparecer em duas tabelas (ex.: NR-05 corpo e NR-05 Anexo I);
+  // a NR-28 lista nas duas e o catálogo também. Só repetição na mesma seção é descartada.
   const ultimaPos = new Map<string, number>()
-  rows.forEach((r, i) => ultimaPos.set(r.codigo, i))
-  return rows.filter((r, i) => ultimaPos.get(r.codigo) === i)
+  rows.forEach((r, i) => ultimaPos.set(r.sec + '|' + r.codigo, i))
+  return rows.filter((r, i) => ultimaPos.get(r.sec + '|' + r.codigo) === i)
 }
 
 // ---------------------------------------------------------------------------
