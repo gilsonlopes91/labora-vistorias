@@ -6,7 +6,7 @@ routerAdd('GET', '/backend/v1/public/itens', (e) => {
 
   const itens = $app.findRecordsByFilter(
     'itens_checklist',
-    'tipo_vistoria_id = "' + nrId + '"',
+    'tipo_vistoria_id = {:id} && revogado != true',
     'ordem',
     0,
     0,
