@@ -1,4 +1,5 @@
 // Rota pública (sem login): itens de uma NR — query ?nr_id=. Somente leitura.
+// Itens de ementa revogada (revogado = true) ficam de fora.
 routerAdd('GET', '/backend/v1/public/itens', (e) => {
   const nrId = String(e.requestInfo().query.nr_id || '')
   if (!nrId) return e.badRequestError('nr_id obrigatório')

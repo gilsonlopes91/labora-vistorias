@@ -1,6 +1,7 @@
 // Rota pública (sem login): lista os itens de uma NR (tipos_vistoria) com
 // ref, descrição, grau e tipo. Usada pela calculadora pública para o usuário
 // escolher o item da norma. Somente leitura, dados públicos.
+// Itens de ementa revogada (revogado = true) ficam de fora.
 routerAdd('GET', '/backend/v1/public/nr/:id/itens', (e) => {
   const nrId = e.request.pathValue('id')
   if (!nrId) return e.badRequestError('id da NR obrigatório')
