@@ -203,7 +203,31 @@ export default function VistoriaDetalhe() {
       const respondidos = new Set(
         respostasVistoria.filter((r) => r.situacao).map((r) => r.item_checklist_id),
       )
-      setItens(itensPorChecklist.flat().filter((it) => !it.revogado || respondidos.has(it.id)))
+      const visiveis = itensPorChecklist
+        .flat()
+        .filter((it) => !it.revogado || respondidos.has(it.id))
+      // Vistoria concluída: o item aparece (e vai para o laudo) exatamente como
+      // estava na norma no dia da conclusão — cópia congelada na resposta.
+      if (v.status === 'concluida') {
+        const porItem = new Map(respostasVistoria.map((r) => [r.item_checklist_id, r]))
+        setItens(
+          visiveis.map((it) => {
+            const r = porItem.get(it.id)
+            if (!r?.descricao_snapshot) return it
+            return {
+              ...it,
+              item_ref: r.item_ref_snapshot || it.item_ref,
+              codigo: r.codigo_snapshot || it.codigo,
+              grau: r.grau_snapshot || it.grau,
+              tipo: (r.tipo_snapshot as 'S' | 'M' | undefined) || it.tipo,
+              descricao: r.descricao_snapshot,
+              secao: r.secao_snapshot ?? it.secao,
+            }
+          }),
+        )
+      } else {
+        setItens(visiveis)
+      }
       setNomesChecklist(
         idsChecklists.map((cid) => {
           if (cid === v.tipo_vistoria_id) {

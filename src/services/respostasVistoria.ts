@@ -19,6 +19,15 @@ export interface RespostaVistoria {
   foto?: string[]
   localizacao?: GeoLocalizacao
   client_uuid: string
+  // Cópia do item da norma no momento da resposta; congelada quando a vistoria
+  // é concluída (migration 0110). O laudo de vistoria concluída usa esta cópia.
+  item_ref_snapshot?: string
+  codigo_snapshot?: string
+  grau_snapshot?: number
+  tipo_snapshot?: string
+  descricao_snapshot?: string
+  secao_snapshot?: string
+  snapshot_em?: string
   created: string
   updated: string
 }
