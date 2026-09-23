@@ -7,7 +7,16 @@
    Só admin_plataforma. */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, BookOpenCheck, CheckCircle2, Pencil, Plus, Search } from 'lucide-react'
+import {
+  AlertTriangle,
+  BookOpenCheck,
+  CheckCircle2,
+  FileUp,
+  Pencil,
+  Plus,
+  Search,
+} from 'lucide-react'
+import AtualizarNrDialog from '@/components/AtualizarNrDialog'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import TextoNorma from '@/components/TextoNorma'
@@ -90,7 +99,12 @@ export default function AdminNormas() {
   // edição de item
   const [itemEdit, setItemEdit] = useState<Partial<ItemNorma> | null>(null)
   const [conferido, setConferido] = useState(false)
+  const [revogarItem, setRevogarItem] = useState(false)
   const [salvando, setSalvando] = useState(false)
+
+  // atualização de NR a partir do PDF oficial
+  const [atualizarAberto, setAtualizarAberto] = useState(false)
+  const [atualizarNr, setAtualizarNr] = useState<string | undefined>(undefined)
 
   // edição de versão da NR
   const [versaoNr, setVersaoNr] = useState<string | null>(null)
@@ -203,6 +217,7 @@ export default function AdminNormas() {
   const editarItem = (it: Partial<ItemNorma>) => {
     setItemEdit({ ...it })
     setConferido(!it.pendente_revisao && !!it.id)
+    setRevogarItem(!!it.revogado)
   }
 
   const salvarItem = async () => {
@@ -224,8 +239,9 @@ export default function AdminNormas() {
         tipo: itemEdit.tipo || '',
         secao: itemEdit.secao || '',
         descricao: itemEdit.descricao.trim(),
-        observacao: conferido && obsPendente ? '' : obs,
-        pendente_revisao: !conferido,
+        observacao: (conferido || revogarItem) && obsPendente ? '' : obs,
+        pendente_revisao: revogarItem ? false : !conferido,
+        revogado: revogarItem,
       }
       if (itemEdit.id) {
         await pb.collection('itens_checklist').update(itemEdit.id, dados)
@@ -275,12 +291,24 @@ export default function AdminNormas() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-extrabold tracking-tight">Normas</h1>
-        <p className="text-sm text-muted-foreground">
-          Catálogo oficial das NRs usado nas vistorias e na calculadora. Cada item segue o código de
-          ementa do Anexo II da NR-28 e o texto literal da norma.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Normas</h1>
+          <p className="text-sm text-muted-foreground">
+            Catálogo oficial das NRs usado nas vistorias e na calculadora. Cada item segue o código
+            de ementa do Anexo II da NR-28 e o texto literal da norma.
+          </p>
+        </div>
+        <Button
+          className="rounded-full"
+          onClick={() => {
+            setAtualizarNr(undefined)
+            setAtualizarAberto(true)
+          }}
+        >
+          <FileUp className="mr-2 h-4 w-4" />
+          Atualizar NR
+        </Button>
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -372,14 +400,28 @@ export default function AdminNormas() {
                         : 'Versão da norma não informada'}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="rounded-full"
-                    onClick={() => abrirVersao(nr)}
-                  >
-                    Editar versão
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => {
+                        setAtualizarNr(nr)
+                        setAtualizarAberto(true)
+                      }}
+                    >
+                      <FileUp className="mr-1.5 h-3.5 w-3.5" />
+                      Atualizar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-full"
+                      onClick={() => abrirVersao(nr)}
+                    >
+                      Editar versão
+                    </Button>
+                  </div>
                 </div>
                 <div className="divide-y">
                   {lista.map((t) => {
@@ -423,6 +465,13 @@ export default function AdminNormas() {
       )}
 
       <SincronizarCatalogoPanel />
+
+      <AtualizarNrDialog
+        aberto={atualizarAberto}
+        nrInicial={atualizarNr}
+        onFechar={() => setAtualizarAberto(false)}
+        onAplicado={carregar}
+      />
 
       {/* Checklist aberto */}
       <Dialog open={!!tipoAberto} onOpenChange={(o) => !o && setTipoAberto(null)}>
@@ -591,6 +640,19 @@ export default function AdminNormas() {
                 <Checkbox checked={conferido} onCheckedChange={(v) => setConferido(!!v)} />
                 Texto conferido com o PDF oficial (sai da lista de pendências)
               </label>
+              {itemEdit.id && (
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={revogarItem}
+                    onCheckedChange={(v) => setRevogarItem(!!v)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Item revogado (o subitem não existe mais na norma). Sai das novas vistorias;
+                    laudos antigos continuam com ele.
+                  </span>
+                </label>
+              )}
             </div>
           )}
           <DialogFooter>
