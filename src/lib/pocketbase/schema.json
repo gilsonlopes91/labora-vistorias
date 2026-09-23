@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T20:44:13.852Z",
+  "generatedAt": "2026-09-23T20:49:48.013Z",
   "collections": [
     {
       "name": "users",
@@ -2254,6 +2254,124 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "normas_monitor",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.papel = 'admin_plataforma'",
+        "view": "@request.auth.papel = 'admin_plataforma'",
+        "create": null,
+        "update": "@request.auth.papel = 'admin_plataforma'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nr",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pdf_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pagina_atualizada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "portaria_site",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "portaria_site_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "portaria_ignorada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "em_dia",
+            "mudou",
+            "erro"
+          ]
+        },
+        {
+          "name": "mudancas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "detectado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "verificado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avisado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_normas_monitor_nr ON normas_monitor (nr)"
+      ]
     }
   ]
 }

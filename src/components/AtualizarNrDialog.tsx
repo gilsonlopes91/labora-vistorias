@@ -12,6 +12,7 @@ import { AlertTriangle, FileUp, Loader2, Play, RefreshCw } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { extrairLinhasPdf } from '@/lib/leitorPdf'
+import { marcarNormaConferida } from '@/components/MonitorNormasFaixa'
 import {
   lerAnexoII,
   lerTextoNR,
@@ -453,6 +454,12 @@ export default function AtualizarNrDialog({ aberto, onFechar, onAplicado, nrInic
           description: falhas.join('\n'),
         })
       } else {
+        // sai do selo/faixa da verificação semanal no gov.br
+        try {
+          await marcarNormaConferida(nr)
+        } catch {
+          // NR ainda sem linha de verificação: nada a fazer
+        }
         toast.success(`${nr} atualizada`, {
           description: 'Novas vistorias já usam o texto novo. Laudos concluídos não mudam.',
         })

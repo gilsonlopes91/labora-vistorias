@@ -28,6 +28,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
+import pb from '@/lib/pocketbase/client'
 
 /**
  * Avalia se um sub-item está ativo comparando pathname e search (aba)
@@ -113,12 +114,14 @@ function NavItemTree({
   search,
   userGestor,
   modulos,
+  badge,
 }: {
   item: NavItemConfig
   pathname: string
   search: string
   userGestor: boolean
   modulos: Modulos | null
+  badge?: number
 }) {
   const { state: sidebarState, setOpen } = useSidebar()
 
@@ -152,8 +155,21 @@ function NavItemTree({
       <SidebarMenuItem>
         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
           <Link to={item.to}>
-            <item.icon className="h-4 w-4 shrink-0" />
+            <span className="relative shrink-0">
+              <item.icon className="h-4 w-4" />
+              {!!badge && (
+                <span className="absolute -right-1 -top-1 hidden h-2 w-2 rounded-full bg-amber-500 group-data-[collapsible=icon]:block" />
+              )}
+            </span>
             <span className="truncate">{item.label}</span>
+            {!!badge && (
+              <span
+                className="ml-auto rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-white group-data-[collapsible=icon]:hidden"
+                title={`${badge} norma(s) com possível atualização no gov.br`}
+              >
+                {badge}
+              </span>
+            )}
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -239,6 +255,17 @@ export default function Layout() {
         .catch(() => {})
   }, [isAuthenticated])
 
+  // Selo do menu Normas: NRs com possível atualização encontrada no gov.br.
+  const ehAdmin = user?.papel === 'admin_plataforma'
+  const [alertasNormas, setAlertasNormas] = useState(0)
+  useEffect(() => {
+    if (!isAuthenticated || !ehAdmin) return
+    pb.collection('normas_monitor')
+      .getList(1, 1, { filter: "status = 'mudou'", requestKey: null })
+      .then((r) => setAlertasNormas(r.totalItems))
+      .catch(() => setAlertasNormas(0))
+  }, [isAuthenticated, ehAdmin, location.pathname])
+
   const moduloDe: Record<string, (m: Modulos) => boolean> = {
     '/auditoria-formularios': (m) => m.auditoria || m.formularios,
   }
@@ -308,6 +335,7 @@ export default function Layout() {
                     search={location.search}
                     userGestor={userGestor}
                     modulos={modulos}
+                    badge={item.to === '/admin/normas' ? alertasNormas : undefined}
                   />
                 ))}
             </SidebarMenu>

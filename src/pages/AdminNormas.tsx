@@ -17,6 +17,7 @@ import {
   Search,
 } from 'lucide-react'
 import AtualizarNrDialog from '@/components/AtualizarNrDialog'
+import MonitorNormasFaixa from '@/components/MonitorNormasFaixa'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import TextoNorma from '@/components/TextoNorma'
@@ -105,6 +106,7 @@ export default function AdminNormas() {
   // atualização de NR a partir do PDF oficial
   const [atualizarAberto, setAtualizarAberto] = useState(false)
   const [atualizarNr, setAtualizarNr] = useState<string | undefined>(undefined)
+  const [versaoMonitor, setVersaoMonitor] = useState(0)
 
   // edição de versão da NR
   const [versaoNr, setVersaoNr] = useState<string | null>(null)
@@ -311,6 +313,14 @@ export default function AdminNormas() {
         </Button>
       </div>
 
+      <MonitorNormasFaixa
+        recarregar={versaoMonitor}
+        onAtualizar={(nr) => {
+          setAtualizarNr(nr)
+          setAtualizarAberto(true)
+        }}
+      />
+
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'NRs', value: totais.nrs },
@@ -470,7 +480,10 @@ export default function AdminNormas() {
         aberto={atualizarAberto}
         nrInicial={atualizarNr}
         onFechar={() => setAtualizarAberto(false)}
-        onAplicado={carregar}
+        onAplicado={() => {
+          carregar()
+          setVersaoMonitor((v) => v + 1)
+        }}
       />
 
       {/* Checklist aberto */}
