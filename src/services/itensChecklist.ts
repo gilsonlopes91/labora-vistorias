@@ -11,6 +11,8 @@ export interface ItemChecklist {
   tipo?: 'S' | 'M'
   descricao: string
   observacao?: string
+  // true = código de ementa revogado (não consta no Anexo II da NR-28 vigente)
+  revogado?: boolean
   created: string
   updated: string
 }
@@ -21,11 +23,19 @@ export const getItensChecklist = (tipoVistoriaId: string) =>
     sort: 'ordem',
   })
 
+// Só os itens vigentes (sem os de ementa revogada) — para novas vistorias,
+// modelos e calculadora.
+export const getItensChecklistVigentes = (tipoVistoriaId: string) =>
+  pb.collection('itens_checklist').getFullList<ItemChecklist>({
+    filter: pb.filter('tipo_vistoria_id = {:id} && revogado != true', { id: tipoVistoriaId }),
+    sort: 'ordem',
+  })
+
 // Contagem barata (usa totalItems do PocketBase, sem baixar os itens) —
 // usada no resumo do agendamento da vistoria.
 export const contarItensChecklist = async (tipoVistoriaId: string): Promise<number> => {
   const res = await pb.collection('itens_checklist').getList<ItemChecklist>(1, 1, {
-    filter: pb.filter('tipo_vistoria_id = {:id}', { id: tipoVistoriaId }),
+    filter: pb.filter('tipo_vistoria_id = {:id} && revogado != true', { id: tipoVistoriaId }),
   })
   return res.totalItems
 }

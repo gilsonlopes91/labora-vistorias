@@ -6,6 +6,7 @@ import { Calculator, ChevronRight, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import TabelaAnexoI from '@/components/TabelaAnexoI'
+import TextoNorma from '@/components/TextoNorma'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -282,7 +283,12 @@ export default function CalculadoraPublica() {
                   </Badge>
                 ) : null}
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{resultado.item.descricao}</p>
+              <TextoNorma texto={resultado.item.descricao} className="mt-2 text-muted-foreground" />
+              {resultado.item.codigo ? (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Código da ementa {resultado.item.codigo}
+                </div>
+              ) : null}
 
               <div className="mt-6 rounded-2xl bg-primary/5 p-5">
                 <div className="text-xs font-bold uppercase tracking-wide text-primary">

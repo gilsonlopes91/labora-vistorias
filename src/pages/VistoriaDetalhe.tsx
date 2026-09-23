@@ -11,6 +11,7 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
 import LoadingScreen from '@/components/LoadingScreen'
+import TextoNorma from '@/components/TextoNorma'
 import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png'
 import {
   getVistoria,
@@ -197,7 +198,12 @@ export default function VistoriaDetalhe() {
         Promise.all(idsChecklists.map((cid) => getItensChecklist(cid))),
         getRespostasByVistoria(v.id),
       ])
-      setItens(itensPorChecklist.flat())
+      // Itens de ementa revogada só aparecem se já foram respondidos nesta
+      // vistoria (histórico); em vistorias novas ficam de fora.
+      const respondidos = new Set(
+        respostasVistoria.filter((r) => r.situacao).map((r) => r.item_checklist_id),
+      )
+      setItens(itensPorChecklist.flat().filter((it) => !it.revogado || respondidos.has(it.id)))
       setNomesChecklist(
         idsChecklists.map((cid) => {
           if (cid === v.tipo_vistoria_id) {
@@ -1030,9 +1036,14 @@ export default function VistoriaDetalhe() {
                                 NR-31 · multa por empregado irregular
                               </Badge>
                             )}
+                            {item.revogado && (
+                              <Badge variant="destructive" className="text-xs">
+                                Ementa revogada
+                              </Badge>
+                            )}
                           </div>
                           <CardTitle className="text-sm font-medium leading-snug">
-                            {item.descricao}
+                            <TextoNorma texto={item.descricao} />
                           </CardTitle>
                           <div className="mt-1 text-xs text-muted-foreground">
                             Código da ementa {item.codigo}

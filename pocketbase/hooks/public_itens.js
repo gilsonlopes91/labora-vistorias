@@ -9,6 +9,7 @@ routerAdd('GET', '/backend/v1/public/itens', (e) => {
     'ordem',
     0,
     0,
+    { id: nrId },
   )
 
   const lista = itens.map((it) => ({

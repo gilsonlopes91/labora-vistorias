@@ -15,7 +15,8 @@ import { ListChecks, Lock, Search, Shapes } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
-import { getItensChecklist, type ItemChecklist } from '@/services/itensChecklist'
+import { getItensChecklistVigentes, type ItemChecklist } from '@/services/itensChecklist'
+import TextoNorma from '@/components/TextoNorma'
 import { isAdmin } from '@/services/equipe'
 import { ImportarChecklistCsvDialog } from '@/components/ImportarChecklistCsvDialog'
 
@@ -66,7 +67,7 @@ export function AuditoriaNRsTab() {
     if ((itensPorTipo[tipoId] && !forcar) || carregandoItens[tipoId]) return
     setCarregandoItens((prev) => ({ ...prev, [tipoId]: true }))
     try {
-      const itens = await getItensChecklist(tipoId)
+      const itens = await getItensChecklistVigentes(tipoId)
       setItensPorTipo((prev) => ({ ...prev, [tipoId]: itens }))
     } catch (error) {
       toast.error('Não foi possível carregar o checklist', { description: getErrorMessage(error) })
@@ -242,7 +243,7 @@ export function AuditoriaNRsTab() {
                                       {item.codigo}
                                     </span>
                                     <div className="min-w-0">
-                                      <p className="leading-snug">{item.descricao}</p>
+                                      <TextoNorma texto={item.descricao} className="leading-snug" />
                                       {alineas && (
                                         <p className="mt-0.5 text-[11px] italic text-muted-foreground">
                                           {alineas}

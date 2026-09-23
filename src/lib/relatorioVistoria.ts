@@ -330,37 +330,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         resposta.situacao === 'N/C' && !!(resposta.valor_multa_min || resposta.valor_multa_max)
       const ehNr31 = resposta.situacao === 'N/C' && regimeDoItem(item) === 'rural_art18'
 
-      // Coluna esquerda: identificação do item + descrição + observação
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.text(`Item ${item.item_ref}`, margin, y)
-      y += 12
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(110)
-      doc.text(`Código da ementa ${item.codigo}`, margin, y)
-      doc.setTextColor(0)
-      y += 12
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      const linhasDescricao = doc.splitTextToSize(item.descricao, larguraColunaDescricao)
-      doc.text(linhasDescricao, margin, y)
-      y += linhasDescricao.length * 11 + 2
-
-      if (resposta.observacao) {
-        doc.setFont('helvetica', 'italic')
-        doc.setFontSize(8)
-        const linhasObs = doc.splitTextToSize(
-          `Observação: ${resposta.observacao}`,
-          larguraColunaDescricao,
-        )
-        doc.text(linhasObs, margin, y)
-        y += linhasObs.length * 10 + 2
-        doc.setFont('helvetica', 'normal')
-      }
-
-      // Coluna direita: situação (C/N/C/N/A) e valor de multa, alinhados
+      // Coluna direita: situação (C/N/C/N/A) e valor de multa, alinhados.
+      // Desenhada antes do texto porque o texto literal pode virar a página.
+      const paginaInicioItem = doc.getNumberOfPages()
       let yColunaValores = yInicioItem
       const cor = COR_SITUACAO[resposta.situacao]
       doc.setFont('helvetica', 'bold')
@@ -386,6 +358,49 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         doc.setFont('helvetica', 'normal')
       }
 
+      // Coluna esquerda: identificação do item + descrição + observação
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.text(`Item ${item.item_ref}`, margin, y)
+      y += 12
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(110)
+      doc.text(
+        `Código da ementa ${item.codigo}${item.revogado ? ' (ementa revogada — não consta no Anexo II da NR-28 vigente)' : ''}`,
+        margin,
+        y,
+      )
+      doc.setTextColor(0)
+      y += 12
+
+      // Texto literal da norma: pode ser longo (vários subitens/alíneas), então
+      // quebra de página linha a linha em vez de imprimir o bloco de uma vez.
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      const linhasDescricao: string[] = doc.splitTextToSize(item.descricao, larguraColunaDescricao)
+      for (const linha of linhasDescricao) {
+        if (y > pageHeight - 60) {
+          doc.addPage()
+          y = margin
+        }
+        doc.text(linha, margin, y)
+        y += 11
+      }
+      y += 2
+
+      if (resposta.observacao) {
+        doc.setFont('helvetica', 'italic')
+        doc.setFontSize(8)
+        const linhasObs = doc.splitTextToSize(
+          `Observação: ${resposta.observacao}`,
+          larguraColunaDescricao,
+        )
+        doc.text(linhasObs, margin, y)
+        y += linhasObs.length * 10 + 2
+        doc.setFont('helvetica', 'normal')
+      }
+
       if (ehNr31) {
         // NR-31: explica o critério rural no laudo
         doc.setFont('helvetica', 'italic')
@@ -403,8 +418,8 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         doc.setFont('helvetica', 'normal')
       }
 
-      // A altura do item é a maior entre as duas colunas
-      y = Math.max(y, yColunaValores) + 6
+      // A altura do item é a maior entre as duas colunas (se o texto não virou a página)
+      y = (doc.getNumberOfPages() === paginaInicioItem ? Math.max(y, yColunaValores) : y) + 6
 
       if (resposta.foto && resposta.foto.length > 0) {
         const alturaFoto = 160

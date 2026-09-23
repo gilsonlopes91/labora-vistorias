@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T20:36:37.024Z",
+  "generatedAt": "2026-09-23T16:04:00.482Z",
   "collections": [
     {
       "name": "users",
@@ -312,9 +312,9 @@
       "apiRules": {
         "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
         "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
-        "create": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
-        "update": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
-        "delete": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')"
+        "create": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id)) || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id)) || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id)) || @request.auth.papel = 'admin_plataforma')"
       },
       "fields": [
         {
@@ -377,6 +377,12 @@
             "anexo_ia_portuario",
             "rural_art18"
           ]
+        },
+        {
+          "name": "secao_oficial",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -389,9 +395,9 @@
       "apiRules": {
         "list": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
         "view": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
-        "create": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
-        "update": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
-        "delete": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id = '' || tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')"
+        "create": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id != '' && (tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id)) || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id != '' && (tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id)) || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((tipo_vistoria_id.organizacao_id != '' && (tipo_vistoria_id.organizacao_id = @request.auth.organizacao_id || tipo_vistoria_id.organizacao_id.staff_ids.id ?= @request.auth.id)) || @request.auth.papel = 'admin_plataforma')"
       },
       "fields": [
         {
@@ -471,6 +477,12 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "revogado",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
