@@ -95,6 +95,12 @@ export default function PublicLayout() {
             <Link to="/login" className="hover:text-foreground">
               Entrar
             </Link>
+            <Link to="/termos" className="hover:text-foreground">
+              Termos de Uso
+            </Link>
+            <Link to="/privacidade" className="hover:text-foreground">
+              Privacidade
+            </Link>
           </div>
           <div>© {new Date().getFullYear()} Labora Engenharia e SST</div>
         </div>

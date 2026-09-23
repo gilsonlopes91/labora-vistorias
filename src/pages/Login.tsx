@@ -12,6 +12,8 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
 import LoadingScreen from '@/components/LoadingScreen'
 import pb from '@/lib/pocketbase/client'
+import { VERSAO_TERMOS } from '@/content/legal'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -36,6 +38,9 @@ const loginSchema = z.object({
 const signupSchema = z.object({
   name: z.string().trim().min(1, 'Informe seu nome'),
   email: z.string().trim().email('Informe um e-mail válido'),
+  aceite: z.boolean().refine((v) => v, {
+    message: 'Para continuar, aceite os Termos de Uso e a Política de Privacidade',
+  }),
 })
 
 export default function Login() {
@@ -72,7 +77,7 @@ export default function Login() {
 
   const signupForm = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: '', email: '' },
+    defaultValues: { name: '', email: '', aceite: false },
   })
 
   if (loading) {
@@ -106,7 +111,13 @@ export default function Login() {
     const nome = values.name.trim()
     const email = values.email.trim().toLowerCase()
     try {
-      await pb.collection('lista_espera').create({ nome, email, origem: 'criar_conta' })
+      await pb.collection('lista_espera').create({
+        nome,
+        email,
+        origem: 'criar_conta',
+        termos_versao: VERSAO_TERMOS,
+        termos_aceitos_em: new Date().toISOString(),
+      })
     } catch (error) {
       // E-mail já inscrito (índice único) segue normalmente para a página.
       const dados = (error as { response?: { data?: Record<string, unknown> } })?.response?.data
@@ -285,6 +296,43 @@ export default function Login() {
                                 {...field}
                               />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={signupForm.control}
+                        name="aceite"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-start gap-2">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={(v) => field.onChange(!!v)}
+                                  className="mt-0.5"
+                                />
+                              </FormControl>
+                              <span className="text-xs leading-snug text-muted-foreground">
+                                Li e aceito os{' '}
+                                <Link
+                                  to="/termos"
+                                  target="_blank"
+                                  className="text-primary underline underline-offset-2"
+                                >
+                                  Termos de Uso
+                                </Link>{' '}
+                                e a{' '}
+                                <Link
+                                  to="/privacidade"
+                                  target="_blank"
+                                  className="text-primary underline underline-offset-2"
+                                >
+                                  Política de Privacidade
+                                </Link>
+                                .
+                              </span>
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}

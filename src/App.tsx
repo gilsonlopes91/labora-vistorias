@@ -14,6 +14,7 @@ import CalculadoraPublica from './pages/CalculadoraPublica'
 import Blog from './pages/Blog'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
 import EmBreve from './pages/EmBreve'
+import DocumentoLegal from './pages/DocumentoLegal'
 import AdminArtigos from './pages/AdminArtigos'
 import Empresas from './pages/Empresas'
 import EmpresaDetalhe from './pages/EmpresaDetalhe'
@@ -52,6 +53,8 @@ const App = () => (
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<ArtigoDetalhe />} />
             <Route path="/em-breve" element={<EmBreve />} />
+            <Route path="/termos" element={<DocumentoLegal tipo="termos" />} />
+            <Route path="/privacidade" element={<DocumentoLegal tipo="privacidade" />} />
           </Route>
           <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
