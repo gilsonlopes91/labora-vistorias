@@ -324,7 +324,7 @@ export function resolverTexto(
   t: TextoNR,
 ): { texto: string; status: 'OK' | 'PARCIAL' | 'NAO_ENCONTRADO'; faltando: string[] } {
   let seg = /ANEXO (\S+)/.exec(linha.sec)?.[1] || 'CORPO'
-  const m2 = /(?:do|no) Anexo\s+([IVXL]+|\d+)/i.exec(linha.item)
+  const m2 = /(?:(?:do|no)\s+)?Anexo\s+([IVXL]+|\d+)\b/i.exec(linha.item)
   if (m2) seg = m2[1].toUpperCase()
   const items = t.itens[seg]
   if (!items) return { texto: '', status: 'NAO_ENCONTRADO', faltando: [] }
