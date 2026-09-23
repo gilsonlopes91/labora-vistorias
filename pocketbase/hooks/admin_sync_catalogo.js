@@ -198,5 +198,4 @@ routerAdd(
     return e.json(200, { ok: true, simulado: simular, resultado: resultado })
   },
   $apis.requireAuth(),
-  $apis.bodyLimit(20 * 1024 * 1024),
 )
