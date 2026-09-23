@@ -5,18 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import {
-  ArrowLeft,
-  Building2,
-  Camera,
-  Check,
-  ChevronRight,
-  PenTool,
-  Plus,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { ArrowLeft, Building2, Camera, Check, PenTool, Plus, Save, Trash2, X } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -244,8 +233,7 @@ export default function PreencherFormulario() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelo, dados])
 
-  // ---- Wizard: uma seção do modelo por etapa ----
-  const [etapa, setEtapa] = useState(0)
+  // ---- Seções do modelo (todas exibidas na mesma página) ----
   const secoes = useMemo(() => {
     if (!modelo) return []
     const lista: { nome: string; campos: CampoFormulario[] }[] = []
@@ -266,23 +254,6 @@ export default function PreencherFormulario() {
     return lista
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelo])
-
-  const pendentesDaSecao = (idx: number) => {
-    const sec = secoes[idx]
-    if (!sec) return []
-    const pend: string[] = []
-    for (const campo of sec.campos) {
-      if (!campo.obrigatorio || !visivel(campo)) continue
-      const valor = dados[campo.id]
-      if (campo.tipo === 'repetivel') {
-        if (normalizarInstancias(valor).length === 0) pend.push(campo.nome)
-        continue
-      }
-      if (valor === undefined || valor === null || String(valor).trim() === '')
-        pend.push(campo.nome)
-    }
-    return pend
-  }
 
   const salvar = async (status: 'rascunho' | 'concluido') => {
     if (!modelo) return
@@ -761,66 +732,36 @@ export default function PreencherFormulario() {
         </div>
       </Card>
 
-      {/* Wizard: uma seção do modelo por etapa, com progresso e validação por etapa. */}
+      {/* Formulário inteiro em uma única página: cada seção do modelo vira um
+          bloco com título, um abaixo do outro. */}
       {secoes.length > 0 && (
         <>
-          <div className="mb-4 flex items-center gap-1.5">
-            {secoes.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setEtapa(i)}
-                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  i <= etapa ? 'bg-primary' : 'bg-muted'
-                }`}
-                title={s.nome}
-                aria-label={`Etapa ${i + 1}: ${s.nome}`}
-              />
+          <Card className="space-y-6 rounded-2xl border-none bg-card p-5 shadow-subtle">
+            {secoes.map((sec, i) => (
+              <section key={i} className="space-y-4">
+                {secoes.length > 1 && (
+                  <h2 className="border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    {sec.nome}
+                  </h2>
+                )}
+                {sec.campos.map(renderCampo)}
+              </section>
             ))}
-          </div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Etapa {etapa + 1} de {secoes.length}
-          </p>
-          <h2 className="mb-4 text-lg font-semibold">{secoes[etapa]?.nome}</h2>
-
-          <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
-            {(secoes[etapa]?.campos || []).map(renderCampo)}
           </Card>
 
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setEtapa((e) => Math.max(0, e - 1))}
-              disabled={etapa === 0}
-            >
-              Voltar
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => salvar('rascunho')} disabled={salvando}>
+              <Save className="mr-2 h-4 w-4" />
+              Salvar rascunho
             </Button>
-            {etapa < secoes.length - 1 ? (
-              <Button
-                className="rounded-full"
-                onClick={() => {
-                  const pend = pendentesDaSecao(etapa)
-                  if (pend.length > 0) {
-                    toast.warning('Campos obrigatórios pendentes nesta etapa', {
-                      description: pend.join(', '),
-                    })
-                    return
-                  }
-                  setEtapa((e) => Math.min(secoes.length - 1, e + 1))
-                }}
-              >
-                Próxima etapa
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                onClick={() => salvar('concluido')}
-                disabled={salvando}
-                className="rounded-full"
-              >
-                <Check className="mr-2 h-4 w-4" />
-                {salvando ? 'Salvando...' : 'Concluir'}
-              </Button>
-            )}
+            <Button
+              onClick={() => salvar('concluido')}
+              disabled={salvando}
+              className="rounded-full"
+            >
+              <Check className="mr-2 h-4 w-4" />
+              {salvando ? 'Salvando...' : 'Concluir'}
+            </Button>
           </div>
         </>
       )}
