@@ -11,6 +11,7 @@ import {
   Settings,
   FileSpreadsheet,
   FileText,
+  BookOpenCheck,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -27,6 +28,8 @@ export interface NavItemConfig {
   label: string
   icon: LucideIcon
   gestor?: boolean
+  /** Só aparece para o admin da plataforma (papel admin_plataforma). */
+  adminOnly?: boolean
   children?: NavSubItemConfig[]
 }
 
@@ -78,6 +81,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
   { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, gestor: true },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
+  { to: '/admin/normas', label: 'Normas (catálogo NR)', icon: BookOpenCheck, adminOnly: true },
 ]
 
 /**

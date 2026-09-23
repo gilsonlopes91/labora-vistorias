@@ -31,6 +31,7 @@ import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
 import NotFound from './pages/NotFound'
 import AdminConsole from './pages/AdminConsole'
+import AdminNormas from './pages/AdminNormas'
 import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
@@ -187,6 +188,14 @@ const App = () => (
               element={
                 <ProtectedRoute adminOnly>
                   <AdminConsole />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/normas"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminNormas />
                 </ProtectedRoute>
               }
             />

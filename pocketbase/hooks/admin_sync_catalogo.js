@@ -90,6 +90,9 @@ routerAdd(
         tipo.set('regime_multa', regime)
       }
       tipo.set('secao_oficial', secaoOficial)
+      tipo.set('catalogo_sincronizado_em', new Date().toISOString())
+      if (secao.norma_versao) tipo.set('norma_versao', String(secao.norma_versao).slice(0, 300))
+      if (secao.norma_versao_dou) tipo.set('norma_versao_dou', String(secao.norma_versao_dou))
       if (secao.nome && !resultado.tipo_criado && secao.renomear) {
         tipo.set('nome', String(secao.nome).slice(0, 150))
       }
@@ -147,6 +150,13 @@ routerAdd(
         rec.set('secao', String(src.secao || '').slice(0, 200))
         rec.set('observacao', String(src.observacao || '').slice(0, 1000))
         rec.set('revogado', false)
+        const obsTxt = String(src.observacao || '')
+        rec.set(
+          'pendente_revisao',
+          src.pendente_revisao === true ||
+            obsTxt.indexOf('Texto literal ainda não localizado') === 0 ||
+            obsTxt.indexOf('Parte dos subitens citados') === 0,
+        )
         const depois = [
           rec.getString('item_ref'),
           rec.getInt('grau'),

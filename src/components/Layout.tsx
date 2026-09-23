@@ -298,6 +298,7 @@ export default function Layout() {
           <SidebarGroup>
             <SidebarMenu>
               {NAV_ITEMS.filter((item) => !item.gestor || userGestor)
+                .filter((item) => !item.adminOnly || user?.papel === 'admin_plataforma')
                 .filter((item) => !modulos || !moduloDe[item.to] || moduloDe[item.to](modulos))
                 .map((item) => (
                   <NavItemTree

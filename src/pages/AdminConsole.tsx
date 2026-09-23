@@ -38,7 +38,6 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import ListaEsperaPanel from '@/components/ListaEsperaPanel'
-import SincronizarCatalogoPanel from '@/components/SincronizarCatalogoPanel'
 
 interface OrgRow {
   id: string
@@ -539,8 +538,20 @@ export default function AdminConsole() {
       {/* Lista de espera (inscritos do site) — só admin da plataforma lê */}
       {user?.papel === 'admin_plataforma' && <ListaEsperaPanel />}
 
-      {/* Catálogo oficial de NRs (Anexo II da NR-28) — só admin da plataforma */}
-      {user?.papel === 'admin_plataforma' && <SincronizarCatalogoPanel />}
+      {/* Catálogo oficial de NRs: foi para a página própria /admin/normas */}
+      {user?.papel === 'admin_plataforma' && (
+        <Card className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-none p-4 shadow-subtle">
+          <div>
+            <div className="font-bold">Catálogo oficial de NRs</div>
+            <div className="text-sm text-muted-foreground">
+              Versão de cada norma, pendências de revisão e importação do catálogo.
+            </div>
+          </div>
+          <Button asChild variant="outline" className="rounded-full">
+            <Link to="/admin/normas">Abrir Normas</Link>
+          </Button>
+        </Card>
+      )}
 
       {/* Staff Labora */}
       <div className="mt-10">
