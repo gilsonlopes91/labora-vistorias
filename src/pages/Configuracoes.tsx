@@ -116,13 +116,24 @@ export default function Configuracoes() {
       })
       return
     }
+    const limiteBytes = 3 * 1024 * 1024
+    if (arquivo.size > limiteBytes) {
+      toast.error('Não foi possível enviar o logo', {
+        description: 'Arquivo muito grande. O limite é 3 MB — envie uma imagem menor.',
+      })
+      return
+    }
     setEnviandoLogo(true)
     try {
       const atualizado = await atualizarLogoOrganizacao(org.id, arquivo)
       setOrg(atualizado)
       toast.success('Logo atualizado')
     } catch (error) {
-      toast.error('Não foi possível enviar o logo', { description: getErrorMessage(error) })
+      const msg = getErrorMessage(error)
+      const desc = /maximum allowed file size/i.test(msg)
+        ? 'Arquivo muito grande. O limite é 3 MB — envie uma imagem menor.'
+        : msg
+      toast.error('Não foi possível enviar o logo', { description: desc })
     } finally {
       setEnviandoLogo(false)
     }
