@@ -88,12 +88,15 @@ routerAdd('GET', '/backend/v1/agenda/{arquivo}', (e) => {
   const fmtHora = (dt) => pad((dt.getUTCHours() + 21) % 24) + ':' + pad(dt.getUTCMinutes())
 
   // Endereço do app para o link "Abrir no app"
-  let site = ''
-  try {
-    site = ($app.settings().meta.appURL || '').replace(/\/$/, '')
-  } catch (_) {}
-  if (!site || /localhost|127\.0\.0\.1/.test(site))
-    site = (user.getString('agenda_app_url') || '').replace(/\/$/, '')
+  // (o endereço gravado pelo próprio app tem prioridade; o appURL das
+  //  configurações às vezes aponta para o servidor interno)
+  let site = (user.getString('agenda_app_url') || '').replace(/\/$/, '')
+  if (!site) {
+    try {
+      site = ($app.settings().meta.appURL || '').replace(/\/$/, '')
+    } catch (_) {}
+    if (/localhost|127\.0\.0\.1|\.internal\./.test(site)) site = ''
+  }
 
   const vistorias = $app.findRecordsByFilter(
     'vistorias',
