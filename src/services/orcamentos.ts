@@ -216,6 +216,64 @@ export const criarVersaoOrcamento = async (origem: Orcamento) => {
   return pb.collection('orcamentos').create<Orcamento>(copia)
 }
 
+const hojeISO = () => new Date().toISOString().slice(0, 10)
+
+/**
+ * Campos que acompanham uma troca de status (na lista ou no formulário):
+ * data de envio, data de aprovação e o status financeiro inicial.
+ */
+export const camposAoMudarStatus = (
+  orcamento: Partial<
+    Pick<
+      Orcamento,
+      'status' | 'data_envio' | 'data_aprovacao' | 'status_financeiro' | 'valor_recebido'
+    >
+  >,
+  novo: StatusOrcamento,
+): Partial<Orcamento> => {
+  const extras: Partial<Orcamento> = {}
+  if (novo !== 'rascunho' && !orcamento.data_envio) extras.data_envio = hojeISO()
+  const ganho = STATUS_GANHOS.includes(novo)
+  if (ganho && !orcamento.data_aprovacao) extras.data_aprovacao = hojeISO()
+  const nadaRecebido = !(orcamento.valor_recebido && orcamento.valor_recebido > 0)
+  const fin = orcamento.status_financeiro || 'nao_faturado'
+  if (ganho && nadaRecebido && fin === 'nao_faturado')
+    extras.status_financeiro = 'aguardando_pagamento'
+  if (!ganho && nadaRecebido && fin === 'aguardando_pagamento') {
+    extras.status_financeiro = ['recusado', 'cancelado', 'expirado'].includes(novo)
+      ? 'cancelado'
+      : 'nao_faturado'
+  }
+  return extras
+}
+
+/**
+ * Quando o total muda num orçamento que já tem valor recebido, o financeiro
+ * precisa ser refeito (parcial ou recebido). Devolve null se nada muda.
+ */
+export const statusFinanceiroPorValores = (
+  orcamento: Pick<Orcamento, 'valor_recebido' | 'status_financeiro'>,
+  total: number,
+): StatusFinanceiro | null => {
+  const recebido = orcamento.valor_recebido || 0
+  if (recebido <= 0) return null
+  const novo: StatusFinanceiro = total > 0 && recebido >= total ? 'recebido' : 'parcial'
+  return novo === orcamento.status_financeiro ? null : novo
+}
+
+/**
+ * Pagamento em atraso: marcado à mão como "em atraso" ou negócio fechado,
+ * ainda não quitado, com a previsão de recebimento já vencida.
+ */
+export const estaEmAtraso = (o: Orcamento): boolean => {
+  if (o.status_financeiro === 'em_atraso') return true
+  if (!STATUS_GANHOS.includes(o.status)) return false
+  if (o.status_financeiro === 'recebido' || o.status_financeiro === 'cancelado') return false
+  if (!o.data_prevista_recebimento) return false
+  const pendente = (o.valor_total || 0) - (o.valor_recebido || 0)
+  return pendente > 0 && o.data_prevista_recebimento.slice(0, 10) < hojeISO()
+}
+
 /** Indicadores da carteira, calculados no cliente sobre a lista já filtrada. */
 export interface IndicadoresOrcamento {
   quantidade: number
@@ -262,7 +320,8 @@ export const calcularIndicadores = (orcamentos: Orcamento[]): IndicadoresOrcamen
     valorAprovado,
     valorRecebido,
     valorAReceber: Math.max(valorAprovado - valorRecebido, 0),
-    enviados: contarStatus('enviado'),
+    // Enviados: toda proposta que saiu do rascunho, mesmo que já tenha avançado.
+    enviados: orcamentos.filter((o) => o.status !== 'rascunho').length,
     emNegociacao: contarStatus('em_negociacao'),
     aguardandoRetorno: contarStatus('aguardando_retorno'),
     aprovados: ganhos.length,
@@ -270,7 +329,7 @@ export const calcularIndicadores = (orcamentos: Orcamento[]): IndicadoresOrcamen
     ticketMedio: orcamentos.length ? valorOrcado / orcamentos.length : 0,
     // Conversão por valor: quanto do que foi orçado virou negócio fechado.
     taxaConversao: valorOrcado ? (valorAprovado / valorOrcado) * 100 : 0,
-    emAtraso: orcamentos.filter((o) => o.status_financeiro === 'em_atraso').length,
+    emAtraso: orcamentos.filter(estaEmAtraso).length,
     vencendoEm7Dias,
   }
 }

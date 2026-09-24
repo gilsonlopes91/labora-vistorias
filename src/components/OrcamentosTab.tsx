@@ -26,13 +26,14 @@ import { criarRecebimento } from '@/services/recebimentos'
 import { gerarPdfProposta } from '@/lib/propostaPdf'
 import {
   calcularIndicadores,
+  camposAoMudarStatus,
+  estaEmAtraso,
   criarVersaoOrcamento,
   deleteOrcamento,
   getOrcamentos,
   updateOrcamento,
   STATUS_FINANCEIRO_LABEL,
   STATUS_FINANCEIRO_ORDEM,
-  STATUS_GANHOS,
   STATUS_LABEL,
   STATUS_ORDEM,
   type Orcamento,
@@ -111,6 +112,7 @@ export function OrcamentosTab({
   const [paraReceber, setParaReceber] = useState<Orcamento | null>(null)
   const [valorRecebimento, setValorRecebimento] = useState('')
   const [formaRecebimento, setFormaRecebimento] = useState('PIX')
+  const [dataRecebimento, setDataRecebimento] = useState('')
   const [gerandoPdf, setGerandoPdf] = useState('')
 
   const carregar = () =>
@@ -157,13 +159,7 @@ export function OrcamentosTab({
 
   const trocarStatus = async (orcamento: Orcamento, status: StatusOrcamento) => {
     try {
-      const extras: Record<string, unknown> = { status }
-      if (status === 'enviado' && !orcamento.data_envio) {
-        extras.data_envio = new Date().toISOString().slice(0, 10)
-      }
-      if (STATUS_GANHOS.includes(status) && !orcamento.data_aprovacao) {
-        extras.data_aprovacao = new Date().toISOString().slice(0, 10)
-      }
+      const extras: Partial<Orcamento> = { status, ...camposAoMudarStatus(orcamento, status) }
       await updateOrcamento(orcamento.id, extras)
       atualizarLocal(orcamento.id, extras as Partial<Orcamento>)
     } catch (error) {
@@ -248,7 +244,7 @@ export function OrcamentosTab({
       await criarRecebimento({
         orcamento_id: paraReceber.id,
         valor,
-        data_recebimento: new Date().toISOString().slice(0, 10),
+        data_recebimento: dataRecebimento || new Date().toISOString().slice(0, 10),
         forma_pagamento: formaRecebimento,
         situacao: 'recebido',
         descricao: 'Recebimento lançado pela listagem',
@@ -412,8 +408,10 @@ export function OrcamentosTab({
                     <div className="text-[11px] tabular-nums text-muted-foreground">
                       recebido {brl.format(recebido)}
                     </div>
-                    <div className="text-[11px] tabular-nums text-amber-700">
-                      pendente {brl.format(pendente)}
+                    <div
+                      className={`text-[11px] tabular-nums ${estaEmAtraso(orcamento) ? 'font-semibold text-rose-700' : 'text-amber-700'}`}
+                    >
+                      {estaEmAtraso(orcamento) ? 'em atraso' : 'pendente'} {brl.format(pendente)}
                     </div>
                   </div>
 
@@ -473,6 +471,7 @@ export function OrcamentosTab({
                       onClick={() => {
                         setParaReceber(orcamento)
                         setValorRecebimento(String(pendente || ''))
+                        setDataRecebimento(new Date().toISOString().slice(0, 10))
                       }}
                     >
                       <Wallet className="h-4 w-4" />
@@ -553,14 +552,26 @@ export function OrcamentosTab({
                 className="mt-1.5"
               />
             </div>
-            <div>
-              <Label htmlFor="formarec">Forma de pagamento</Label>
-              <Input
-                id="formarec"
-                value={formaRecebimento}
-                onChange={(e) => setFormaRecebimento(e.target.value)}
-                className="mt-1.5"
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="datarec">Data</Label>
+                <Input
+                  id="datarec"
+                  type="date"
+                  value={dataRecebimento}
+                  onChange={(e) => setDataRecebimento(e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label htmlFor="formarec">Forma</Label>
+                <Input
+                  id="formarec"
+                  value={formaRecebimento}
+                  onChange={(e) => setFormaRecebimento(e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

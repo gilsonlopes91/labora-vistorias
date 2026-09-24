@@ -6,10 +6,11 @@
 // contam como a receber; cancelado não conta.
 //
 // Status financeiro derivado:
-//   nada recebido e orçamento não aprovado → nao_faturado
-//   nada recebido e orçamento aprovado     → aguardando_pagamento
-//   recebido menor que o total             → parcial
-//   recebido cobre o total                 → recebido
+//   nada recebido e negócio não fechado → nao_faturado
+//   nada recebido e negócio fechado (aprovado, em execução ou concluído)
+//                                       → aguardando_pagamento
+//   recebido menor que o total          → parcial
+//   recebido cobre o total              → recebido
 // Marcação manual de "em_atraso" ou "cancelado" é preservada enquanto nada
 // tiver sido recebido.
 //
@@ -35,10 +36,11 @@ onRecordAfterCreateSuccess((e) => {
       recebido = Math.round(recebido * 100) / 100
       const total = orcamento.getFloat('valor_total') || 0
       const statusAtual = orcamento.getString('status_financeiro')
+      const ganho =
+        ['aprovado', 'em_execucao', 'concluido'].indexOf(orcamento.getString('status')) >= 0
       let novoStatus
       if (recebido <= 0) {
-        novoStatus =
-          orcamento.getString('status') === 'aprovado' ? 'aguardando_pagamento' : 'nao_faturado'
+        novoStatus = ganho ? 'aguardando_pagamento' : 'nao_faturado'
         if (statusAtual === 'em_atraso' || statusAtual === 'cancelado') novoStatus = statusAtual
       } else if (total > 0 && recebido >= total) {
         novoStatus = 'recebido'
@@ -74,10 +76,11 @@ onRecordAfterUpdateSuccess((e) => {
       recebido = Math.round(recebido * 100) / 100
       const total = orcamento.getFloat('valor_total') || 0
       const statusAtual = orcamento.getString('status_financeiro')
+      const ganho =
+        ['aprovado', 'em_execucao', 'concluido'].indexOf(orcamento.getString('status')) >= 0
       let novoStatus
       if (recebido <= 0) {
-        novoStatus =
-          orcamento.getString('status') === 'aprovado' ? 'aguardando_pagamento' : 'nao_faturado'
+        novoStatus = ganho ? 'aguardando_pagamento' : 'nao_faturado'
         if (statusAtual === 'em_atraso' || statusAtual === 'cancelado') novoStatus = statusAtual
       } else if (total > 0 && recebido >= total) {
         novoStatus = 'recebido'
@@ -113,10 +116,11 @@ onRecordAfterDeleteSuccess((e) => {
       recebido = Math.round(recebido * 100) / 100
       const total = orcamento.getFloat('valor_total') || 0
       const statusAtual = orcamento.getString('status_financeiro')
+      const ganho =
+        ['aprovado', 'em_execucao', 'concluido'].indexOf(orcamento.getString('status')) >= 0
       let novoStatus
       if (recebido <= 0) {
-        novoStatus =
-          orcamento.getString('status') === 'aprovado' ? 'aguardando_pagamento' : 'nao_faturado'
+        novoStatus = ganho ? 'aguardando_pagamento' : 'nao_faturado'
         if (statusAtual === 'em_atraso' || statusAtual === 'cancelado') novoStatus = statusAtual
       } else if (total > 0 && recebido >= total) {
         novoStatus = 'recebido'

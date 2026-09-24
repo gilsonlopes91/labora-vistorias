@@ -1,17 +1,26 @@
-/* Criação e edição de orçamento. Dois formatos de proposta no mesmo diálogo:
-   "Serviço" (descrição, quantidade, unidade, valor unitário) e "Treinamento"
-   (carga horária, nº de pessoas, turmas, valor unitário). O valor total é
-   sempre a soma dos itens, nunca digitado à mão.
+/* Criação e edição de orçamento, em formato enxuto.
+   Na frente fica só o que toda proposta precisa: cliente, título, itens,
+   prazos, pagamento e responsável técnico. O resto (escopo e normas,
+   situação e acompanhamento, modelo do PDF) fica em seções recolhidas.
 
-   As normas de referência vêm do catálogo em múltipla escolha, com campo para
-   cadastrar uma nova sem sair da tela. */
+   Tudo o que alimenta os indicadores do painel está aqui:
+   - valor total (soma dos itens) → orçado, aprovado, ticket médio, conversão;
+   - status e data de envio/aprovação → contagens por status;
+   - data da proposta + validade → "vencendo em 7 dias";
+   - previsão de recebimento → "pagamento em atraso" automático. */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Search, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { cn } from '@/lib/utils'
 import { getEmpresas, type Empresa } from '@/services/empresas'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
+import {
+  getResponsaveisTecnicos,
+  formatarRegistroRT,
+  type ResponsavelTecnico,
+} from '@/services/responsaveisTecnicos'
 import {
   criarNormaReferencia,
   getNormasReferencia,
@@ -19,7 +28,9 @@ import {
 } from '@/services/normasReferencia'
 import { getModelosProposta, LAYOUT_LABEL, type ModeloProposta } from '@/services/modelosProposta'
 import {
+  camposAoMudarStatus,
   createOrcamento,
+  statusFinanceiroPorValores,
   updateOrcamento,
   subtotalItem,
   totalItens,
@@ -29,6 +40,7 @@ import {
   type ItemServico,
   type ItemTreinamento,
   type Orcamento,
+  type OrcamentoInput,
   type StatusOrcamento,
   type TipoOrcamento,
 } from '@/services/orcamentos'
@@ -38,7 +50,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
   DialogContent,
@@ -79,26 +90,38 @@ const linhasParaLista = (texto: string): string[] =>
 
 const listaParaLinhas = (lista?: string[]): string => (lista || []).join('\n')
 
-function Bloco({
-  numero,
+const RT_OUTRO = '__outro__'
+
+/** Seção recolhível com um resumo do que já foi preenchido. */
+function Recolhivel({
   titulo,
+  resumo,
   children,
+  inicialAberto = false,
 }: {
-  numero: number
   titulo: string
+  resumo?: string
   children: React.ReactNode
+  inicialAberto?: boolean
 }) {
+  const [aberto, setAberto] = useState(inicialAberto)
   return (
-    <div>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
-          {numero}
+    <div className="rounded-xl border">
+      <button
+        type="button"
+        onClick={() => setAberto((a) => !a)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-accent/30"
+        aria-expanded={aberto}
+      >
+        <span className="text-sm font-semibold">{titulo}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          {resumo && <span className="truncate text-xs text-muted-foreground">{resumo}</span>}
+          <ChevronDown
+            className={cn('h-4 w-4 shrink-0 transition-transform', aberto && 'rotate-180')}
+          />
         </span>
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {titulo}
-        </span>
-      </div>
-      {children}
+      </button>
+      {aberto && <div className="space-y-4 border-t px-3 pb-3 pt-3">{children}</div>}
     </div>
   )
 }
@@ -119,6 +142,7 @@ export function OrcamentoDialog({
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [modelos, setModelos] = useState<ModeloProposta[]>([])
   const [normas, setNormas] = useState<NormaReferencia[]>([])
+  const [rts, setRts] = useState<ResponsavelTecnico[]>([])
   const [salvando, setSalvando] = useState(false)
 
   const [empresaId, setEmpresaId] = useState('')
@@ -131,21 +155,21 @@ export function OrcamentoDialog({
   const [validadeDias, setValidadeDias] = useState('30')
   const [itens, setItens] = useState<ItemOrcamento[]>([itemServicoVazio()])
   const [valorEntrada, setValorEntrada] = useState('')
-  const [condicaoPagamento, setCondicaoPagamento] = useState('')
-  const [formaPagamento, setFormaPagamento] = useState('')
+  const [pagamento, setPagamento] = useState('')
   const [prazoEntrega, setPrazoEntrega] = useState('')
+  const [previsaoRecebimento, setPrevisaoRecebimento] = useState('')
   const [normasSelecionadas, setNormasSelecionadas] = useState<string[]>([])
   const [buscaNorma, setBuscaNorma] = useState('')
   const [novaNorma, setNovaNorma] = useState('')
   const [inclusos, setInclusos] = useState('')
   const [exclusos, setExclusos] = useState('')
+  const [rtEscolhido, setRtEscolhido] = useState('')
   const [engenheiro, setEngenheiro] = useState('')
   const [crea, setCrea] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [proximoContato, setProximoContato] = useState('')
   const [proximaAcao, setProximaAcao] = useState('')
-  const [responsavelFollowup, setResponsavelFollowup] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -158,6 +182,10 @@ export function OrcamentoDialog({
     getNormasReferencia()
       .then(setNormas)
       .catch(() => setNormas([]))
+    getMinhaOrganizacao()
+      .then((org) => getResponsaveisTecnicos(org.id))
+      .then(setRts)
+      .catch(() => setRts([]))
   }, [open])
 
   useEffect(() => {
@@ -177,19 +205,25 @@ export function OrcamentoDialog({
           : [orcamento.tipo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio()],
       )
       setValorEntrada(orcamento.valor_entrada ? String(orcamento.valor_entrada) : '')
-      setCondicaoPagamento(orcamento.condicao_pagamento || '')
-      setFormaPagamento(orcamento.forma_pagamento || '')
+      // Condição e forma de pagamento viraram um campo só.
+      setPagamento(
+        [orcamento.condicao_pagamento, orcamento.forma_pagamento]
+          .map((s) => (s || '').trim())
+          .filter(Boolean)
+          .join(' · '),
+      )
       setPrazoEntrega(orcamento.prazo_entrega || '')
+      setPrevisaoRecebimento((orcamento.data_prevista_recebimento || '').slice(0, 10))
       setNormasSelecionadas(orcamento.normas_referencia || [])
       setInclusos(listaParaLinhas(orcamento.itens_inclusos))
       setExclusos(listaParaLinhas(orcamento.itens_exclusos))
       setEngenheiro(orcamento.responsavel_engenheiro || '')
       setCrea(orcamento.crea || '')
+      setRtEscolhido('')
       setObservacoes(orcamento.observacoes || '')
       setMotivoRecusa(orcamento.motivo_recusa || '')
       setProximoContato((orcamento.proximo_contato || '').slice(0, 10))
       setProximaAcao(orcamento.proxima_acao || '')
-      setResponsavelFollowup(orcamento.responsavel_followup || '')
     } else {
       setEmpresaId('')
       setModeloId('')
@@ -201,23 +235,50 @@ export function OrcamentoDialog({
       setValidadeDias('30')
       setItens([itemServicoVazio()])
       setValorEntrada('')
-      setCondicaoPagamento('')
-      setFormaPagamento('')
+      setPagamento('')
       setPrazoEntrega('')
+      setPrevisaoRecebimento('')
       setNormasSelecionadas([])
       setInclusos('')
       setExclusos('')
       setEngenheiro('')
       setCrea('')
+      setRtEscolhido('')
       setObservacoes('')
       setMotivoRecusa('')
       setProximoContato('')
       setProximaAcao('')
-      setResponsavelFollowup('')
     }
     setBuscaNorma('')
     setNovaNorma('')
   }, [open, orcamento])
+
+  // Responsável técnico: casa o texto salvo com um cadastrado; orçamento novo
+  // já vem com o responsável padrão da organização.
+  useEffect(() => {
+    if (!open || rtEscolhido) return
+    if (editando) {
+      if (!engenheiro) return
+      const achado = rts.find((r) => r.nome === engenheiro && formatarRegistroRT(r) === crea)
+      setRtEscolhido(achado ? achado.id : RT_OUTRO)
+      return
+    }
+    if (!rts.length) return
+    const padrao = rts.find((r) => r.padrao) || rts[0]
+    setRtEscolhido(padrao.id)
+    setEngenheiro(padrao.nome)
+    setCrea(formatarRegistroRT(padrao))
+  }, [open, editando, rts, rtEscolhido, engenheiro, crea])
+
+  const escolherRt = (id: string) => {
+    setRtEscolhido(id)
+    if (id === RT_OUTRO) return
+    const rt = rts.find((r) => r.id === id)
+    if (rt) {
+      setEngenheiro(rt.nome)
+      setCrea(formatarRegistroRT(rt))
+    }
+  }
 
   // Orçamento novo já nasce com o modelo marcado como padrão.
   useEffect(() => {
@@ -226,9 +287,7 @@ export function OrcamentoDialog({
     if (padrao) setModeloId(padrao.id)
   }, [open, editando, modeloId, modelos])
 
-  // O escopo padrão do modelo entra preenchido no orçamento novo. Só completa o
-  // que está em branco, para não apagar o que já foi digitado nem sobrescrever
-  // o escopo de um orçamento em edição.
+  // O escopo padrão do modelo entra preenchido no orçamento novo, só onde está em branco.
   useEffect(() => {
     if (!open || editando || !modeloId) return
     const modelo = modelos.find((m) => m.id === modeloId)
@@ -238,6 +297,7 @@ export function OrcamentoDialog({
   }, [open, editando, modeloId, modelos])
 
   const trocarTipo = (novo: TipoOrcamento) => {
+    if (novo === tipo) return
     setTipo(novo)
     setItens([novo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio()])
   }
@@ -292,10 +352,16 @@ export function OrcamentoDialog({
       toast.error('Informe o título da proposta')
       return
     }
+    if (total <= 0) {
+      toast.error('Informe ao menos um item com valor', {
+        description: 'O valor total entra nos indicadores do painel.',
+      })
+      return
+    }
 
     setSalvando(true)
     try {
-      const dados = {
+      const dados: Record<string, unknown> = {
         empresa_id: empresaId,
         modelo_proposta_id: modeloId || undefined,
         tipo,
@@ -307,31 +373,51 @@ export function OrcamentoDialog({
         status,
         data_proposta: dataProposta || undefined,
         validade_dias: validadeDias ? Number(validadeDias) : undefined,
-        condicao_pagamento: condicaoPagamento,
-        forma_pagamento: formaPagamento,
+        condicao_pagamento: pagamento.trim(),
+        forma_pagamento: '',
         prazo_entrega: prazoEntrega,
+        data_prevista_recebimento: previsaoRecebimento || '',
         normas_referencia: normasSelecionadas,
         itens_inclusos: linhasParaLista(inclusos),
         itens_exclusos: linhasParaLista(exclusos),
-        responsavel_engenheiro: engenheiro,
-        crea,
+        responsavel_engenheiro: engenheiro.trim(),
+        crea: crea.trim(),
         observacoes,
         motivo_recusa: motivoRecusa,
-        proximo_contato: proximoContato || undefined,
+        proximo_contato: proximoContato || '',
         proxima_acao: proximaAcao,
-        responsavel_followup: responsavelFollowup,
       }
 
       if (orcamento) {
-        await updateOrcamento(orcamento.id, dados)
+        // Datas de envio/aprovação e financeiro acompanham a troca de status,
+        // igual à troca rápida na lista.
+        if (status !== orcamento.status) {
+          Object.assign(dados, camposAoMudarStatus(orcamento, status))
+        }
+        // Total mudou com valores já recebidos: recalcula o financeiro.
+        const financeiro = statusFinanceiroPorValores(
+          {
+            valor_recebido: orcamento.valor_recebido,
+            status_financeiro:
+              (dados.status_financeiro as Orcamento['status_financeiro']) ??
+              orcamento.status_financeiro,
+          },
+          total,
+        )
+        if (financeiro) dados.status_financeiro = financeiro
+        await updateOrcamento(orcamento.id, dados as Partial<OrcamentoInput>)
         toast.success('Orçamento atualizado')
       } else {
         const org = await getMinhaOrganizacao()
         await createOrcamento({
           ...dados,
+          ...camposAoMudarStatus({ status: 'rascunho' }, status),
           organizacao_id: org.id,
-          status_financeiro: 'nao_faturado',
-        })
+          empresa_id: empresaId,
+          titulo: titulo.trim(),
+          tipo,
+          status,
+        } as OrcamentoInput)
         toast.success('Orçamento criado')
       }
       onSalvo()
@@ -343,143 +429,310 @@ export function OrcamentoDialog({
     }
   }
 
+  const resumoEscopo =
+    [
+      normasSelecionadas.length ? `${normasSelecionadas.length} norma(s)` : '',
+      linhasParaLista(inclusos).length ? `${linhasParaLista(inclusos).length} incluso(s)` : '',
+      linhasParaLista(exclusos).length ? `${linhasParaLista(exclusos).length} não incluso(s)` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'nada preenchido'
+
+  const resumoSituacao = [
+    STATUS_LABEL[status],
+    proximoContato
+      ? `retomar em ${new Date(proximoContato + 'T12:00').toLocaleDateString('pt-BR')}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  const modeloAtual = modelos.find((m) => m.id === modeloId)
+  const resumoModelo = [
+    modeloAtual ? modeloAtual.nome : '',
+    valorEntrada && Number(valorEntrada) > 0 ? `entrada ${brl.format(Number(valorEntrada))}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editando ? `Orçamento ${orcamento?.numero || ''}` : 'Novo orçamento'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <Bloco numero={1} titulo="Cliente e formato">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Empresa</Label>
-                <Select value={empresaId} onValueChange={setEmpresaId}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Escolha a empresa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {empresas.map((empresa) => (
-                      <SelectItem key={empresa.id} value={empresa.id}>
-                        {empresa.nome_fantasia || empresa.razao_social}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Tipo de proposta</Label>
-                <Select value={tipo} onValueChange={(v) => trocarTipo(v as TipoOrcamento)}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="servico">Serviço</SelectItem>
-                    <SelectItem value="treinamento">Treinamento</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Modelo do PDF</Label>
-                <Select value={modeloId} onValueChange={setModeloId}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Escolha o modelo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelos.map((modelo) => (
-                      <SelectItem key={modelo.id} value={modelo.id}>
-                        {modelo.nome} ({LAYOUT_LABEL[modelo.layout]})
-                        {modelo.padrao ? ' · padrão' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <div className="space-y-5">
+          {/* Cliente e objeto */}
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div>
+              <Label>Empresa *</Label>
+              <Select value={empresaId} onValueChange={setEmpresaId}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Escolha a empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {empresas.map((empresa) => (
+                    <SelectItem key={empresa.id} value={empresa.id}>
+                      {empresa.nome_fantasia || empresa.razao_social}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo</Label>
+              <div className="mt-1.5 flex h-10 rounded-md border p-0.5" role="group">
+                {(['servico', 'treinamento'] as TipoOrcamento[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => trocarTipo(t)}
+                    className={cn(
+                      'rounded px-3 text-sm',
+                      tipo === t ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/40',
+                    )}
+                    aria-pressed={tipo === t}
+                  >
+                    {t === 'servico' ? 'Serviço' : 'Treinamento'}
+                  </button>
+                ))}
               </div>
             </div>
-          </Bloco>
+          </div>
 
-          <Bloco numero={2} titulo="Objeto da proposta">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="titulo">Título</Label>
-                <Input
-                  id="titulo"
-                  value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
-                  placeholder="Ex.: Elaboração de PGR e PCMSO"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="descricao">Descrição do serviço</Label>
-                <Textarea
-                  id="descricao"
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  rows={3}
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <Label>Status</Label>
-                  <Select value={status} onValueChange={(v) => setStatus(v as StatusOrcamento)}>
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_ORDEM.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {STATUS_LABEL[s]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          <div>
+            <Label htmlFor="titulo">Título *</Label>
+            <Input
+              id="titulo"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder={
+                tipo === 'treinamento'
+                  ? 'Ex.: Treinamento NR-35 para a equipe de manutenção'
+                  : 'Ex.: Elaboração de PGR e PCMSO'
+              }
+              className="mt-1.5"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="descricao">Descrição (opcional)</Label>
+            <Textarea
+              id="descricao"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              rows={2}
+              className="mt-1.5"
+            />
+          </div>
+
+          {/* Itens */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <Label>{tipo === 'treinamento' ? 'Turmas e valores *' : 'Itens e valores *'}</Label>
+              <Button type="button" variant="outline" size="sm" onClick={adicionarItem}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Item
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {itens.map((item, indice) => (
+                <div key={indice} className="rounded-xl border p-2.5">
+                  {tipo === 'treinamento' ? (
+                    <div className="grid grid-cols-6 gap-2 sm:grid-cols-12">
+                      <Input
+                        className="col-span-6 sm:col-span-4"
+                        placeholder="Treinamento (ex.: NR-35)"
+                        value={(item as ItemTreinamento).nome}
+                        onChange={(e) => atualizarItem(indice, 'nome', e.target.value)}
+                      />
+                      <Input
+                        className="col-span-2 sm:col-span-2"
+                        placeholder="Carga h."
+                        value={(item as ItemTreinamento).carga_horaria}
+                        onChange={(e) => atualizarItem(indice, 'carga_horaria', e.target.value)}
+                      />
+                      <Input
+                        className="col-span-2 sm:col-span-2"
+                        type="number"
+                        min="0"
+                        placeholder="Pessoas"
+                        title="Pessoas"
+                        value={(item as ItemTreinamento).pessoas}
+                        onChange={(e) => atualizarItem(indice, 'pessoas', Number(e.target.value))}
+                      />
+                      <Input
+                        className="col-span-2 sm:col-span-1"
+                        type="number"
+                        min="0"
+                        placeholder="Turmas"
+                        title="Turmas"
+                        value={(item as ItemTreinamento).turmas}
+                        onChange={(e) => atualizarItem(indice, 'turmas', Number(e.target.value))}
+                      />
+                      <Input
+                        className="col-span-5 sm:col-span-2"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="R$ por pessoa"
+                        title="Valor por pessoa"
+                        value={item.valor_unitario || ''}
+                        onChange={(e) =>
+                          atualizarItem(indice, 'valor_unitario', Number(e.target.value))
+                        }
+                      />
+                      <div className="col-span-1 flex items-center justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="Remover item"
+                          onClick={() => removerItem(indice)}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-6 gap-2 sm:grid-cols-12">
+                      <Input
+                        className="col-span-6 sm:col-span-6"
+                        placeholder="Descrição do serviço"
+                        value={(item as ItemServico).descricao}
+                        onChange={(e) => atualizarItem(indice, 'descricao', e.target.value)}
+                      />
+                      <Input
+                        className="col-span-2 sm:col-span-2"
+                        type="number"
+                        min="0"
+                        placeholder="Qtd."
+                        title="Quantidade"
+                        value={(item as ItemServico).quantidade}
+                        onChange={(e) =>
+                          atualizarItem(indice, 'quantidade', Number(e.target.value))
+                        }
+                      />
+                      <Input
+                        className="col-span-3 sm:col-span-3"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Valor unit."
+                        title="Valor unitário"
+                        value={item.valor_unitario || ''}
+                        onChange={(e) =>
+                          atualizarItem(indice, 'valor_unitario', Number(e.target.value))
+                        }
+                      />
+                      <div className="col-span-1 flex items-center justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="Remover item"
+                          onClick={() => removerItem(indice)}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {itens.length > 1 && (
+                    <div className="mt-1 text-right text-xs text-muted-foreground">
+                      Subtotal {brl.format(subtotalItem(item))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Label htmlFor="data">Data da proposta</Label>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-muted/50 px-4 py-2.5">
+              <span className="text-sm font-medium">Valor total</span>
+              <span className="text-lg font-bold tabular-nums">{brl.format(total)}</span>
+            </div>
+          </div>
+
+          {/* Condições */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="validade">Validade (dias)</Label>
+              <Input
+                id="validade"
+                type="number"
+                min="0"
+                value={validadeDias}
+                onChange={(e) => setValidadeDias(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="prazo">Prazo de entrega</Label>
+              <Input
+                id="prazo"
+                value={prazoEntrega}
+                onChange={(e) => setPrazoEntrega(e.target.value)}
+                placeholder="Ex.: 30 dias"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="previsao">Previsão de recebimento</Label>
+              <Input
+                id="previsao"
+                type="date"
+                value={previsaoRecebimento}
+                onChange={(e) => setPrevisaoRecebimento(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="sm:col-span-3">
+              <Label htmlFor="pagamento">Pagamento</Label>
+              <Input
+                id="pagamento"
+                value={pagamento}
+                onChange={(e) => setPagamento(e.target.value)}
+                placeholder="Ex.: 50% na assinatura e 50% na entrega, por PIX ou boleto"
+                className="mt-1.5"
+              />
+            </div>
+            <div className="sm:col-span-3">
+              <Label>Responsável técnico</Label>
+              <Select value={rtEscolhido} onValueChange={escolherRt}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Escolha o responsável técnico" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rts.map((rt) => (
+                    <SelectItem key={rt.id} value={rt.id}>
+                      {rt.nome} · {formatarRegistroRT(rt)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={RT_OUTRO}>Outro (digitar)</SelectItem>
+                </SelectContent>
+              </Select>
+              {rtEscolhido === RT_OUTRO && (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <Input
-                    id="data"
-                    type="date"
-                    value={dataProposta}
-                    onChange={(e) => setDataProposta(e.target.value)}
-                    className="mt-1.5"
+                    value={engenheiro}
+                    onChange={(e) => setEngenheiro(e.target.value)}
+                    placeholder="Nome"
                   />
-                </div>
-                <div>
-                  <Label htmlFor="validade">Validade (dias)</Label>
                   <Input
-                    id="validade"
-                    type="number"
-                    min="0"
-                    value={validadeDias}
-                    onChange={(e) => setValidadeDias(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-              </div>
-              {(status === 'recusado' || status === 'cancelado') && (
-                <div>
-                  <Label htmlFor="motivo">
-                    Motivo {status === 'recusado' ? 'da recusa' : 'do cancelamento'}
-                  </Label>
-                  <Textarea
-                    id="motivo"
-                    value={motivoRecusa}
-                    onChange={(e) => setMotivoRecusa(e.target.value)}
-                    rows={2}
-                    className="mt-1.5"
+                    value={crea}
+                    onChange={(e) => setCrea(e.target.value)}
+                    placeholder="Registro (ex.: CREA-PI nº 12345)"
                   />
                 </div>
               )}
             </div>
-          </Bloco>
+          </div>
 
-          <Bloco numero={3} titulo="Normas de referência e escopo">
-            <div className="space-y-4">
+          {/* Seções recolhidas */}
+          <div className="space-y-2">
+            <Recolhivel titulo="Escopo e normas" resumo={resumoEscopo}>
               <div className="rounded-xl border p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <Label className="text-sm">Normas e leis de referência</Label>
@@ -496,7 +749,7 @@ export function OrcamentoDialog({
                     className="h-9 pl-9 text-sm"
                   />
                 </div>
-                <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
+                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                   {normasFiltradas.map((norma) => (
                     <label
                       key={norma.id}
@@ -529,285 +782,151 @@ export function OrcamentoDialog({
                     placeholder="Adicionar outra norma ao catálogo..."
                     className="h-9 text-sm"
                   />
-                  <Button type="button" variant="outline" size="sm" onClick={cadastrarNorma}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={cadastrarNorma}
+                    title="Adicionar norma"
+                  >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="inclusos">Itens inclusos na proposta</Label>
+                  <Label htmlFor="inclusos">Incluso (um por linha)</Label>
                   <Textarea
                     id="inclusos"
                     value={inclusos}
                     onChange={(e) => setInclusos(e.target.value)}
-                    rows={5}
-                    placeholder={
-                      'Um por linha\nVisita técnica para levantamento em campo\nEmissão de ART'
-                    }
+                    rows={4}
                     className="mt-1.5"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="exclusos">Itens não inclusos</Label>
+                  <Label htmlFor="exclusos">Não incluso (um por linha)</Label>
                   <Textarea
                     id="exclusos"
                     value={exclusos}
                     onChange={(e) => setExclusos(e.target.value)}
-                    rows={5}
-                    placeholder={
-                      'Um por linha\nExames médicos ocupacionais\nAdequações estruturais'
-                    }
+                    rows={4}
                     className="mt-1.5"
                   />
                 </div>
               </div>
-            </div>
-          </Bloco>
+            </Recolhivel>
 
-          <Bloco
-            numero={4}
-            titulo={tipo === 'treinamento' ? 'Turmas e valores' : 'Itens e valores'}
-          >
-            <div>
-              <div className="mb-2 flex items-center justify-end">
-                <Button type="button" variant="outline" size="sm" onClick={adicionarItem}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Adicionar item
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                {itens.map((item, indice) => (
-                  <div key={indice} className="rounded-xl border p-3">
-                    {tipo === 'treinamento' ? (
-                      <div className="grid gap-2 sm:grid-cols-12">
-                        <Input
-                          className="sm:col-span-4"
-                          placeholder="Treinamento (ex.: NR-35)"
-                          value={(item as ItemTreinamento).nome}
-                          onChange={(e) => atualizarItem(indice, 'nome', e.target.value)}
-                        />
-                        <Input
-                          className="sm:col-span-2"
-                          placeholder="Carga h."
-                          value={(item as ItemTreinamento).carga_horaria}
-                          onChange={(e) => atualizarItem(indice, 'carga_horaria', e.target.value)}
-                        />
-                        <Input
-                          className="sm:col-span-2"
-                          type="number"
-                          min="0"
-                          placeholder="Pessoas"
-                          value={(item as ItemTreinamento).pessoas}
-                          onChange={(e) => atualizarItem(indice, 'pessoas', Number(e.target.value))}
-                        />
-                        <Input
-                          className="sm:col-span-1"
-                          type="number"
-                          min="0"
-                          placeholder="Turmas"
-                          value={(item as ItemTreinamento).turmas}
-                          onChange={(e) => atualizarItem(indice, 'turmas', Number(e.target.value))}
-                        />
-                        <Input
-                          className="sm:col-span-2"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Valor unit."
-                          value={item.valor_unitario}
-                          onChange={(e) =>
-                            atualizarItem(indice, 'valor_unitario', Number(e.target.value))
-                          }
-                        />
-                        <div className="flex items-center justify-end sm:col-span-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removerItem(indice)}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid gap-2 sm:grid-cols-12">
-                        <Input
-                          className="sm:col-span-6"
-                          placeholder="Descrição do serviço"
-                          value={(item as ItemServico).descricao}
-                          onChange={(e) => atualizarItem(indice, 'descricao', e.target.value)}
-                        />
-                        <Input
-                          className="sm:col-span-2"
-                          type="number"
-                          min="0"
-                          placeholder="Qtd."
-                          value={(item as ItemServico).quantidade}
-                          onChange={(e) =>
-                            atualizarItem(indice, 'quantidade', Number(e.target.value))
-                          }
-                        />
-                        <Input
-                          className="sm:col-span-1"
-                          placeholder="Un."
-                          value={(item as ItemServico).unidade}
-                          onChange={(e) => atualizarItem(indice, 'unidade', e.target.value)}
-                        />
-                        <Input
-                          className="sm:col-span-2"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Valor unit."
-                          value={item.valor_unitario}
-                          onChange={(e) =>
-                            atualizarItem(indice, 'valor_unitario', Number(e.target.value))
-                          }
-                        />
-                        <div className="flex items-center justify-end sm:col-span-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removerItem(indice)}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-1 text-right text-xs text-muted-foreground">
-                      Subtotal {brl.format(subtotalItem(item))}
-                    </div>
+            <Recolhivel
+              titulo="Situação e acompanhamento"
+              resumo={resumoSituacao}
+              inicialAberto={status === 'recusado' || status === 'cancelado'}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Status</Label>
+                  <Select value={status} onValueChange={(v) => setStatus(v as StatusOrcamento)}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_ORDEM.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {STATUS_LABEL[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="data">Data da proposta</Label>
+                  <Input
+                    id="data"
+                    type="date"
+                    value={dataProposta}
+                    onChange={(e) => setDataProposta(e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+                {(status === 'recusado' || status === 'cancelado') && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="motivo">
+                      Motivo {status === 'recusado' ? 'da recusa' : 'do cancelamento'}
+                    </Label>
+                    <Input
+                      id="motivo"
+                      value={motivoRecusa}
+                      onChange={(e) => setMotivoRecusa(e.target.value)}
+                      className="mt-1.5"
+                    />
                   </div>
-                ))}
+                )}
+                <div>
+                  <Label htmlFor="proxcontato">Próximo contato</Label>
+                  <Input
+                    id="proxcontato"
+                    type="date"
+                    value={proximoContato}
+                    onChange={(e) => setProximoContato(e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="proxacao">Próxima ação</Label>
+                  <Input
+                    id="proxacao"
+                    value={proximaAcao}
+                    onChange={(e) => setProximaAcao(e.target.value)}
+                    placeholder="Ex.: ligar para o RH"
+                    className="mt-1.5"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="obs">Observações internas (não saem no PDF)</Label>
+                  <Textarea
+                    id="obs"
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    rows={2}
+                    className="mt-1.5"
+                  />
+                </div>
               </div>
+            </Recolhivel>
 
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
-                <span className="text-sm font-medium">Valor total da proposta</span>
-                <span className="text-lg font-bold">{brl.format(total)}</span>
+            <Recolhivel titulo="Modelo do PDF e entrada" resumo={resumoModelo}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Modelo do PDF</Label>
+                  <Select value={modeloId} onValueChange={setModeloId}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Escolha o modelo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelos.map((modelo) => (
+                        <SelectItem key={modelo.id} value={modelo.id}>
+                          {modelo.nome} ({LAYOUT_LABEL[modelo.layout]})
+                          {modelo.padrao ? ' · padrão' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="entrada">Valor de entrada (opcional)</Label>
+                  <Input
+                    id="entrada"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={valorEntrada}
+                    onChange={(e) => setValorEntrada(e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
               </div>
-            </div>
-          </Bloco>
-
-          <Bloco numero={5} titulo="Condições comerciais">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="entrada">Valor de entrada</Label>
-                <Input
-                  id="entrada"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={valorEntrada}
-                  onChange={(e) => setValorEntrada(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="prazo">Prazo de entrega</Label>
-                <Input
-                  id="prazo"
-                  value={prazoEntrega}
-                  onChange={(e) => setPrazoEntrega(e.target.value)}
-                  placeholder="Ex.: 30 dias após a assinatura"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="condicao">Condição de pagamento</Label>
-                <Input
-                  id="condicao"
-                  value={condicaoPagamento}
-                  onChange={(e) => setCondicaoPagamento(e.target.value)}
-                  placeholder="Ex.: 50% na assinatura, 50% na entrega"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="forma">Forma de pagamento</Label>
-                <Input
-                  id="forma"
-                  value={formaPagamento}
-                  onChange={(e) => setFormaPagamento(e.target.value)}
-                  placeholder="Ex.: PIX ou boleto"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="engenheiro">Responsável técnico</Label>
-                <Input
-                  id="engenheiro"
-                  value={engenheiro}
-                  onChange={(e) => setEngenheiro(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="crea">Registro no conselho</Label>
-                <Input
-                  id="crea"
-                  value={crea}
-                  onChange={(e) => setCrea(e.target.value)}
-                  placeholder="Ex.: CREA-PI 12345/D"
-                  className="mt-1.5"
-                />
-              </div>
-            </div>
-          </Bloco>
-
-          <Separator />
-
-          <Bloco numero={6} titulo="Acompanhamento e notas internas">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="proxcontato">Próximo contato</Label>
-                <Input
-                  id="proxcontato"
-                  type="date"
-                  value={proximoContato}
-                  onChange={(e) => setProximoContato(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="proxacao">Próxima ação</Label>
-                <Input
-                  id="proxacao"
-                  value={proximaAcao}
-                  onChange={(e) => setProximaAcao(e.target.value)}
-                  placeholder="Ex.: ligar para o RH"
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="respfollow">Responsável</Label>
-                <Input
-                  id="respfollow"
-                  value={responsavelFollowup}
-                  onChange={(e) => setResponsavelFollowup(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="sm:col-span-3">
-                <Label htmlFor="obs">Observações internas</Label>
-                <Textarea
-                  id="obs"
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  rows={2}
-                  className="mt-1.5"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Este campo não sai na proposta enviada ao cliente.
-                </p>
-              </div>
-            </div>
-          </Bloco>
+            </Recolhivel>
+          </div>
         </div>
 
         <DialogFooter>
