@@ -1,5 +1,5 @@
 /* Main App Component - Handles routing (using react-router-dom), query client and other providers - use this file to add all routes */
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -26,7 +26,6 @@ import Formularios from './pages/Formularios'
 import BuilderFormulario from './pages/BuilderFormulario'
 import PreencherFormulario from './pages/PreencherFormulario'
 import Agenda from './pages/Agenda'
-import MultasPenalidades from './pages/MultasPenalidades'
 import Orcamentos from './pages/Orcamentos'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
@@ -154,14 +153,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/multas"
-              element={
-                <ProtectedRoute gestorOnly>
-                  <MultasPenalidades />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/multas" element={<Navigate to="/painel" replace />} />
             <Route
               path="/artigos"
               element={
