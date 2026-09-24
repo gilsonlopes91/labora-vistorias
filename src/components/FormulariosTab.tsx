@@ -16,7 +16,8 @@ import {
 } from '@/services/formularios'
 import { getFormularios, type Formulario } from '@/services/registrosFormulario'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
-import { getIconeFormulario, ICONES_FORMULARIO } from '@/lib/iconesFormulario'
+import { getIconeFormulario } from '@/lib/iconesFormulario'
+import SeletorIcone from '@/components/SeletorIcone'
 import {
   Select,
   SelectContent,
@@ -393,27 +394,9 @@ export function FormulariosTab() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Ícone identificador (32 opções)</Label>
-              <div className="grid grid-cols-8 gap-1.5 max-h-36 overflow-y-auto p-1 border rounded-xl bg-muted/20">
-                {ICONES_FORMULARIO.map((opcao) => {
-                  const Icone = opcao.icon
-                  const selecionado = novoIcone === opcao.id
-                  return (
-                    <button
-                      key={opcao.id}
-                      type="button"
-                      title={opcao.label}
-                      onClick={() => setNovoIcone(opcao.id)}
-                      className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
-                        selecionado
-                          ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                          : 'border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <Icone className="h-4 w-4" />
-                    </button>
-                  )
-                })}
+              <Label>Ícone identificador</Label>
+              <div className="rounded-xl border bg-muted/20 p-2">
+                <SeletorIcone value={novoIcone} onChange={setNovoIcone} variante="compacto" />
               </div>
             </div>
 

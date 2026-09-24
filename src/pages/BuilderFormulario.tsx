@@ -32,7 +32,7 @@ import {
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { createModeloFormulario, type CampoFormulario } from '@/services/formularios'
-import { ICONES_FORMULARIO } from '@/lib/iconesFormulario'
+import SeletorIcone from '@/components/SeletorIcone'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -682,27 +682,7 @@ export default function BuilderFormulario() {
             </div>
             <div className="space-y-1.5">
               <Label>Ícone no catálogo</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {ICONES_FORMULARIO.map((opcao) => {
-                  const Icone = opcao.icon
-                  return (
-                    <button
-                      key={opcao.id}
-                      type="button"
-                      title={opcao.label}
-                      aria-label={opcao.label}
-                      onClick={() => setIcone(opcao.id)}
-                      className={`flex h-10 items-center justify-center rounded-xl border transition-colors ${
-                        icone === opcao.id
-                          ? 'border-primary bg-accent text-accent-foreground'
-                          : 'hover:bg-muted'
-                      }`}
-                    >
-                      <Icone className="h-4 w-4" />
-                    </button>
-                  )
-                })}
-              </div>
+              <SeletorIcone value={icone} onChange={setIcone} />
             </div>
           </div>
         </Card>
