@@ -174,7 +174,7 @@ const App = () => (
             <Route
               path="/configuracoes"
               element={
-                <ProtectedRoute gestorOnly>
+                <ProtectedRoute>
                   <Configuracoes />
                 </ProtectedRoute>
               }
