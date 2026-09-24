@@ -24,6 +24,14 @@ export interface Vistoria extends RecordModel {
   responsavel_tecnico_nome?: string
   responsavel_tecnico_registro?: string
   nr31_base_legal?: 'lei_380' | 'portaria_392'
+  hora_inicio?: string
+  duracao_min?: number
+  local_vistoria?: string
+  contato_local_nome?: string
+  contato_local_telefone?: string
+  equipe_apoio?: string
+  equipamentos?: string
+  orientacoes_equipe?: string
   client_uuid: string
   created: string
   updated: string
@@ -51,6 +59,14 @@ export interface VistoriaInput {
   responsavel_tecnico_nome?: string
   responsavel_tecnico_registro?: string
   nr31_base_legal?: 'lei_380' | 'portaria_392'
+  hora_inicio?: string
+  duracao_min?: number
+  local_vistoria?: string
+  contato_local_nome?: string
+  contato_local_telefone?: string
+  equipe_apoio?: string
+  equipamentos?: string
+  orientacoes_equipe?: string
   client_uuid: string
 }
 

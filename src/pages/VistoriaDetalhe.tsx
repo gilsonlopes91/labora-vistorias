@@ -43,6 +43,7 @@ import {
 import { getModeloFormulario } from '@/services/formularios'
 import { getFormulariosByVistoria, type Formulario } from '@/services/registrosFormulario'
 import FormularioPreenchivel from '@/components/FormularioPreenchivel'
+import DetalhesAgendamento from '@/components/DetalhesAgendamento'
 import { getModulos, type Modulos } from '@/services/modulos'
 
 import { Button } from '@/components/ui/button'
@@ -717,6 +718,7 @@ export default function VistoriaDetalhe() {
               {vistoria.responsavel_tecnico_registro}
             </p>
           )}
+          <DetalhesAgendamento vistoria={vistoria} onSaved={(v) => setVistoria(v)} />
           {!!vistoria.expand?.checklists?.length && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">

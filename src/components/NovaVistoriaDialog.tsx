@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, X } from 'lucide-react'
+import { ChevronDown, Plus, Sparkles, X } from 'lucide-react'
 
 import { toPocketBaseDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -23,6 +23,7 @@ import { createVistoria } from '@/services/vistorias'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -49,13 +50,63 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 
+// Só empresa e data são obrigatórias. O resto é opcional e aparece no
+// evento do Google Agenda / Outlook / iPhone quando preenchido.
 const schema = z.object({
   empresa_id: z.string().min(1, 'Selecione a empresa'),
   data_agendada: z.string().min(1, 'Selecione a data'),
   responsavel_tecnico_id: z.string().optional(),
+  hora_inicio: z.string().optional(),
+  duracao_min: z.string().optional(),
+  local_vistoria: z.string().max(300).optional(),
+  contato_local_nome: z.string().max(120).optional(),
+  contato_local_telefone: z.string().max(40).optional(),
+  equipe_apoio: z.string().max(300).optional(),
+  equipamentos: z.string().max(500).optional(),
+  orientacoes_equipe: z.string().max(1000).optional(),
 })
 
 type FormValues = z.infer<typeof schema>
+
+const VALORES_INICIAIS = {
+  empresa_id: '',
+  data_agendada: '',
+  responsavel_tecnico_id: '',
+  hora_inicio: '',
+  duracao_min: '120',
+  local_vistoria: '',
+  contato_local_nome: '',
+  contato_local_telefone: '',
+  equipe_apoio: '',
+  equipamentos: '',
+  orientacoes_equipe: '',
+}
+
+const DURACOES = [
+  { v: '60', l: '1 hora' },
+  { v: '120', l: '2 horas' },
+  { v: '180', l: '3 horas' },
+  { v: '240', l: '4 horas (meio período)' },
+  { v: '480', l: '8 horas (dia todo)' },
+]
+
+// Instrumentos sugeridos a partir dos checklists e formulários escolhidos.
+const REGRAS_EQUIPAMENTOS: { teste: RegExp; itens: string[] }[] = [
+  {
+    teste: /ru[ií]do|NR-15.*Anexo (I|II)\b|dosimetr/i,
+    itens: ['Dosímetro de ruído', 'Calibrador acústico'],
+  },
+  { teste: /calor|IBUTG|t[ée]rmic/i, itens: ['Medidor de IBUTG'] },
+  { teste: /ilumin|lux/i, itens: ['Luxímetro'] },
+  { teste: /vibra/i, itens: ['Medidor de vibração'] },
+  {
+    teste: /qu[ií]mic|poeira|s[ií]lica|aerodispers|vapor|gases|amostragem|NR-15.*Anexo (11|12|13)/i,
+    itens: ['Bomba de amostragem', 'Calibrador de vazão', 'Cassetes/tubos de coleta'],
+  },
+  { teste: /NR-33|confinad/i, itens: ['Detector multigás'] },
+  { teste: /NR-10|el[ée]tric/i, itens: ['Detector de tensão', 'Luvas isolantes'] },
+  { teste: /NR-12|m[áa]quina/i, itens: ['Trena'] },
+]
 
 interface NovaVistoriaDialogProps {
   defaultDate?: string
@@ -76,25 +127,19 @@ export default function NovaVistoriaDialog({
   const [modelos, setModelos] = useState<ModeloFormulario[]>([])
   const [formulariosSel, setFormulariosSel] = useState<string[]>([])
   const [checklistsSel, setChecklistsSel] = useState<string[]>([])
+  const [detalhesAbertos, setDetalhesAbertos] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      empresa_id: '',
-      data_agendada: defaultDate || '',
-      responsavel_tecnico_id: '',
-    },
+    defaultValues: { ...VALORES_INICIAIS, data_agendada: defaultDate || '' },
   })
 
   useEffect(() => {
     if (!open) return
-    form.reset({
-      empresa_id: '',
-      data_agendada: defaultDate || '',
-      responsavel_tecnico_id: '',
-    })
+    form.reset({ ...VALORES_INICIAIS, data_agendada: defaultDate || '' })
     setFormulariosSel([])
     setChecklistsSel([])
+    setDetalhesAbertos(false)
     getEmpresas()
       .then(setEmpresas)
       .catch((error) =>
@@ -139,12 +184,52 @@ export default function NovaVistoriaDialog({
     setChecklistsSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
+  // Ao escolher a empresa, preenche local e contato com o cadastro dela
+  // (só se o usuário ainda não digitou nada nesses campos).
+  const empresaId = form.watch('empresa_id')
+  useEffect(() => {
+    const emp = empresas.find((x) => x.id === empresaId)
+    if (!emp) return
+    if (!form.getValues('local_vistoria') && emp.endereco)
+      form.setValue('local_vistoria', emp.endereco)
+    if (!form.getValues('contato_local_nome') && emp.contato_nome)
+      form.setValue('contato_local_nome', emp.contato_nome)
+    if (!form.getValues('contato_local_telefone') && emp.contato_telefone)
+      form.setValue('contato_local_telefone', emp.contato_telefone)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId, empresas])
+
+  const sugerirEquipamentos = () => {
+    const nomes = [
+      ...checklistsSel.map((id) => {
+        const t = tipos.find((x) => x.id === id)
+        return `${t?.nr_referencia || ''} ${t?.nome || ''}`
+      }),
+      ...formulariosSel.map((id) => modelos.find((m) => m.id === id)?.nome || ''),
+    ].join(' | ')
+    const lista: string[] = []
+    for (const r of REGRAS_EQUIPAMENTOS) {
+      if (r.teste.test(nomes)) for (const i of r.itens) if (!lista.includes(i)) lista.push(i)
+    }
+    lista.push('EPIs básicos (capacete, óculos, botina)')
+    const atual = (form.getValues('equipamentos') || '').trim()
+    const jaTem = atual
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+    const novos = lista.filter((i) => !jaTem.includes(i.toLowerCase()))
+    form.setValue('equipamentos', [atual, ...novos].filter(Boolean).join(', '))
+    if (!checklistsSel.length && !formulariosSel.length)
+      toast.info('Escolha checklists ou formulários para sugestões mais específicas.')
+  }
+
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true)
     try {
       const org = await getMinhaOrganizacao()
       const tipoVistoriaId = checklistsSel[0] || undefined
       const adicionais = checklistsSel.slice(1)
+      const t = (s?: string) => (s || '').trim()
 
       const vistoria = await createVistoria({
         organizacao_id: org.id,
@@ -155,6 +240,14 @@ export default function NovaVistoriaDialog({
         data_agendada: toPocketBaseDate(values.data_agendada),
         status: 'agendada',
         formularios: formulariosSel,
+        hora_inicio: t(values.hora_inicio),
+        duracao_min: values.hora_inicio ? Number(values.duracao_min || 120) : 0,
+        local_vistoria: t(values.local_vistoria),
+        contato_local_nome: t(values.contato_local_nome),
+        contato_local_telefone: t(values.contato_local_telefone),
+        equipe_apoio: t(values.equipe_apoio),
+        equipamentos: t(values.equipamentos),
+        orientacoes_equipe: t(values.orientacoes_equipe),
         client_uuid: crypto.randomUUID(),
       })
       toast.success('Vistoria agendada')
@@ -334,19 +427,65 @@ export default function NovaVistoriaDialog({
               </Select>
             </div>
 
-            <FormField
-              control={form.control}
-              name="data_agendada"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data agendada</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="data_agendada"
+                render={({ field }) => (
+                  <FormItem className="col-span-2 sm:col-span-1">
+                    <FormLabel>Data agendada</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="hora_inicio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horário (opcional)</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="duracao_min"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duração</FormLabel>
+                    <Select
+                      value={field.value || '120'}
+                      onValueChange={field.onChange}
+                      disabled={!form.watch('hora_inicio')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DURACOES.map((d) => (
+                          <SelectItem key={d.v} value={d.v}>
+                            {d.l}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+            {!form.watch('hora_inicio') && (
+              <p className="-mt-2 text-xs text-muted-foreground">
+                Sem horário, a vistoria aparece como evento de dia inteiro na agenda.
+              </p>
+            )}
             <FormField
               control={form.control}
               name="responsavel_tecnico_id"
@@ -377,6 +516,125 @@ export default function NovaVistoriaDialog({
                 </FormItem>
               )}
             />
+
+            {/* Detalhes para a equipe — tudo opcional, vai para o evento da agenda */}
+            <div className="rounded-md border">
+              <button
+                type="button"
+                onClick={() => setDetalhesAbertos((x) => !x)}
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium"
+                aria-expanded={detalhesAbertos}
+              >
+                <span>
+                  Detalhes para a equipe{' '}
+                  <span className="font-normal text-muted-foreground">
+                    (opcional · aparecem no Google Agenda)
+                  </span>
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${detalhesAbertos ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {detalhesAbertos && (
+                <div className="space-y-3 border-t px-3 pb-3 pt-3">
+                  <FormField
+                    control={form.control}
+                    name="local_vistoria"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Local da vistoria</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Endereço, unidade ou setor (ex.: Galpão 2)"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="contato_local_nome"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contato no local</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nome e setor" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="contato_local_telefone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone do contato</FormLabel>
+                          <FormControl>
+                            <Input type="tel" placeholder="(86) 9...." {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="equipe_apoio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Equipe de apoio</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Outros técnicos que vão junto" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="equipamentos"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Equipamentos a levar</FormLabel>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={sugerirEquipamentos}
+                          >
+                            <Sparkles className="mr-1 h-3 w-3" />
+                            Sugerir pelos checklists
+                          </Button>
+                        </div>
+                        <FormControl>
+                          <Input placeholder="Dosímetro, luxímetro, trena..." {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="orientacoes_equipe"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Orientações para a equipe</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            rows={2}
+                            placeholder="Ex.: entrar pela portaria 2, levar ASO e crachá"
+                            {...field}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button type="submit" disabled={submitting || empresas.length === 0}>
                 {submitting ? 'Agendando...' : 'Agendar vistoria'}

@@ -1,7 +1,7 @@
 /* Vincular a agenda do Labora a outros calendários (Google Agenda, Outlook,
    calendário do iPhone/Mac). Gera um link de assinatura .ics só de leitura,
    com as vistorias da organização. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CalendarPlus, Copy, RefreshCw } from 'lucide-react'
 
@@ -24,7 +24,22 @@ export default function AgendaExternaDialog() {
   const [chave, setChave] = useState('')
   const [gerando, setGerando] = useState(false)
 
-  const usuario = pb.authStore.record as { id: string; agenda_token?: string } | null
+  const usuario = pb.authStore.record as {
+    id: string
+    agenda_token?: string
+    agenda_app_url?: string
+  } | null
+
+  // Guarda o endereço do app para o link "Abrir no app" dentro dos eventos.
+  useEffect(() => {
+    if (!usuario) return
+    const origem = window.location.origin
+    if (usuario.agenda_app_url === origem) return
+    pb.collection('users')
+      .update(usuario.id, { agenda_app_url: origem }, { requestKey: null })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const gravar = async (valor: string) => {
     if (!usuario) return
@@ -129,6 +144,11 @@ export default function AgendaExternaDialog() {
                 O vínculo é só de leitura: novas vistorias e mudanças de data aparecem no outro
                 calendário na próxima atualização dele. O Google pode levar algumas horas; Outlook e
                 iPhone costumam ser mais rápidos.
+              </p>
+              <p>
+                <b>Lembretes:</b> cada vistoria com horário vem com aviso 1 dia antes e 1 hora
+                antes. Outlook e iPhone respeitam esses avisos; o Google Agenda costuma ignorar
+                lembretes de agendas assinadas por link.
               </p>
               <p>
                 O link é pessoal. Quem tiver o link vê as vistorias; se ele vazar, gere um novo
