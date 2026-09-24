@@ -11,6 +11,7 @@ export interface Artigo {
   capa?: string
   status: StatusArtigo
   autor_id?: string
+  autor_blog_id?: string
   created: string
   updated: string
   expand?: {
@@ -19,6 +20,11 @@ export interface Artigo {
       name: string
       email: string
       avatar?: string
+    }
+    autor_blog_id?: {
+      id: string
+      nome: string
+      bio?: string
     }
   }
 }
@@ -30,6 +36,7 @@ export interface ArtigoInput {
   conteudo: string
   status: StatusArtigo
   autor_id?: string
+  autor_blog_id?: string
   capa?: File | null
 }
 
@@ -52,11 +59,25 @@ export function getUrlCapaArtigo(artigo: { id: string; capa?: string }): string 
 /**
  * Busca lista de artigos para o blog público (apenas publicados).
  */
+export function getNomeAutorArtigo(artigo?: Artigo | null): string {
+  if (!artigo) return 'Gilson Lopes de Souza Junior'
+  if (artigo.expand?.autor_blog_id?.nome) {
+    return artigo.expand.autor_blog_id.nome
+  }
+  if (artigo.expand?.autor_id?.name) {
+    return artigo.expand.autor_id.name
+  }
+  return 'Gilson Lopes de Souza Junior'
+}
+
+/**
+ * Busca lista de artigos para o blog público (apenas publicados).
+ */
 export async function getArtigosPublicos(): Promise<Artigo[]> {
   const records = await pb.collection('artigos').getFullList<Artigo>({
     filter: "status = 'publicado'",
     sort: '-created',
-    expand: 'autor_id',
+    expand: 'autor_id,autor_blog_id',
   })
   return records
 }
@@ -68,7 +89,9 @@ export async function getArtigoPorSlug(slug: string): Promise<Artigo | null> {
   try {
     const record = await pb
       .collection('artigos')
-      .getFirstListItem<Artigo>(`slug = "${slug}" && status = "publicado"`, { expand: 'autor_id' })
+      .getFirstListItem<Artigo>(`slug = "${slug}" && status = "publicado"`, {
+        expand: 'autor_id,autor_blog_id',
+      })
     return record
   } catch {
     return null
@@ -81,7 +104,7 @@ export async function getArtigoPorSlug(slug: string): Promise<Artigo | null> {
 export async function getTodosArtigos(): Promise<Artigo[]> {
   const records = await pb.collection('artigos').getFullList<Artigo>({
     sort: '-updated',
-    expand: 'autor_id',
+    expand: 'autor_id,autor_blog_id',
   })
   return records
 }
@@ -91,7 +114,7 @@ export async function getTodosArtigos(): Promise<Artigo[]> {
  */
 export async function getArtigoPorId(id: string): Promise<Artigo> {
   const record = await pb.collection('artigos').getOne<Artigo>(id, {
-    expand: 'autor_id',
+    expand: 'autor_id,autor_blog_id',
   })
   return record
 }
@@ -111,12 +134,16 @@ export async function createArtigo(dados: ArtigoInput): Promise<Artigo> {
     formData.append('autor_id', dados.autor_id)
   }
 
+  if (dados.autor_blog_id) {
+    formData.append('autor_blog_id', dados.autor_blog_id)
+  }
+
   if (dados.capa) {
     formData.append('capa', dados.capa)
   }
 
   const record = await pb.collection('artigos').create<Artigo>(formData, {
-    expand: 'autor_id',
+    expand: 'autor_id,autor_blog_id',
   })
   return record
 }
@@ -133,6 +160,7 @@ export async function updateArtigo(id: string, dados: Partial<ArtigoInput>): Pro
   if (dados.conteudo !== undefined) formData.append('conteudo', dados.conteudo)
   if (dados.status !== undefined) formData.append('status', dados.status)
   if (dados.autor_id !== undefined) formData.append('autor_id', dados.autor_id)
+  if (dados.autor_blog_id !== undefined) formData.append('autor_blog_id', dados.autor_blog_id)
 
   if (dados.capa instanceof File) {
     formData.append('capa', dados.capa)
@@ -141,7 +169,7 @@ export async function updateArtigo(id: string, dados: Partial<ArtigoInput>): Pro
   }
 
   const record = await pb.collection('artigos').update<Artigo>(id, formData, {
-    expand: 'autor_id',
+    expand: 'autor_id,autor_blog_id',
   })
   return record
 }

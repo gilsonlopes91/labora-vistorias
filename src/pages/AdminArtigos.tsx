@@ -26,7 +26,9 @@ import {
   toggleStatusArtigo,
   gerarSlug,
   getUrlCapaArtigo,
+  getNomeAutorArtigo,
 } from '@/services/artigos'
+import { type BlogAutor, getAutoresBlog, createAutorBlog } from '@/services/blogAutores'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/hooks/use-auth'
 import { RichTextEditor } from '@/components/RichTextEditor'
@@ -77,6 +79,14 @@ export default function AdminArtigos() {
   const [capaPreview, setCapaPreview] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
+  // Gestão de autores do blog
+  const [autores, setAutores] = useState<BlogAutor[]>([])
+  const [autorSelecionadoId, setAutorSelecionadoId] = useState<string>('')
+  const [modalNovoAutorAberto, setModalNovoAutorAberto] = useState(false)
+  const [novoAutorNome, setNovoAutorNome] = useState('')
+  const [novoAutorBio, setNovoAutorBio] = useState('')
+  const [salvandoNovoAutor, setSalvandoNovoAutor] = useState(false)
+
   // Diálogo de pré-visualização
   const [previewAberto, setPreviewAberto] = useState(false)
   const [artigoParaPreview, setArtigoParaPreview] = useState<{
@@ -93,17 +103,28 @@ export default function AdminArtigos() {
   const [artigoParaExcluir, setArtigoParaExcluir] = useState<Artigo | null>(null)
   const [excluindo, setExcluindo] = useState(false)
 
+  const carregarAutores = useCallback(async () => {
+    try {
+      const listaAutores = await getAutoresBlog()
+      setAutores(listaAutores)
+      return listaAutores
+    } catch (err) {
+      console.error('Erro ao carregar autores:', err)
+      return []
+    }
+  }, [])
+
   const carregarArtigos = useCallback(async () => {
     setLoading(true)
     try {
-      const lista = await getTodosArtigos()
+      const [lista] = await Promise.all([getTodosArtigos(), carregarAutores()])
       setArtigos(lista)
     } catch (err) {
       toast.error('Erro ao carregar artigos', { description: getErrorMessage(err) })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [carregarAutores])
 
   useEffect(() => {
     carregarArtigos()
@@ -120,6 +141,12 @@ export default function AdminArtigos() {
     setStatus('rascunho')
     setCapaArquivo(null)
     setCapaPreview(null)
+
+    // Autor padrão: Gilson Lopes de Souza Junior (ou o primeiro disponível)
+    const autorPadrao =
+      autores.find((a) => a.nome.toLowerCase() === 'gilson lopes de souza junior') || autores[0]
+    setAutorSelecionadoId(autorPadrao ? autorPadrao.id : '')
+
     setModoEdicao(true)
   }
 
@@ -134,7 +161,43 @@ export default function AdminArtigos() {
     setStatus(artigo.status)
     setCapaArquivo(null)
     setCapaPreview(getUrlCapaArtigo(artigo))
+
+    // Se o artigo já tem autor_blog_id, usa ele; senão procura por Gilson ou primeiro
+    if (artigo.autor_blog_id) {
+      setAutorSelecionadoId(artigo.autor_blog_id)
+    } else {
+      const autorPadrao =
+        autores.find((a) => a.nome.toLowerCase() === 'gilson lopes de souza junior') || autores[0]
+      setAutorSelecionadoId(autorPadrao ? autorPadrao.id : '')
+    }
+
     setModoEdicao(true)
+  }
+
+  const handleCriarNovoAutor = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoAutorNome.trim()) {
+      toast.error('Informe o nome do novo autor')
+      return
+    }
+
+    setSalvandoNovoAutor(true)
+    try {
+      const autorCriado = await createAutorBlog({
+        nome: novoAutorNome.trim(),
+        bio: novoAutorBio.trim(),
+      })
+      const listaAtualizada = await carregarAutores()
+      setAutorSelecionadoId(autorCriado.id)
+      setNovoAutorNome('')
+      setNovoAutorBio('')
+      setModalNovoAutorAberto(false)
+      toast.success(`Autor "${autorCriado.nome}" adicionado com sucesso!`)
+    } catch (err) {
+      toast.error('Erro ao adicionar autor', { description: getErrorMessage(err) })
+    } finally {
+      setSalvandoNovoAutor(false)
+    }
   }
 
   const cancelarEdicao = () => {
@@ -195,6 +258,7 @@ export default function AdminArtigos() {
           resumo: resumo.trim(),
           conteudo: conteudo.trim(),
           status,
+          autor_blog_id: autorSelecionadoId || undefined,
           capa: capaArquivo !== null ? capaArquivo : capaPreview === null ? null : undefined,
         })
         toast.success('Artigo atualizado com sucesso!')
@@ -206,6 +270,7 @@ export default function AdminArtigos() {
           conteudo: conteudo.trim(),
           status,
           autor_id: user?.id,
+          autor_blog_id: autorSelecionadoId || undefined,
           capa: capaArquivo,
         })
         toast.success('Artigo criado com sucesso!')
@@ -251,6 +316,9 @@ export default function AdminArtigos() {
   }
 
   const abrirPreviewEdicao = () => {
+    const autorObj = autores.find((a) => a.id === autorSelecionadoId)
+    const autorNomeFinal = autorObj?.nome || 'Gilson Lopes de Souza Junior'
+
     setArtigoParaPreview({
       titulo: titulo.trim() || 'Título de exemplo',
       resumo: resumo.trim() || 'Resumo explicativo do artigo para contextualização.',
@@ -262,7 +330,7 @@ export default function AdminArtigos() {
         month: 'long',
         year: 'numeric',
       }),
-      autorNome: user?.name || user?.email || 'Redação Labora',
+      autorNome: autorNomeFinal,
     })
     setPreviewAberto(true)
   }
@@ -279,7 +347,7 @@ export default function AdminArtigos() {
         month: 'long',
         year: 'numeric',
       }),
-      autorNome: artigo.expand?.autor_id?.name || 'Redação Labora',
+      autorNome: getNomeAutorArtigo(artigo),
     })
     setPreviewAberto(true)
   }
@@ -335,9 +403,9 @@ export default function AdminArtigos() {
         </div>
 
         <form onSubmit={handleSalvar} className="space-y-6">
-          {/* Título & Status */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2 md:col-span-2">
+          {/* Título, Autor & Status */}
+          <div className="grid gap-4 md:grid-cols-12">
+            <div className="space-y-2 md:col-span-6">
               <Label htmlFor="artigo-titulo" className="text-sm font-semibold">
                 Título do artigo <span className="text-destructive">*</span>
               </Label>
@@ -351,7 +419,42 @@ export default function AdminArtigos() {
               />
             </div>
 
-            <div className="space-y-2">
+            {/* Campo Autor (Dropdown com botão + Novo Autor) */}
+            <div className="space-y-2 md:col-span-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="artigo-autor" className="text-sm font-semibold">
+                  Autor <span className="text-destructive">*</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-primary font-medium"
+                  onClick={() => setModalNovoAutorAberto(true)}
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Novo autor
+                </Button>
+              </div>
+              <Select value={autorSelecionadoId} onValueChange={(v) => setAutorSelecionadoId(v)}>
+                <SelectTrigger id="artigo-autor" className="bg-card">
+                  <SelectValue placeholder="Selecione o autor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {autores.map((aut) => (
+                    <SelectItem key={aut.id} value={aut.id}>
+                      {aut.nome}
+                    </SelectItem>
+                  ))}
+                  {autores.length === 0 && (
+                    <SelectItem value="gilson-placeholder" disabled>
+                      Gilson Lopes de Souza Junior
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 md:col-span-3">
               <Label htmlFor="artigo-status" className="text-sm font-semibold">
                 Status da publicação
               </Label>
@@ -362,8 +465,7 @@ export default function AdminArtigos() {
                 <SelectContent>
                   <SelectItem value="rascunho">
                     <span className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" /> Rascunho (invisível ao
-                      público)
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" /> Rascunho (invisível)
                     </span>
                   </SelectItem>
                   <SelectItem value="publicado">
@@ -675,12 +777,8 @@ export default function AdminArtigos() {
                           Atualizado em{' '}
                           {new Date(artigo.updated || artigo.created).toLocaleDateString('pt-BR')}
                         </span>
-                        {artigo.expand?.autor_id?.name && (
-                          <>
-                            <span>•</span>
-                            <span>Por {artigo.expand.autor_id.name}</span>
-                          </>
-                        )}
+                        <span>•</span>
+                        <span>Por {getNomeAutorArtigo(artigo)}</span>
                       </div>
                     </div>
                   </div>
@@ -772,6 +870,56 @@ export default function AdminArtigos() {
               />
             </article>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Adicionar Novo Autor */}
+      <Dialog open={modalNovoAutorAberto} onOpenChange={setModalNovoAutorAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Autor</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCriarNovoAutor} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="novo-autor-nome" className="text-sm font-semibold">
+                Nome do autor <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="novo-autor-nome"
+                value={novoAutorNome}
+                onChange={(e) => setNovoAutorNome(e.target.value)}
+                placeholder="Ex.: Maria Fernanda Silva"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="novo-autor-bio" className="text-sm font-semibold">
+                Breve biografia ou especialidade (opcional)
+              </Label>
+              <Input
+                id="novo-autor-bio"
+                value={novoAutorBio}
+                onChange={(e) => setNovoAutorBio(e.target.value)}
+                placeholder="Ex.: Engenheira de Segurança do Trabalho"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModalNovoAutorAberto(false)}
+                disabled={salvandoNovoAutor}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={salvandoNovoAutor}>
+                {salvandoNovoAutor ? 'Salvando...' : 'Adicionar autor'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 

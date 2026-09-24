@@ -2,7 +2,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Calendar, User, Newspaper, Search, ShieldCheck } from 'lucide-react'
-import { getArtigosPublicos, getUrlCapaArtigo, type Artigo } from '@/services/artigos'
+import {
+  getArtigosPublicos,
+  getUrlCapaArtigo,
+  getNomeAutorArtigo,
+  type Artigo,
+} from '@/services/artigos'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -121,12 +126,10 @@ export default function Blog() {
                       <Calendar className="h-3.5 w-3.5 text-primary" />
                       {formatarData(artigoDestaque.created)}
                     </span>
-                    {artigoDestaque.expand?.autor_id?.name && (
-                      <span className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                        {artigoDestaque.expand.autor_id.name}
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-primary" />
+                      {getNomeAutorArtigo(artigoDestaque)}
+                    </span>
                     <span className="ml-auto font-semibold text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                       Ler artigo completo <ArrowRight className="h-3.5 w-3.5" />
                     </span>
@@ -179,10 +182,15 @@ export default function Blog() {
                       </div>
 
                       <div className="flex flex-1 flex-col p-6">
-                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground mb-2">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 text-primary" />
                             {formatarData(artigo.created)}
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3 text-primary" />
+                            {getNomeAutorArtigo(artigo)}
                           </span>
                         </div>
 

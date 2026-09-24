@@ -12,7 +12,12 @@ import {
   Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getArtigoPorSlug, getUrlCapaArtigo, type Artigo } from '@/services/artigos'
+import {
+  getArtigoPorSlug,
+  getUrlCapaArtigo,
+  getNomeAutorArtigo,
+  type Artigo,
+} from '@/services/artigos'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card } from '@/components/ui/card'
@@ -129,7 +134,7 @@ export default function ArtigoDetalhe() {
           <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <span className="flex items-center gap-1.5 font-medium text-foreground">
               <User className="h-4 w-4 text-primary" />
-              {artigo.expand?.autor_id?.name || 'Redação Labora'}
+              {getNomeAutorArtigo(artigo)}
             </span>
             <span className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4 text-primary" />
