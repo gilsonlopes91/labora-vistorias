@@ -130,11 +130,13 @@ export const COR_SECUNDARIA_PADRAO = '#202720'
 
 /** Modelos da organização de quem está logado (o admin da plataforma enxerga
  *  os de todas; aqui só interessam os da própria organização). */
-export const getModelosProposta = () =>
-  pb.collection('modelos_proposta').getFullList<ModeloProposta>({
+export const getModelosProposta = () => {
+  const orgId = (pb.authStore.record as { organizacao_id?: string } | null)?.organizacao_id
+  return pb.collection('modelos_proposta').getFullList<ModeloProposta>({
     sort: '-padrao,nome',
-    filter: 'organizacao_id = @request.auth.organizacao_id',
+    ...(orgId ? { filter: pb.filter('organizacao_id = {:o}', { o: orgId }) } : {}),
   })
+}
 
 export const getModeloProposta = (id: string) =>
   pb.collection('modelos_proposta').getOne<ModeloProposta>(id)
