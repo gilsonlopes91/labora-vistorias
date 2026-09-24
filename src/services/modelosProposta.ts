@@ -128,8 +128,13 @@ export interface ModeloProposta extends RecordModel {
 export const COR_PRIMARIA_PADRAO = '#6C8845'
 export const COR_SECUNDARIA_PADRAO = '#202720'
 
+/** Modelos da organização de quem está logado (o admin da plataforma enxerga
+ *  os de todas; aqui só interessam os da própria organização). */
 export const getModelosProposta = () =>
-  pb.collection('modelos_proposta').getFullList<ModeloProposta>({ sort: '-padrao,nome' })
+  pb.collection('modelos_proposta').getFullList<ModeloProposta>({
+    sort: '-padrao,nome',
+    filter: 'organizacao_id = @request.auth.organizacao_id',
+  })
 
 export const getModeloProposta = (id: string) =>
   pb.collection('modelos_proposta').getOne<ModeloProposta>(id)
