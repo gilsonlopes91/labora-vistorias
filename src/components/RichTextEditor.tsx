@@ -51,10 +51,12 @@ export function RichTextEditor({
   const isInternalChangeRef = useRef(false)
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({})
 
-  // Modal para inserir Link
+  // Modal / Popover para inserir e editar Link
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkText, setLinkText] = useState('')
+  const [isEditingExistingLink, setIsEditingExistingLink] = useState(false)
+  const activeAnchorRef = useRef<HTMLAnchorElement | null>(null)
   const savedSelectionRef = useRef<Range | null>(null)
 
   // Modal para inserir Imagem (via URL ou Upload base64/arquivo)
@@ -79,11 +81,32 @@ export function RichTextEditor({
     }
   }, [value])
 
+  const findClosestAnchor = (node: Node | null): HTMLAnchorElement | null => {
+    let curr: Node | null = node
+    while (curr && curr !== editorRef.current) {
+      if (curr.nodeType === Node.ELEMENT_NODE && (curr as HTMLElement).tagName === 'A') {
+        return curr as HTMLAnchorElement
+      }
+      curr = curr.parentNode
+    }
+    return null
+  }
+
   const saveSelection = () => {
     const sel = window.getSelection()
     if (sel && sel.rangeCount > 0) {
-      savedSelectionRef.current = sel.getRangeAt(0)
+      const range = sel.getRangeAt(0)
+      // Garantir que a seleção está dentro do nosso editor
+      if (
+        editorRef.current &&
+        (editorRef.current.contains(range.commonAncestorContainer) ||
+          editorRef.current === range.commonAncestorContainer)
+      ) {
+        savedSelectionRef.current = range.cloneRange()
+        return
+      }
     }
+    savedSelectionRef.current = null
   }
 
   const restoreSelection = () => {
@@ -111,6 +134,12 @@ export function RichTextEditor({
   const updateActiveFormats = () => {
     if (!editorRef.current) return
     try {
+      const sel = window.getSelection()
+      let hasLink = false
+      if (sel && sel.rangeCount > 0) {
+        const anchor = findClosestAnchor(sel.anchorNode)
+        hasLink = Boolean(anchor)
+      }
       setActiveFormats({
         bold: document.queryCommandState('bold'),
         italic: document.queryCommandState('italic'),
@@ -121,6 +150,7 @@ export function RichTextEditor({
         justifyCenter: document.queryCommandState('justifyCenter'),
         justifyRight: document.queryCommandState('justifyRight'),
         justifyFull: document.queryCommandState('justifyFull'),
+        link: hasLink,
       })
     } catch {
       // Ignora erro se seleção estiver fora
@@ -142,36 +172,187 @@ export function RichTextEditor({
     handleInput()
   }
 
+  const formatUrl = (raw: string): string => {
+    const trimmed = raw.trim()
+    if (!trimmed) return ''
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed
+    }
+    if (/^mailto:/i.test(trimmed) || /^tel:/i.test(trimmed)) {
+      return trimmed
+    }
+    // Para domínios diretos ou www., prefixa https://
+    return `https://${trimmed}`
+  }
+
   const openLinkModal = () => {
-    saveSelection()
+    // Se a seleção ainda não foi salva pelo onMouseDown, salva agora
+    if (!savedSelectionRef.current) {
+      saveSelection()
+    }
+
+    let currentAnchor: HTMLAnchorElement | null = null
     const sel = window.getSelection()
-    const text = sel ? sel.toString() : ''
-    setLinkText(text)
-    setLinkUrl('')
+
+    if (sel && sel.rangeCount > 0) {
+      currentAnchor = findClosestAnchor(sel.anchorNode) || findClosestAnchor(sel.focusNode)
+    }
+
+    if (!currentAnchor && savedSelectionRef.current) {
+      currentAnchor =
+        findClosestAnchor(savedSelectionRef.current.commonAncestorContainer) ||
+        findClosestAnchor(savedSelectionRef.current.startContainer)
+    }
+
+    if (currentAnchor) {
+      activeAnchorRef.current = currentAnchor
+      setIsEditingExistingLink(true)
+      setLinkUrl(currentAnchor.getAttribute('href') || '')
+      setLinkText(currentAnchor.textContent || '')
+    } else {
+      activeAnchorRef.current = null
+      setIsEditingExistingLink(false)
+      let text = ''
+      if (savedSelectionRef.current && !savedSelectionRef.current.collapsed) {
+        text = savedSelectionRef.current.toString()
+      } else if (sel) {
+        text = sel.toString()
+      }
+      setLinkText(text)
+      setLinkUrl('')
+    }
     setLinkModalOpen(true)
   }
 
-  const handleInsertLink = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSaveLink = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setLinkModalOpen(false)
-    if (!linkUrl.trim()) return
+    const formattedUrl = formatUrl(linkUrl)
+    if (!formattedUrl) return
+
+    if (!editorRef.current) return
+    editorRef.current.focus()
+
+    // Caso 1: Estava editando um link existente
+    if (activeAnchorRef.current && editorRef.current.contains(activeAnchorRef.current)) {
+      const anchor = activeAnchorRef.current
+      anchor.setAttribute('href', formattedUrl)
+      anchor.setAttribute('target', '_blank')
+      anchor.setAttribute('rel', 'noopener noreferrer')
+      anchor.classList.add('text-primary', 'underline', 'font-medium')
+      if (linkText.trim() && anchor.textContent !== linkText.trim()) {
+        anchor.textContent = linkText.trim()
+      }
+      activeAnchorRef.current = null
+      handleInput()
+      return
+    }
+
+    // Caso 2: Nova inserção com seleção restaurada
+    restoreSelection()
+    const sel = window.getSelection()
+
+    const originalSelectedText = savedSelectionRef.current
+      ? savedSelectionRef.current.toString()
+      : ''
+
+    if (
+      !savedSelectionRef.current ||
+      savedSelectionRef.current.collapsed ||
+      (linkText.trim() && linkText.trim() !== originalSelectedText)
+    ) {
+      const display = linkText.trim() || formattedUrl
+      const tempId = `temp-link-${Date.now()}`
+      const linkHtml = `<a id="${tempId}" href="${formattedUrl}" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">${display}</a>`
+      document.execCommand('insertHTML', false, linkHtml)
+      const inserted = editorRef.current.querySelector(`#${tempId}`)
+      if (inserted) {
+        inserted.removeAttribute('id')
+      }
+    } else {
+      // Inserir link mantendo o texto exato selecionado
+      // Para garantir que o link recém-criado receba target="_blank" e rel="noopener noreferrer",
+      // usamos uma URL temporária única
+      const uniqueMarker = `https://temp-link-marker-${Date.now()}.local`
+      document.execCommand('createLink', false, uniqueMarker)
+      const matchingAnchors = editorRef.current.querySelectorAll(`a[href="${uniqueMarker}"]`)
+      matchingAnchors.forEach((a) => {
+        a.setAttribute('href', formattedUrl)
+        a.setAttribute('target', '_blank')
+        a.setAttribute('rel', 'noopener noreferrer')
+        a.classList.add('text-primary', 'underline', 'font-medium')
+      })
+      if (matchingAnchors.length === 0 && sel && sel.rangeCount > 0) {
+        const anchor = findClosestAnchor(sel.anchorNode) || findClosestAnchor(sel.focusNode)
+        if (anchor) {
+          anchor.setAttribute('href', formattedUrl)
+          anchor.setAttribute('target', '_blank')
+          anchor.setAttribute('rel', 'noopener noreferrer')
+          anchor.classList.add('text-primary', 'underline', 'font-medium')
+        }
+      }
+    }
+
+    // Normaliza todos os <a> dentro do editor para terem target="_blank" e rel="noopener noreferrer"
+    const allLinks = editorRef.current.querySelectorAll('a')
+    allLinks.forEach((a) => {
+      if (!a.getAttribute('target')) a.setAttribute('target', '_blank')
+      if (!a.getAttribute('rel')) a.setAttribute('rel', 'noopener noreferrer')
+      a.classList.add('text-primary', 'underline', 'font-medium')
+    })
+
+    handleInput()
+  }
+
+  const handleRemoveLink = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    setLinkModalOpen(false)
+
+    if (activeAnchorRef.current && editorRef.current?.contains(activeAnchorRef.current)) {
+      const anchor = activeAnchorRef.current
+      const parent = anchor.parentNode
+      while (anchor.firstChild) {
+        parent?.insertBefore(anchor.firstChild, anchor)
+      }
+      parent?.removeChild(anchor)
+      activeAnchorRef.current = null
+      handleInput()
+      return
+    }
 
     restoreSelection()
     if (!editorRef.current) return
     editorRef.current.focus()
-
-    const formattedUrl = /^https?:\/\//i.test(linkUrl) ? linkUrl : `https://${linkUrl}`
-
-    if (linkText.trim() && (!savedSelectionRef.current || savedSelectionRef.current.collapsed)) {
-      document.execCommand(
-        'insertHTML',
-        false,
-        `<a href="${formattedUrl}" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">${linkText.trim()}</a>`,
-      )
-    } else {
-      document.execCommand('createLink', false, formattedUrl)
-    }
+    document.execCommand('unlink', false)
     handleInput()
+  }
+
+  const handleEditorClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    const anchor = target.closest('a')
+    if (anchor && editorRef.current?.contains(anchor)) {
+      // Se clicou segurando Ctrl / Meta, abre o link
+      if (e.ctrlKey || e.metaKey) {
+        const href = anchor.getAttribute('href')
+        if (href) {
+          window.open(href, '_blank', 'noopener,noreferrer')
+        }
+        return
+      }
+      // Caso contrário, seleciona o link e abre o diálogo de edição para conveniência
+      activeAnchorRef.current = anchor
+      setIsEditingExistingLink(true)
+      setLinkUrl(anchor.getAttribute('href') || '')
+      setLinkText(anchor.textContent || '')
+      saveSelection()
+      setLinkModalOpen(true)
+    }
   }
 
   const openImageModal = () => {
@@ -183,6 +364,7 @@ export function RichTextEditor({
 
   const handleInsertImage = (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setImageModalOpen(false)
     if (!imageUrl.trim()) return
 
@@ -218,6 +400,7 @@ export function RichTextEditor({
 
   const handleInsertTable = (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setTableModalOpen(false)
     restoreSelection()
     if (!editorRef.current) return
@@ -523,15 +706,21 @@ export function RichTextEditor({
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                variant="ghost"
+                variant={activeFormats.link ? 'secondary' : 'ghost'}
                 size="icon"
                 className="h-8 w-8"
+                onMouseDown={(e) => {
+                  // Salva a seleção no momento do clique no botão antes de perder o foco
+                  saveSelection()
+                }}
                 onClick={openLinkModal}
               >
                 <LinkIcon className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Inserir link</TooltipContent>
+            <TooltipContent>
+              {activeFormats.link ? 'Editar link selecionado' : 'Inserir link no texto selecionado'}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -540,7 +729,7 @@ export function RichTextEditor({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => execCmd('unlink')}
+                onClick={handleRemoveLink}
               >
                 <Unlink className="h-4 w-4" />
               </Button>
@@ -599,17 +788,33 @@ export function RichTextEditor({
         onInput={handleInput}
         onKeyUp={updateActiveFormats}
         onMouseUp={updateActiveFormats}
+        onClick={handleEditorClick}
         data-placeholder={placeholder}
         style={{ minHeight }}
-        className="prose prose-stone dark:prose-invert max-w-none p-5 outline-none focus:ring-1 focus:ring-primary/20 text-foreground text-base leading-relaxed overflow-y-auto [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none"
+        className="prose prose-stone dark:prose-invert max-w-none p-5 outline-none focus:ring-1 focus:ring-primary/20 text-foreground text-base leading-relaxed overflow-y-auto [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none prose-a:text-primary prose-a:underline prose-a:font-medium hover:prose-a:opacity-80"
       />
 
-      {/* Modal de Link */}
-      <Dialog open={linkModalOpen} onOpenChange={setLinkModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleInsertLink}>
+      {/* Modal / Diálogo de Link */}
+      <Dialog
+        open={linkModalOpen}
+        onOpenChange={(open) => {
+          setLinkModalOpen(open)
+          if (!open) {
+            activeAnchorRef.current = null
+          }
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => {
+            // Evita fechar abruptamente se clicar na borda
+          }}
+        >
+          <form onSubmit={handleSaveLink}>
             <DialogHeader>
-              <DialogTitle>Inserir Link</DialogTitle>
+              <DialogTitle>
+                {isEditingExistingLink ? 'Editar Hiperlink' : 'Inserir Hiperlink'}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -618,26 +823,49 @@ export function RichTextEditor({
                   id="link-text"
                   value={linkText}
                   onChange={(e) => setLinkText(e.target.value)}
-                  placeholder="Ex.: Clique aqui para saber mais"
+                  placeholder="Ex.: Clique aqui para acessar o material"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Se você selecionou um texto no editor, ele será transformado no link.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="link-url">URL do link</Label>
+                <Label htmlFor="link-url">URL do link (destino)</Label>
                 <Input
                   id="link-url"
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}
-                  placeholder="https://exemplo.com.br"
+                  placeholder="https://exemplo.com.br ou www.exemplo.com.br"
                   required
                   autoFocus
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Links como "www.exemplo.com" receberão "https://" automaticamente.
+                </p>
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setLinkModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Inserir Link</Button>
+            <DialogFooter className="flex flex-row items-center justify-between sm:justify-between gap-2">
+              <div>
+                {isEditingExistingLink && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleRemoveLink}
+                  >
+                    <Unlink className="mr-1.5 h-3.5 w-3.5" /> Remover link
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => setLinkModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  {isEditingExistingLink ? 'Salvar alterações' : 'Aplicar link'}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>

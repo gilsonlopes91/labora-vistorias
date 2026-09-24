@@ -64,6 +64,21 @@ export default function ArtigoDetalhe() {
     }
   }
 
+  // Normaliza links para abrir em nova aba com segurança quando externos
+  const prepararConteudoHtml = (html: string) => {
+    if (!html) return ''
+    return html.replace(/<a\b([^>]*)>/gi, (match, attrs) => {
+      let updated = attrs
+      if (!/target\s*=/i.test(updated)) {
+        updated += ' target="_blank"'
+      }
+      if (!/rel\s*=/i.test(updated)) {
+        updated += ' rel="noopener noreferrer"'
+      }
+      return `<a${updated}>`
+    })
+  }
+
   // Estimar tempo de leitura (palavras / 200)
   const estimarTempoLeitura = (textoHtml: string) => {
     const textoPuro = textoHtml.replace(/<[^>]*>?/gm, '')
@@ -187,9 +202,9 @@ export default function ArtigoDetalhe() {
         prose-p:my-4 prose-p:leading-relaxed
         prose-blockquote:border-l-primary prose-blockquote:font-normal prose-blockquote:italic
         prose-ul:my-4 prose-ol:my-4 prose-li:my-1
-        prose-a:text-primary prose-a:underline hover:prose-a:opacity-80
+        prose-a:text-primary prose-a:underline prose-a:font-medium hover:prose-a:opacity-80
         prose-img:rounded-2xl prose-img:border prose-img:shadow-sm"
-        dangerouslySetInnerHTML={{ __html: artigo.conteudo }}
+        dangerouslySetInnerHTML={{ __html: prepararConteudoHtml(artigo.conteudo) }}
       />
 
       {/* Rodapé do Artigo com Chamada de Ação (Calculadora e Início) */}

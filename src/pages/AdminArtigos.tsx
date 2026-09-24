@@ -639,7 +639,7 @@ export default function AdminArtigos() {
                   {artigoParaPreview.resumo}
                 </div>
                 <div
-                  className="prose prose-stone dark:prose-invert max-w-none text-foreground leading-relaxed"
+                  className="prose prose-stone dark:prose-invert max-w-none text-foreground leading-relaxed prose-a:text-primary prose-a:underline prose-a:font-medium hover:prose-a:opacity-80"
                   dangerouslySetInnerHTML={{ __html: artigoParaPreview.conteudo }}
                 />
               </article>
@@ -865,7 +865,7 @@ export default function AdminArtigos() {
                 {artigoParaPreview.resumo}
               </div>
               <div
-                className="prose prose-stone dark:prose-invert max-w-none text-foreground leading-relaxed"
+                className="prose prose-stone dark:prose-invert max-w-none text-foreground leading-relaxed prose-a:text-primary prose-a:underline prose-a:font-medium hover:prose-a:opacity-80"
                 dangerouslySetInnerHTML={{ __html: artigoParaPreview.conteudo }}
               />
             </article>
