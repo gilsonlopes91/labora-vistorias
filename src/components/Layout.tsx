@@ -90,7 +90,7 @@ function isGroupActive(item: NavItemConfig, pathname: string, search: string): b
   }
 
   if (item.to === '/empresas') {
-    return pathname === '/empresas' || pathname === '/orcamentos'
+    return pathname === '/empresas' || pathname.startsWith('/orcamentos')
   }
 
   if (item.to === '/auditoria-formularios') {

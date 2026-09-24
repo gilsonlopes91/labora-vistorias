@@ -6,7 +6,9 @@
    não existirem duas versões da tela. */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { Link } from 'react-router-dom'
 import {
+  Palette,
   Archive,
   ArchiveRestore,
   Copy,
@@ -287,6 +289,12 @@ export function OrcamentosTab({
           <p className="text-sm text-muted-foreground">{descricao}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/orcamentos/modelos">
+              <Palette className="mr-2 h-4 w-4" />
+              Modelos
+            </Link>
+          </Button>
           <Button
             onClick={() => {
               setEmEdicao(null)

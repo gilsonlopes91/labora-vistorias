@@ -2,13 +2,16 @@
  * responsáveis técnicos que podem assinar os laudos de vistoria. */
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Building2, Upload, UserCog, Star, Trash2 } from 'lucide-react'
+import { Building2, Palette, Upload, UserCog, Star, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { COR_PRIMARIA_LABORA, COR_SECUNDARIA_LABORA, hexValido } from '@/lib/identidadeVisual'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   getMinhaOrganizacao,
   atualizarNomeOrganizacao,
   atualizarLogoOrganizacao,
+  atualizarCoresOrganizacao,
   urlLogoOrganizacao,
   type Organizacao,
 } from '@/services/organizacoes'
@@ -45,6 +48,9 @@ export default function Configuracoes() {
   const [loading, setLoading] = useState(true)
   const [salvandoNome, setSalvandoNome] = useState(false)
   const [enviandoLogo, setEnviandoLogo] = useState(false)
+  const [corPrimaria, setCorPrimaria] = useState(COR_PRIMARIA_LABORA)
+  const [corSecundaria, setCorSecundaria] = useState(COR_SECUNDARIA_LABORA)
+  const [salvandoCores, setSalvandoCores] = useState(false)
 
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [carregandoRT, setCarregandoRT] = useState(true)
@@ -72,6 +78,8 @@ export default function Configuracoes() {
       .then((o) => {
         setOrg(o)
         setNome(o.nome)
+        if (hexValido(o.cor_primaria)) setCorPrimaria(o.cor_primaria!.toUpperCase())
+        if (hexValido(o.cor_secundaria)) setCorSecundaria(o.cor_secundaria!.toUpperCase())
         carregarResponsaveis(o.id)
       })
       .catch((error) =>
@@ -98,9 +106,17 @@ export default function Configuracoes() {
 
   const handleLogoChange = async (fileList: FileList | null) => {
     if (!org || !fileList || fileList.length === 0) return
+    const arquivo = fileList[0]
+    if (arquivo.type !== 'image/png') {
+      toast.error('Envie o logo em PNG', {
+        description:
+          'Use o arquivo PNG com fundo transparente, para o logo ficar bem sobre qualquer cor.',
+      })
+      return
+    }
     setEnviandoLogo(true)
     try {
-      const atualizado = await atualizarLogoOrganizacao(org.id, fileList[0])
+      const atualizado = await atualizarLogoOrganizacao(org.id, arquivo)
       setOrg(atualizado)
       toast.success('Logo atualizado')
     } catch (error) {
@@ -109,6 +125,34 @@ export default function Configuracoes() {
       setEnviandoLogo(false)
     }
   }
+
+  const handleSalvarCores = async () => {
+    if (!org) return
+    if (!hexValido(corPrimaria) || !hexValido(corSecundaria)) {
+      toast.error('Cor inválida', { description: 'Use o formato #RRGGBB, por exemplo #6C8845.' })
+      return
+    }
+    setSalvandoCores(true)
+    try {
+      const atualizado = await atualizarCoresOrganizacao(org.id, {
+        cor_primaria: corPrimaria.toUpperCase(),
+        cor_secundaria: corSecundaria.toUpperCase(),
+      })
+      setOrg(atualizado)
+      toast.success('Cores salvas', {
+        description: 'Os próximos PDFs de proposta e de vistoria já saem com elas.',
+      })
+    } catch (error) {
+      toast.error('Não foi possível salvar as cores', { description: getErrorMessage(error) })
+    } finally {
+      setSalvandoCores(false)
+    }
+  }
+
+  const coresMudaram =
+    !!org &&
+    (corPrimaria.toUpperCase() !== (org.cor_primaria || COR_PRIMARIA_LABORA).toUpperCase() ||
+      corSecundaria.toUpperCase() !== (org.cor_secundaria || COR_SECUNDARIA_LABORA).toUpperCase())
 
   const handleAdicionarRT = async () => {
     if (!org || !rtNome.trim() || !rtNumero.trim()) return
@@ -201,39 +245,144 @@ export default function Configuracoes() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base">Logo</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Palette className="h-4 w-4" />
+            Identidade visual
+          </CardTitle>
           <CardDescription>
-            Aparece nos relatórios e como marca no canto das fotos georreferenciadas. Enquanto não
-            enviar o seu, o sistema usa o logo padrão da Labora.
+            Logo e cores da sua empresa. Valem para todos os documentos gerados: propostas de
+            orçamento, laudos de vistoria e a marca nas fotos. Enquanto não enviar os seus, o
+            sistema usa o logo e as cores da Labora.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center gap-4">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40 p-2">
-            <img
-              src={logoAtual || laboraLogoUrl}
-              alt="Logo da organização"
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <div>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              id="logo-organizacao"
-              className="hidden"
-              onChange={(e) => {
-                handleLogoChange(e.target.files)
-                e.target.value = ''
+        <CardContent className="space-y-5">
+          <div className="flex items-center gap-4">
+            <div
+              className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border p-2"
+              style={{
+                backgroundImage:
+                  'linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)',
+                backgroundSize: '12px 12px',
+                backgroundPosition: '0 0,0 6px,6px -6px,-6px 0',
               }}
-            />
-            <label
-              htmlFor="logo-organizacao"
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm font-medium hover:bg-accent"
+              title="O quadriculado mostra as áreas transparentes do logo"
             >
-              <Upload className="h-3.5 w-3.5" />
-              {enviandoLogo ? 'Enviando...' : logoAtual ? 'Trocar logo' : 'Enviar logo'}
-            </label>
-            <p className="mt-1.5 text-xs text-muted-foreground">PNG, JPEG ou WebP, até 3 MB.</p>
+              <img
+                src={logoAtual || laboraLogoUrl}
+                alt="Logo da organização"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div>
+              <input
+                type="file"
+                accept="image/png"
+                id="logo-organizacao"
+                className="hidden"
+                onChange={(e) => {
+                  handleLogoChange(e.target.files)
+                  e.target.value = ''
+                }}
+              />
+              <label
+                htmlFor="logo-organizacao"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm font-medium hover:bg-accent"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {enviandoLogo ? 'Enviando...' : logoAtual ? 'Trocar logo' : 'Enviar logo'}
+              </label>
+              <p className="mt-1.5 max-w-sm text-xs text-muted-foreground">
+                Somente PNG, até 3 MB. Use o arquivo com fundo transparente, para o logo ficar bem
+                sobre qualquer cor.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              {
+                id: 'cor-primaria',
+                rotulo: 'Cor principal',
+                ajuda: 'Faixas, títulos em destaque e cabeçalho das tabelas',
+                valor: corPrimaria,
+                set: setCorPrimaria,
+              },
+              {
+                id: 'cor-secundaria',
+                rotulo: 'Cor de apoio',
+                ajuda: 'Títulos e textos de destaque',
+                valor: corSecundaria,
+                set: setCorSecundaria,
+              },
+            ].map((c) => (
+              <div key={c.id}>
+                <Label htmlFor={c.id} className="mb-1.5 block text-xs">
+                  {c.rotulo}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={c.rotulo}
+                    value={hexValido(c.valor) ? c.valor : '#000000'}
+                    onChange={(e) => c.set(e.target.value.toUpperCase())}
+                    className="h-10 w-12 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
+                  />
+                  <Input
+                    id={c.id}
+                    value={c.valor}
+                    onChange={(e) => c.set(e.target.value.trim())}
+                    maxLength={7}
+                    className="font-mono uppercase"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">{c.ajuda}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="overflow-hidden rounded-xl border">
+            <div
+              className="h-2"
+              style={{ background: hexValido(corPrimaria) ? corPrimaria : COR_PRIMARIA_LABORA }}
+            />
+            <div className="flex items-center gap-3 p-3">
+              <img
+                src={logoAtual || laboraLogoUrl}
+                alt=""
+                className="h-8 w-auto max-w-[96px] object-contain"
+              />
+              <div className="min-w-0">
+                <div
+                  className="truncate text-sm font-bold"
+                  style={{
+                    color: hexValido(corSecundaria) ? corSecundaria : COR_SECUNDARIA_LABORA,
+                  }}
+                >
+                  Proposta comercial
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Prévia de como os documentos saem
+                </div>
+              </div>
+              <span
+                className="ml-auto rounded px-2 py-1 text-xs font-semibold text-white"
+                style={{ background: hexValido(corPrimaria) ? corPrimaria : COR_PRIMARIA_LABORA }}
+              >
+                VALOR TOTAL
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Link
+              to="/orcamentos/modelos"
+              className="text-sm text-primary underline-offset-2 hover:underline"
+            >
+              Escolher e editar os modelos de proposta
+            </Link>
+            <Button onClick={handleSalvarCores} disabled={salvandoCores || !coresMudaram}>
+              {salvandoCores ? 'Salvando...' : 'Salvar cores'}
+            </Button>
           </div>
         </CardContent>
       </Card>

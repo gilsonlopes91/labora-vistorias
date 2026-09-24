@@ -119,6 +119,8 @@ export interface ModeloProposta extends RecordModel {
   dados_institucionais?: DadosInstitucionais
   padrao?: boolean
   ativo?: boolean
+  /** true (padrão): usa logo e cores de Configurações > Identidade visual. */
+  usar_identidade_org?: boolean
   created: string
   updated: string
 }
@@ -136,6 +138,25 @@ export const updateModeloProposta = (
   id: string,
   dados: Partial<Omit<ModeloProposta, 'logo' | 'imagem_capa'>>,
 ) => pb.collection('modelos_proposta').update<ModeloProposta>(id, dados)
+
+/** Cópia de um modelo (sem as imagens), para criar uma variação. */
+export const duplicarModeloProposta = (modelo: ModeloProposta) =>
+  pb.collection('modelos_proposta').create<ModeloProposta>({
+    organizacao_id: modelo.organizacao_id,
+    nome: `${modelo.nome} (cópia)`,
+    layout: modelo.layout,
+    cor_primaria: modelo.cor_primaria,
+    cor_secundaria: modelo.cor_secundaria,
+    secoes: modelo.secoes,
+    texto_apresentacao: modelo.texto_apresentacao,
+    texto_encerramento: modelo.texto_encerramento,
+    itens_inclusos_padrao: modelo.itens_inclusos_padrao,
+    itens_exclusos_padrao: modelo.itens_exclusos_padrao,
+    dados_institucionais: modelo.dados_institucionais,
+    usar_identidade_org: modelo.usar_identidade_org !== false,
+    padrao: false,
+    ativo: true,
+  })
 
 export const enviarArquivoModelo = (id: string, campo: CampoImagemModelo, arquivo: File | null) => {
   if (arquivo === null) {

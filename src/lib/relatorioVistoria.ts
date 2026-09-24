@@ -8,6 +8,13 @@ import { formatBrazilianDate } from '@/lib/date'
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
+import {
+  carregarIdentidade,
+  clarear,
+  hexParaRgb,
+  COR_PRIMARIA_LABORA,
+  COR_SECUNDARIA_LABORA,
+} from '@/lib/identidadeVisual'
 
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
 
@@ -73,6 +80,9 @@ export interface DadosRelatorioVistoria {
   regimePorItem?: Record<string, RegimeMultaItem>
   /** Valor por empregado do critério rural, conforme a base legal escolhida na vistoria. */
   valorRuralPorEmpregado?: number
+  /** Cores da organização (hex). Sem elas, o laudo lê de Configurações > Identidade visual. */
+  corPrimaria?: string
+  corSecundaria?: string
 }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -159,6 +169,18 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
 
   const valorRural = dados.valorRuralPorEmpregado ?? 392.89
 
+  // Identidade visual da organização: cores no cabeçalho, tabelas e faixas.
+  const identidade = dados.corPrimaria && dados.corSecundaria ? null : await carregarIdentidade()
+  const primaria = hexParaRgb(
+    dados.corPrimaria || identidade?.corPrimaria,
+    hexParaRgb(COR_PRIMARIA_LABORA, [108, 136, 69]),
+  )
+  const secundaria = hexParaRgb(
+    dados.corSecundaria || identidade?.corSecundaria,
+    hexParaRgb(COR_SECUNDARIA_LABORA, [32, 39, 32]),
+  )
+  const faixaSecao = clarear(primaria, 0.85)
+
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -171,8 +193,12 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const xColunaValores = margin + larguraColunaDescricao + 12
   let y = margin
 
+  // Faixa na cor da organização no topo da primeira página
+  doc.setFillColor(primaria[0], primaria[1], primaria[2])
+  doc.rect(0, 0, pageWidth, 8, 'F')
+
   // Cabeçalho: logo da organização + nome + título do documento
-  const logo = await carregarImagemComoDataUrl(dados.logoUrl)
+  const logo = await carregarImagemComoDataUrl(dados.logoUrl || identidade?.logoUrl || '')
   if (logo) {
     const alturaLogo = 38
     const larguraLogo = alturaLogo * (logo.largura / logo.altura)
@@ -180,15 +206,19 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   }
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
+  doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
   doc.text(dados.organizacaoNome, pageWidth - margin, y + 14, { align: 'right' })
+  doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.text('Laudo de Vistoria de Segurança do Trabalho', pageWidth - margin, y + 28, {
     align: 'right',
   })
   y += 52
-  doc.setDrawColor(200)
+  doc.setDrawColor(primaria[0], primaria[1], primaria[2])
+  doc.setLineWidth(1.2)
   doc.line(margin, y, pageWidth - margin, y)
+  doc.setLineWidth(0.5)
   y += 22
 
   // Título do tipo de vistoria — evita repetir "NR-01 — NR-01 — ..." quando o
@@ -244,7 +274,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     ],
     theme: 'grid',
     styles: { halign: 'center', fontSize: 10, cellPadding: 6 },
-    headStyles: { fillColor: [70, 100, 70] },
+    headStyles: { fillColor: primaria },
     margin: { left: margin, right: margin },
   })
   y = (finalYResumo || y) + 16
@@ -307,11 +337,11 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       doc.addPage()
       y = margin
     }
-    doc.setFillColor(235, 240, 235)
+    doc.setFillColor(faixaSecao[0], faixaSecao[1], faixaSecao[2])
     doc.rect(margin, y - 12, larguraUtil, 18, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
-    doc.setTextColor(40, 60, 40)
+    doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
     doc.text(secao.toUpperCase(), margin + 6, y)
     doc.setTextColor(0, 0, 0)
     y += 24

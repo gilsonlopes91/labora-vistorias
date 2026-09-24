@@ -5,6 +5,8 @@ export interface Organizacao {
   nome: string
   dono_id: string
   logo?: string
+  cor_primaria?: string
+  cor_secundaria?: string
   created: string
   updated: string
 }
@@ -25,6 +27,11 @@ export const atualizarLogoOrganizacao = (id: string, logo: File) => {
   fd.append('logo', logo)
   return pb.collection('organizacoes').update<Organizacao>(id, fd)
 }
+
+export const atualizarCoresOrganizacao = (
+  id: string,
+  cores: { cor_primaria: string; cor_secundaria: string },
+) => pb.collection('organizacoes').update<Organizacao>(id, cores)
 
 export const removerLogoOrganizacao = (id: string) =>
   pb.collection('organizacoes').update<Organizacao>(id, { logo: null })

@@ -25,6 +25,7 @@ import {
   type ModeloProposta,
 } from '@/services/modelosProposta'
 import { gerarPdfPropostaLabora } from '@/lib/propostaPdfLabora'
+import { aplicarIdentidadeNoModelo, carregarIdentidade } from '@/lib/identidadeVisual'
 
 type RGB = [number, number, number]
 
@@ -118,7 +119,15 @@ export interface DadosProposta {
   logoOrganizacaoUrl?: string | null
 }
 
-export async function gerarPdfProposta(dados: DadosProposta): Promise<void> {
+export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
+  // Logo e cores da organização (Configurações > Identidade visual) valem para
+  // todo modelo que não tenha sido configurado com identidade própria.
+  const identidade = await carregarIdentidade()
+  const dados: DadosProposta = {
+    ...entrada,
+    modelo: entrada.modelo ? aplicarIdentidadeNoModelo(entrada.modelo, identidade) : null,
+    logoOrganizacaoUrl: entrada.logoOrganizacaoUrl || identidade.logoUrl,
+  }
   const { orcamento, empresa, modelo, organizacaoNome } = dados
 
   // O layout "labora" é um documento de cinco páginas com estrutura própria,

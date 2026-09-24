@@ -11,6 +11,7 @@ import {
   FileSpreadsheet,
   FileText,
   BookOpenCheck,
+  Palette,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -52,6 +53,12 @@ export const NAV_ITEMS: NavItemConfig[] = [
         to: '/empresas?aba=orcamentos',
         label: 'Orçamentos',
         icon: FileSpreadsheet,
+      },
+      {
+        to: '/orcamentos/modelos',
+        label: 'Modelos de proposta',
+        icon: Palette,
+        gestor: true,
       },
     ],
   },
