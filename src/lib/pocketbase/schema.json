@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T15:03:17.197Z",
+  "generatedAt": "2026-09-24T15:06:26.676Z",
   "collections": [
     {
       "name": "users",
@@ -8,7 +8,7 @@
         "list": "id = @request.auth.id",
         "view": "id = @request.auth.id",
         "create": "@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true)",
-        "update": "id = @request.auth.id",
+        "update": "id = @request.auth.id && @request.body.papel:isset = false && @request.body.organizacao_id:isset = false && @request.body.acesso_console:isset = false && @request.body.verified:isset = false",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -86,11 +86,18 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "agenda_token",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
-        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''",
+        "CREATE UNIQUE INDEX idx_users_agenda_token ON users (agenda_token) WHERE agenda_token != ''"
       ]
     },
     {

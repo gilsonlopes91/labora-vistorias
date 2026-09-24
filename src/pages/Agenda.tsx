@@ -31,6 +31,7 @@ import { getFormularios, type Formulario } from '@/services/registrosFormulario'
 import { getResponsaveisTecnicos, type ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
 import RotinasPanel from '@/components/RotinasPanel'
+import AgendaExternaDialog from '@/components/AgendaExternaDialog'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -303,6 +304,7 @@ export default function Agenda() {
               ))}
             </SelectContent>
           </Select>
+          <AgendaExternaDialog />
           <NovaVistoriaDialog
             defaultDate={defaultDateForDialog}
             onCreated={(id) => navigate(`/vistorias/${id}`)}
