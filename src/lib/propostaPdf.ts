@@ -553,10 +553,11 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
   }
 
   // ----- Assinatura -----
-  // O bloco ocupa uns 60 pt: só vai para outra página quando não cabe mesmo
-  // (antes uma proposta curta ganhava uma página só com as assinaturas).
+  // O bloco ocupa 50 pt (espaço para assinar, linha e duas linhas de texto):
+  // só vai para outra página quando não cabe mesmo. Antes reservava 120 e
+  // uma proposta curta ganhava uma página só com as assinaturas.
   if (secaoAtiva(modelo, 'assinatura')) {
-    novaPaginaSePreciso(80)
+    novaPaginaSePreciso(56)
     y += 24
     const larguraLinha = (larguraUtil - 40) / 2
     doc.setDrawColor(120)

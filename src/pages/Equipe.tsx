@@ -1,11 +1,13 @@
 /* Página Equipe — gerencia membros da organização (dono/gerente). */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, ShieldCheck, UserPlus, Users } from 'lucide-react'
+import { Mail, ShieldCheck, UserPlus, Users } from 'lucide-react'
 
+import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   convidarMembro,
+  enviarLinkDeAcesso,
   getEquipe,
   getPapelUsuarioLogado,
   type MembroEquipe,
@@ -45,8 +47,10 @@ export default function Equipe() {
   const [membros, setMembros] = useState<MembroEquipe[]>([])
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', papel: 'executor' })
+  const [form, setForm] = useState({ nome: '', email: '', papel: 'executor' })
+  const [reenviando, setReenviando] = useState<string | null>(null)
   const meuPapel = getPapelUsuarioLogado()
+  const meuId = pb.authStore.record?.id
 
   const loadData = useCallback(async () => {
     try {
@@ -62,23 +66,50 @@ export default function Equipe() {
 
   const onSubmit = async () => {
     setSubmitting(true)
+    const email = form.email.trim().toLowerCase()
     try {
       await convidarMembro({
-        email: form.email,
-        nome: form.nome,
-        senha: form.senha,
+        email,
+        nome: form.nome.trim(),
         papel: form.papel as 'gerente' | 'executor',
       })
-      toast.success('Membro adicionado à equipe')
-      setOpen(false)
-      setForm({ nome: '', email: '', senha: '', papel: 'executor' })
-      loadData()
     } catch (error) {
       toast.error('Não foi possível adicionar o membro', { description: getErrorMessage(error) })
-    } finally {
       setSubmitting(false)
+      return
+    }
+    // A conta já existe; falta a pessoa criar a senha pelo link do e-mail.
+    try {
+      await enviarLinkDeAcesso(email)
+      toast.success(`Convite enviado para ${email}`, {
+        description: 'A pessoa recebe um link para criar a própria senha e entrar.',
+      })
+    } catch (error) {
+      toast.warning('A pessoa foi adicionada, mas o e-mail não saiu', {
+        description: `Use "Reenviar link" na lista. (${getErrorMessage(error)})`,
+      })
+    }
+    setOpen(false)
+    setForm({ nome: '', email: '', papel: 'executor' })
+    setSubmitting(false)
+    loadData()
+  }
+
+  const reenviarLink = async (m: MembroEquipe) => {
+    setReenviando(m.id)
+    try {
+      await enviarLinkDeAcesso(m.email)
+      toast.success(`Link enviado para ${m.email}`, {
+        description: 'Serve para entrar pela primeira vez ou para trocar a senha.',
+      })
+    } catch (error) {
+      toast.error('Não foi possível enviar o link', { description: getErrorMessage(error) })
+    } finally {
+      setReenviando(null)
     }
   }
+
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -101,8 +132,8 @@ export default function Equipe() {
               <DialogHeader>
                 <DialogTitle>Adicionar membro</DialogTitle>
                 <DialogDescription>
-                  Crie o acesso e passe o e-mail e a senha para a pessoa. Ela pode trocar a senha
-                  depois.
+                  A pessoa recebe um e-mail com um link para criar a própria senha. Ninguém mais
+                  fica sabendo a senha dela.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -123,15 +154,7 @@ export default function Equipe() {
                     placeholder="email@empresa.com"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Senha temporária</Label>
-                  <Input
-                    type="text"
-                    value={form.senha}
-                    onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
-                    placeholder="Mínimo 8 caracteres"
-                  />
-                </div>
+
                 <div className="space-y-2">
                   <Label>Papel</Label>
                   <Select
@@ -151,9 +174,9 @@ export default function Equipe() {
               <DialogFooter>
                 <Button
                   onClick={onSubmit}
-                  disabled={submitting || !form.nome || !form.email || form.senha.length < 8}
+                  disabled={submitting || !form.nome.trim() || !emailValido}
                 >
-                  {submitting ? 'Adicionando...' : 'Adicionar'}
+                  {submitting ? 'Enviando convite...' : 'Enviar convite'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -181,15 +204,37 @@ export default function Equipe() {
           {membros.length === 0
             ? null
             : membros.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <div className="font-medium">{m.name}</div>
-                    <div className="text-sm text-muted-foreground">{m.email}</div>
+                <div
+                  key={m.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium">
+                      {m.name}
+                      {m.id === meuId && (
+                        <span className="font-normal text-muted-foreground"> (você)</span>
+                      )}
+                    </div>
+                    <div className="truncate text-sm text-muted-foreground">{m.email}</div>
                   </div>
-                  <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
-                    <ShieldCheck className="mr-1 h-3 w-3" />
-                    {PAPEL_LABEL[m.papel] || m.papel}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {meuPapel !== 'executor' && m.id !== meuId && m.papel !== 'dono' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => reenviarLink(m)}
+                        disabled={reenviando === m.id}
+                        title="Manda de novo o e-mail para a pessoa criar ou trocar a senha"
+                      >
+                        <Mail className="mr-1 h-3 w-3" />
+                        {reenviando === m.id ? 'Enviando...' : 'Reenviar link'}
+                      </Button>
+                    )}
+                    <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
+                      <ShieldCheck className="mr-1 h-3 w-3" />
+                      {PAPEL_LABEL[m.papel] || m.papel}
+                    </Badge>
+                  </div>
                 </div>
               ))}
         </CardContent>

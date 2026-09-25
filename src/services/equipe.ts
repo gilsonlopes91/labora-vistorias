@@ -57,12 +57,16 @@ export const getEquipe = async (): Promise<MembroEquipe[]> => {
 export interface ConviteInput {
   email: string
   nome: string
-  senha: string
   papel: 'gerente' | 'executor'
 }
 
 export const convidarMembro = (data: ConviteInput) =>
-  pb.send('/backend/v1/equipe/convidar', {
+  pb.send<{ ok: boolean; id: string }>('/backend/v1/equipe/convidar', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+
+/** Manda para a pessoa o e-mail com o link para criar (ou trocar) a senha.
+ *  É o mesmo e-mail do "Esqueci minha senha". */
+export const enviarLinkDeAcesso = (email: string) =>
+  pb.collection('users').requestPasswordReset(email)

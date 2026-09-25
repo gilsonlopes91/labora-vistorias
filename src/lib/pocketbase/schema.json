@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T11:59:12.687Z",
+  "generatedAt": "2026-09-25T12:16:29.131Z",
   "collections": [
     {
       "name": "users",
@@ -1260,6 +1260,39 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "checklists",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "tipos_vistoria"
+        },
+        {
+          "name": "formularios",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "modelos_formulario"
+        },
+        {
+          "name": "responsavel_tecnico_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "responsaveis_tecnicos"
+        },
+        {
+          "name": "hora_inicio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "duracao_min",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -34,7 +34,7 @@ export default function RedefinirSenha() {
     setSalvando(true)
     try {
       await pb.collection('users').confirmPasswordReset(token, senha, confirmacao)
-      toast.success('Senha nova criada', { description: 'Entre com o seu e-mail e a senha nova.' })
+      toast.success('Senha criada', { description: 'Agora entre com o seu e-mail e essa senha.' })
       navigate('/login', { replace: true })
     } catch (error) {
       const status = (error as { status?: number })?.status
@@ -59,8 +59,9 @@ export default function RedefinirSenha() {
               <div className="space-y-4 text-center">
                 <h1 className="text-xl font-bold">Link vencido ou já usado</h1>
                 <p className="text-sm text-muted-foreground">
-                  O link para criar senha nova vale por pouco tempo e só pode ser usado uma vez.
-                  Peça outro.
+                  O link do e-mail vale por 30 minutos e só pode ser usado uma vez. Peça outro
+                  abaixo com o seu e-mail. Se você foi convidado para uma equipe, também pode pedir
+                  para quem te convidou reenviar o link.
                 </p>
                 <Button asChild className="rounded-full">
                   <Link to="/esqueci-senha">Pedir um link novo</Link>
@@ -69,8 +70,9 @@ export default function RedefinirSenha() {
             ) : (
               <form onSubmit={salvar} className="space-y-4">
                 <div>
-                  <h1 className="text-xl font-bold">Criar senha nova</h1>
+                  <h1 className="text-xl font-bold">Criar sua senha</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
+                    Serve para o primeiro acesso de quem foi convidado e para quem esqueceu a senha.
                     Use pelo menos {MIN_SENHA} caracteres.
                   </p>
                 </div>
@@ -101,7 +103,7 @@ export default function RedefinirSenha() {
                   className="h-11 w-full rounded-full text-base font-semibold"
                   disabled={salvando}
                 >
-                  {salvando ? 'Salvando...' : 'Salvar senha nova'}
+                  {salvando ? 'Salvando...' : 'Salvar senha'}
                 </Button>
               </form>
             )}

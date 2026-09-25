@@ -1,5 +1,8 @@
-// Fase A — convite de membro da equipe: dono/gerente cria o usuário
-// (e-mail + senha temporária + papel) e o vincula à organização.
+// Convite de membro da equipe: dono/gerente cria o usuário (nome, e-mail e
+// papel) e o vincula à organização. Sem senha no convite: a conta nasce com
+// uma senha aleatória que ninguém conhece, e o app pede em seguida o e-mail de
+// "criar senha" (o mesmo fluxo do "Esqueci minha senha"). O campo senha
+// continua aceito para quem ainda usa a versão antiga da tela.
 // users.organizacao_id = organização do convidante; papel = gerente|executor.
 routerAdd(
   'POST',
@@ -13,11 +16,15 @@ routerAdd(
       .trim()
       .toLowerCase()
     const nome = String(body.nome || '').trim()
-    const senha = String(body.senha || '')
+    const senhaInformada = String(body.senha || '')
     const papel = String(body.papel || 'executor')
     if (!email) return e.badRequestError('e-mail é obrigatório')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return e.badRequestError('e-mail inválido')
     if (!nome) return e.badRequestError('nome é obrigatório')
-    if (senha.length < 8) return e.badRequestError('senha deve ter ao menos 8 caracteres')
+    if (senhaInformada && senhaInformada.length < 8) {
+      return e.badRequestError('senha deve ter ao menos 8 caracteres')
+    }
+    const senha = senhaInformada || $security.randomString(32)
     if (!['gerente', 'executor'].includes(papel)) {
       return e.badRequestError('papel deve ser gerente ou executor')
     }
@@ -76,7 +83,7 @@ routerAdd(
       $app.save(rt)
     }
 
-    return e.json(200, { ok: true, id: novo.id })
+    return e.json(200, { ok: true, id: novo.id, comSenha: !!senhaInformada })
   },
   $apis.requireAuth(),
 )
