@@ -11,6 +11,12 @@ onRecordAfterCreateSuccess((e) => {
       e.next()
       return
     }
+    // Convidado para uma equipe já nasce ligado à organização de quem
+    // convidou: não precisa (nem deve) ganhar uma organização vazia.
+    if (e.record.getString('organizacao_id')) {
+      e.next()
+      return
+    }
 
     let jaTem = true
     try {
