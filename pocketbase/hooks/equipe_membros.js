@@ -4,7 +4,7 @@
 // e-mail e papel de quem é da mesma organização (sem tokens nem outros campos).
 routerAdd(
   'GET',
-  '/backend/v1/equipe',
+  '/backend/v1/equipe/membros',
   (e) => {
     const auth = e.auth
     if (!auth) return e.unauthorizedError('auth required')
@@ -32,9 +32,9 @@ routerAdd(
     )
     const membros = usuarios.map((u) => ({
       id: u.id,
-      name: u.getString('name') || u.email(),
-      email: u.email(),
-      papel: u.id === donoId && !u.getString('papel') ? 'dono' : u.getString('papel') || 'dono',
+      name: u.getString('name') || u.getString('email'),
+      email: u.getString('email'),
+      papel: u.getString('papel') || 'dono',
     }))
     return e.json(200, { membros: membros })
   },

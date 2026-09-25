@@ -44,7 +44,9 @@ export const isAdmin = (): boolean => {
 const ORDEM_PAPEL: Record<string, number> = { dono: 0, gerente: 1, executor: 2 }
 
 export const getEquipe = async (): Promise<MembroEquipe[]> => {
-  const r = await pb.send<{ membros: MembroEquipe[] }>('/backend/v1/equipe', { method: 'GET' })
+  const r = await pb.send<{ membros: MembroEquipe[] }>('/backend/v1/equipe/membros', {
+    method: 'GET',
+  })
   return (r.membros || []).sort(
     (a, b) =>
       (ORDEM_PAPEL[a.papel] ?? 3) - (ORDEM_PAPEL[b.papel] ?? 3) ||
