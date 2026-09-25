@@ -42,14 +42,16 @@ routerAdd(
         }
         if (!atende) return e.forbiddenError('Esta conta não é de uma organização que você atende.')
       }
-      alvo.setPassword(senha)      alvo.set('trocar_senha', true)
+      alvo.setPassword(senha)
+      alvo.set('trocar_senha', true)
       $app.save(alvo)
       return e.json(200, { ok: true })
     }
 
     if (acao === 'pacotes') {
       if (!ehAdmin) return e.forbiddenError('Só o administrador muda o pacote.')
-      const orgId = String(body.org_id || '')      if (!orgId) return e.badRequestError('org_id obrigatório')
+      const orgId = String(body.org_id || '')
+      if (!orgId) return e.badRequestError('org_id obrigatório')
       let org
       try {
         org = $app.findRecordById('organizacoes', orgId)
@@ -81,7 +83,8 @@ routerAdd(
 
     if (acao === 'staff_console') {
       if (!ehAdmin) return e.forbiddenError('Só o administrador libera o console.')
-      const userId = String(body.user_id || '')      if (!userId) return e.badRequestError('user_id obrigatório')
+      const userId = String(body.user_id || '')
+      if (!userId) return e.badRequestError('user_id obrigatório')
       let alvo
       try {
         alvo = $app.findRecordById('users', userId)
