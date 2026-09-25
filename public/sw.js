@@ -6,7 +6,7 @@
    - /assets/: os nomes mudam a cada versão, então pode usar a cópia direto.
    Ao instalar, já baixa os scripts que o app carrega depois (PDF etc.), para
    não faltar nada em campo. */
-const VERSAO = 'labora-app-v1'
+const VERSAO = 'labora-app-v2'
 const PAGINA = '/'
 
 self.addEventListener('install', (event) => {
@@ -41,9 +41,13 @@ async function guardarPaginaEArquivos(cache) {
   await cache.put(PAGINA, resp)
   const arquivos = new Set()
   for (const m of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) arquivos.add(m[1])
-  // O script principal cita os pedaços carregados depois ("assets/x-hash.js").
-  for (const a of Array.from(arquivos)) {
-    if (!a.endsWith('.js')) continue
+  // Cada script cita os pedaços carregados depois; lê todos, em fila.
+  const fila = Array.from(arquivos).filter((a) => a.endsWith('.js'))
+  const lidos = new Set()
+  while (fila.length) {
+    const a = fila.shift()
+    if (lidos.has(a)) continue
+    lidos.add(a)
     try {
       let r = await cache.match(a)
       if (!r) {
@@ -52,7 +56,18 @@ async function guardarPaginaEArquivos(cache) {
         await cache.put(a, r.clone())
       }
       const js = await r.text()
-      for (const m of js.matchAll(/assets\/[A-Za-z0-9._-]+\.(?:js|css)/g)) arquivos.add('/' + m[0])
+      const achados = []
+      for (const m of js.matchAll(/assets\/[A-Za-z0-9._-]+\.(?:js|css|png|webp|svg|jpe?g)/g)) {
+        achados.push('/' + m[0])
+      }
+      // Pedaços carregados sob demanda (PDF etc.): import("./nome-hash.js").
+      for (const m of js.matchAll(/import\(["']\.\/([A-Za-z0-9._-]+\.js)["']\)/g)) {
+        achados.push('/assets/' + m[1])
+      }
+      for (const x of achados) {
+        arquivos.add(x)
+        if (x.endsWith('.js') && !lidos.has(x)) fila.push(x)
+      }
     } catch (_) {
       // segue com os outros
     }
