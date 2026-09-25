@@ -11,6 +11,7 @@ import Index from './pages/Index'
 import Login from './pages/Login'
 import EsqueciSenha from './pages/EsqueciSenha'
 import RedefinirSenha from './pages/RedefinirSenha'
+import PropostaPublica from './pages/PropostaPublica'
 import PublicLayout from './components/PublicLayout'
 import PublicHome from './pages/PublicHome'
 import CalculadoraPublica from './pages/CalculadoraPublica'
@@ -101,6 +102,8 @@ const App = () => (
           {/* /reset-password é o endereço do link no e-mail do Skip Cloud */}
           <Route path="/reset-password" element={<RedefinirSenha />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+          {/* Link da proposta que o cliente abre sem login */}
+          <Route path="/proposta/:token" element={<PropostaPublica />} />
           <Route element={<Layout />}>
             <Route
               path="/painel"

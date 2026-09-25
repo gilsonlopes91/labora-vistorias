@@ -146,6 +146,13 @@ export interface Orcamento extends RecordModel {
   crea?: string
   observacoes?: string
   criado_por?: string
+  /** Link público da proposta (migration 0132). */
+  link_token?: string
+  link_pdf?: string
+  link_gerado_em?: string
+  link_visualizacoes?: number
+  link_primeira_visualizacao?: string
+  link_ultima_visualizacao?: string
   created: string
   updated: string
   expand?: {
@@ -180,6 +187,59 @@ export const updateOrcamento = (id: string, data: Partial<OrcamentoInput>) =>
   pb.collection('orcamentos').update<Orcamento>(id, data)
 
 export const deleteOrcamento = (id: string) => pb.collection('orcamentos').delete(id)
+
+// ---------- Link público da proposta ----------
+
+const novaChaveLink = () => (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+
+/** Endereço que o cliente abre, sem login. */
+export const urlLinkProposta = (token: string) => `${window.location.origin}/proposta/${token}`
+
+/** Sobe o PDF atual da proposta e cria a chave do link (se ainda não houver). */
+export const publicarLinkProposta = (orcamento: Orcamento, pdf: Blob, nome: string) => {
+  const dados = new FormData()
+  dados.append('link_pdf', new File([pdf], nome, { type: 'application/pdf' }))
+  dados.append('link_gerado_em', new Date().toISOString())
+  if (!orcamento.link_token) dados.append('link_token', novaChaveLink())
+  return pb.collection('orcamentos').update<Orcamento>(orcamento.id, dados)
+}
+
+/** Apaga a chave e o PDF: o link antigo para de abrir na hora. */
+export const desativarLinkProposta = (id: string) =>
+  pb.collection('orcamentos').update<Orcamento>(id, {
+    link_token: '',
+    link_pdf: null,
+    link_gerado_em: '',
+    link_visualizacoes: 0,
+    link_primeira_visualizacao: '',
+    link_ultima_visualizacao: '',
+  })
+
+export interface PropostaPublica {
+  numero: string
+  versao: string
+  titulo: string
+  tipo: TipoOrcamento
+  valor_total: number
+  valor_entrada: number
+  data_proposta: string
+  validade_dias: number
+  status: StatusOrcamento
+  atualizado_em: string
+  cliente: string
+  organizacao: { nome: string; telefone: string; email: string; site: string }
+}
+
+export const getPropostaPublica = (token: string) =>
+  pb.send<PropostaPublica>(`/backend/v1/proposta-publica/${token}`, { method: 'GET' })
+
+export const baixarPdfPropostaPublica = async (token: string): Promise<Blob> => {
+  const resposta = await fetch(
+    `${pb.baseURL.replace(/\/$/, '')}/backend/v1/proposta-publica/${token}/pdf`,
+  )
+  if (!resposta.ok) throw new Error('Não foi possível abrir o PDF da proposta.')
+  return resposta.blob()
+}
 
 /**
  * Duplica o orçamento como uma nova versão, mantendo o vínculo com o original.

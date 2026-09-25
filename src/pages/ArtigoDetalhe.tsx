@@ -19,6 +19,7 @@ import {
   type Artigo,
 } from '@/services/artigos'
 import { definirTituloPagina } from '@/components/TituloPorRota'
+import { trocarServidorInterno } from '@/lib/enderecosPublicos'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card } from '@/components/ui/card'
@@ -75,7 +76,9 @@ export default function ArtigoDetalhe() {
   // Normaliza links para abrir em nova aba com segurança quando externos
   const prepararConteudoHtml = (html: string) => {
     if (!html) return ''
-    return html.replace(/<a\b([^>]*)>/gi, (match, attrs) => {
+    // Imagens gravadas com o endereço interno do servidor saem pelo domínio
+    // próprio quando ele estiver configurado.
+    return trocarServidorInterno(html).replace(/<a\b([^>]*)>/gi, (match, attrs) => {
       let updated = attrs
       if (!/target\s*=/i.test(updated)) {
         updated += ' target="_blank"'
@@ -125,7 +128,7 @@ export default function ArtigoDetalhe() {
     return null
   }
 
-  const capaUrl = getUrlCapaArtigo(artigo)
+  const capaUrl = trocarServidorInterno(getUrlCapaArtigo(artigo) || '')
 
   return (
     <article className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">

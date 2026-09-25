@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Send,
   Trash2,
   Wallet,
 } from 'lucide-react'
@@ -26,7 +27,7 @@ import { formatarDataCalendario, formatLocalDate } from '@/lib/date'
 import { getMinhaOrganizacao, urlLogoOrganizacao } from '@/services/organizacoes'
 import { getModelosProposta, type ModeloProposta } from '@/services/modelosProposta'
 import { criarRecebimento } from '@/services/recebimentos'
-import { gerarPdfProposta } from '@/lib/propostaPdf'
+import { gerarPdfProposta, type PdfGerado } from '@/lib/propostaPdf'
 import {
   calcularIndicadores,
   camposAoMudarStatus,
@@ -45,6 +46,7 @@ import {
 } from '@/services/orcamentos'
 import { OrcamentoDialog } from '@/components/OrcamentoDialog'
 import { OrcamentoKpis } from '@/components/OrcamentoKpis'
+import { EnviarPropostaDialog } from '@/components/EnviarPropostaDialog'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -117,6 +119,7 @@ export function OrcamentosTab({
   const [formaRecebimento, setFormaRecebimento] = useState('PIX')
   const [dataRecebimento, setDataRecebimento] = useState('')
   const [gerandoPdf, setGerandoPdf] = useState('')
+  const [paraEnviar, setParaEnviar] = useState<Orcamento | null>(null)
 
   const carregar = () =>
     getOrcamentos()
@@ -202,33 +205,39 @@ export function OrcamentosTab({
     }
   }
 
+  // Monta o PDF da proposta. salvar=false só devolve o arquivo (link público).
+  const montarPdf = async (orcamento: Orcamento, salvar = true): Promise<PdfGerado | null> => {
+    const org = await getMinhaOrganizacao()
+    // Orçamento sem modelo escolhido (ou criado antes dos modelos existirem)
+    // usa o modelo marcado como padrão, em vez de recusar o PDF.
+    const modelo =
+      orcamento.expand?.modelo_proposta_id ||
+      modelos.find((m) => m.id === orcamento.modelo_proposta_id) ||
+      modelos.find((m) => m.padrao) ||
+      modelos[0] ||
+      null
+
+    if (!modelo) {
+      toast.error('Nenhum modelo de proposta disponível', {
+        description: 'Não foi possível encontrar um modelo de proposta ativo para gerar o PDF.',
+      })
+      return null
+    }
+
+    return gerarPdfProposta({
+      orcamento,
+      empresa: orcamento.expand?.empresa_id,
+      modelo,
+      organizacaoNome: org.nome,
+      logoOrganizacaoUrl: urlLogoOrganizacao(org),
+      salvar,
+    })
+  }
+
   const gerarPdf = async (orcamento: Orcamento) => {
     setGerandoPdf(orcamento.id)
     try {
-      const org = await getMinhaOrganizacao()
-      // Orçamento sem modelo escolhido (ou criado antes dos modelos existirem)
-      // usa o modelo marcado como padrão, em vez de recusar o PDF.
-      const modelo =
-        orcamento.expand?.modelo_proposta_id ||
-        modelos.find((m) => m.id === orcamento.modelo_proposta_id) ||
-        modelos.find((m) => m.padrao) ||
-        modelos[0] ||
-        null
-
-      if (!modelo) {
-        toast.error('Nenhum modelo de proposta disponível', {
-          description: 'Não foi possível encontrar um modelo de proposta ativo para gerar o PDF.',
-        })
-        return
-      }
-
-      await gerarPdfProposta({
-        orcamento,
-        empresa: orcamento.expand?.empresa_id,
-        modelo,
-        organizacaoNome: org.nome,
-        logoOrganizacaoUrl: urlLogoOrganizacao(org),
-      })
+      await montarPdf(orcamento)
     } catch (error) {
       toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
     } finally {
@@ -403,6 +412,15 @@ export function OrcamentosTab({
                         <> · retomar em {formatarData(orcamento.proximo_contato)}</>
                       )}
                     </div>
+                    {orcamento.link_token && (
+                      <div
+                        className={`text-[11px] ${orcamento.link_visualizacoes ? 'text-emerald-700' : 'text-muted-foreground'}`}
+                      >
+                        {orcamento.link_visualizacoes
+                          ? `Cliente abriu o link ${orcamento.link_visualizacoes === 1 ? '1 vez' : `${orcamento.link_visualizacoes} vezes`}`
+                          : 'Link criado, ainda não aberto pelo cliente'}
+                      </div>
+                    )}
                   </div>
 
                   <div className="min-w-32 text-right">
@@ -471,6 +489,14 @@ export function OrcamentosTab({
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Enviar ao cliente (link, WhatsApp ou e-mail)"
+                      onClick={() => setParaEnviar(orcamento)}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       title="Registrar recebimento"
                       onClick={() => {
                         setParaReceber(orcamento)
@@ -526,6 +552,14 @@ export function OrcamentosTab({
           </div>
         </Card>
       )}
+
+      <EnviarPropostaDialog
+        orcamento={paraEnviar}
+        onOpenChange={(aberto) => !aberto && setParaEnviar(null)}
+        gerarPdf={(o) => montarPdf(o, false)}
+        onAtualizado={atualizarLocal}
+        onEnviado={(o) => trocarStatus(o, 'enviado')}
+      />
 
       <OrcamentoDialog
         orcamento={emEdicao}

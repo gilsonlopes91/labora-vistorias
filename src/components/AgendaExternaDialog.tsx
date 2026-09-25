@@ -7,6 +7,7 @@ import { CalendarPlus, Copy, RefreshCw } from 'lucide-react'
 
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { urlServidorPublico } from '@/lib/enderecosPublicos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -69,7 +70,8 @@ export default function AgendaExternaDialog() {
     }
   }
 
-  const base = pb.baseURL.replace(/\/$/, '')
+  // Com domínio próprio configurado, o link sai por ele (item 47).
+  const base = urlServidorPublico()
   const link = chave ? `${base}/backend/v1/agenda/${chave}.ics` : ''
   const webcal = link.replace(/^https?:\/\//, 'webcal://')
   const google = link

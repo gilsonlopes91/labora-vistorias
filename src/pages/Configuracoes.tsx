@@ -7,6 +7,7 @@ import { Building2, FileText, Palette, PenLine, Upload, UserCog, Star, Trash2 } 
 import { Link } from 'react-router-dom'
 import { coresPadrao, ehOrganizacaoLabora, hexValido } from '@/lib/identidadeVisual'
 import { cnpjValido, formatarCnpj } from '@/lib/cnpj'
+import { METODOLOGIA_PADRAO } from '@/lib/textosRelatorio'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
@@ -39,6 +40,7 @@ import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
@@ -628,6 +630,37 @@ export default function Configuracoes() {
                     placeholder="Ex.: Teresina - PI"
                   />
                 </div>
+              </div>
+
+              <div>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <Label htmlFor="doc-metodologia" className="text-xs">
+                    Metodologia do relatório de vistoria
+                  </Label>
+                  {!dadosDoc.metodologia_relatorio && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto px-0 text-xs"
+                      onClick={() => campoDoc('metodologia_relatorio', METODOLOGIA_PADRAO)}
+                    >
+                      Editar a partir do texto padrão
+                    </Button>
+                  )}
+                </div>
+                <Textarea
+                  id="doc-metodologia"
+                  rows={5}
+                  value={dadosDoc.metodologia_relatorio || ''}
+                  onChange={(e) => campoDoc('metodologia_relatorio', e.target.value)}
+                  placeholder={METODOLOGIA_PADRAO}
+                  maxLength={5000}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Sai no começo de todo relatório. Em branco, vale o texto padrão (o que aparece
+                  apagado acima). Dá para ajustar em cada vistoria ao finalizar.
+                </p>
               </div>
 
               <div>

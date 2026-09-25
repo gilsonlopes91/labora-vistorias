@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T12:16:29.131Z",
+  "generatedAt": "2026-09-25T12:59:02.711Z",
   "collections": [
     {
       "name": "users",
@@ -29,21 +29,32 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "papel",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["dono", "gerente", "executor", "admin_plataforma", "staff_labora"]
+          "selectValues": [
+            "dono",
+            "gerente",
+            "executor",
+            "admin_plataforma",
+            "staff_labora"
+          ]
         },
         {
           "name": "organizacao_id",
@@ -117,14 +128,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -158,14 +174,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "logo",
@@ -185,7 +206,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["ativa", "trial", "bloqueada"]
+          "selectValues": [
+            "ativa",
+            "trial",
+            "bloqueada"
+          ]
         },
         {
           "name": "modulos",
@@ -212,7 +237,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_organizacoes_dono ON organizacoes (dono_id)"]
+      "indexes": [
+        "CREATE INDEX idx_organizacoes_dono ON organizacoes (dono_id)"
+      ]
     },
     {
       "name": "empresas",
@@ -255,7 +282,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["MEI", "ME", "EPP", "Demais / Não se enquadra"]
+          "selectValues": [
+            "MEI",
+            "ME",
+            "EPP",
+            "Demais / Não se enquadra"
+          ]
         },
         {
           "name": "grau_risco",
@@ -298,17 +330,78 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "cnae",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnae_descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logradouro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uf",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_empresas_organizacao ON empresas (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_empresas_organizacao ON empresas (organizacao_id)"
+      ]
     },
     {
       "name": "tipos_vistoria",
@@ -357,21 +450,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "regime_multa",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["anexo_i", "anexo_ia_portuario", "rural_art18"]
+          "selectValues": [
+            "anexo_i",
+            "anexo_ia_portuario",
+            "rural_art18"
+          ]
         },
         {
           "name": "secao_oficial",
@@ -398,7 +500,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_tipos_vistoria_organizacao ON tipos_vistoria (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_tipos_vistoria_organizacao ON tipos_vistoria (organizacao_id)"
+      ]
     },
     {
       "name": "itens_checklist",
@@ -453,7 +557,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["S", "M"]
+          "selectValues": [
+            "S",
+            "M"
+          ]
         },
         {
           "name": "descricao",
@@ -472,14 +579,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "revogado",
@@ -554,7 +666,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["agendada", "em_andamento", "concluida", "cancelada"]
+          "selectValues": [
+            "agendada",
+            "em_andamento",
+            "concluida",
+            "cancelada"
+          ]
         },
         {
           "name": "observacoes_gerais",
@@ -573,14 +690,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "fotos_georreferenciadas",
@@ -626,7 +748,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["lei_380", "portaria_392"]
+          "selectValues": [
+            "lei_380",
+            "portaria_392"
+          ]
         },
         {
           "name": "hora_inicio",
@@ -706,6 +831,18 @@
           "required": false,
           "system": false,
           "collectionRef": "responsaveis_tecnicos"
+        },
+        {
+          "name": "conclusao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metodologia",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -745,7 +882,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["C", "N/C", "N/A"]
+          "selectValues": [
+            "C",
+            "N/C",
+            "N/A"
+          ]
         },
         {
           "name": "observacao",
@@ -788,14 +929,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "localizacao",
@@ -908,7 +1054,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["S", "M"]
+          "selectValues": [
+            "S",
+            "M"
+          ]
         },
         {
           "name": "valor_min_ufir",
@@ -927,14 +1076,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -975,17 +1129,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_parametros_chave ON parametros_sistema (chave)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_parametros_chave ON parametros_sistema (chave)"
+      ]
     },
     {
       "name": "responsaveis_tecnicos",
@@ -1016,7 +1177,16 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["CREA", "CRM", "CRQ", "CRBio", "CRP", "COREN", "MTE", "Outro"]
+          "selectValues": [
+            "CREA",
+            "CRM",
+            "CRQ",
+            "CRBio",
+            "CRP",
+            "COREN",
+            "MTE",
+            "Outro"
+          ]
         },
         {
           "name": "numero_registro",
@@ -1041,14 +1211,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "usuario_id",
@@ -1105,7 +1280,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["semanal", "mensal", "bimestral", "trimestral", "semestral", "anual"]
+          "selectValues": [
+            "semanal",
+            "mensal",
+            "bimestral",
+            "trimestral",
+            "semestral",
+            "anual"
+          ]
         },
         {
           "name": "ativo",
@@ -1131,14 +1313,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "checklists",
@@ -1238,17 +1425,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_modelos_formulario_org ON modelos_formulario (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_modelos_formulario_org ON modelos_formulario (organizacao_id)"
+      ]
     },
     {
       "name": "formularios",
@@ -1299,7 +1493,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["rascunho", "concluido"]
+          "selectValues": [
+            "rascunho",
+            "concluido"
+          ]
         },
         {
           "name": "data_campo",
@@ -1325,14 +1522,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "vistoria_id",
@@ -1383,17 +1585,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_conteudo_chave ON conteudo_site (chave)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_conteudo_chave ON conteudo_site (chave)"
+      ]
     },
     {
       "name": "artigos",
@@ -1441,7 +1650,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["rascunho", "publicado"]
+          "selectValues": [
+            "rascunho",
+            "publicado"
+          ]
         },
         {
           "name": "autor_id",
@@ -1455,14 +1667,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "autor_blog_id",
@@ -1472,7 +1689,9 @@
           "collectionRef": "blog_autores"
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_artigos_slug ON artigos (slug)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_artigos_slug ON artigos (slug)"
+      ]
     },
     {
       "name": "tabela_multas_portuario",
@@ -1518,7 +1737,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["S", "M"]
+          "selectValues": [
+            "S",
+            "M"
+          ]
         },
         {
           "name": "valor_min_reais",
@@ -1537,14 +1759,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1587,7 +1814,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["servico", "treinamento"]
+          "selectValues": [
+            "servico",
+            "treinamento"
+          ]
         },
         {
           "name": "titulo",
@@ -1715,14 +1945,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "status_financeiro",
@@ -1835,13 +2070,50 @@
           "required": false,
           "system": false,
           "collectionRef": "modelos_proposta"
+        },
+        {
+          "name": "link_token",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_pdf",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_gerado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_visualizacoes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_primeira_visualizacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_ultima_visualizacao",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_orcamentos_organizacao ON orcamentos (organizacao_id)",
         "CREATE INDEX idx_orcamentos_empresa ON orcamentos (empresa_id)",
         "CREATE INDEX idx_orcamentos_status ON orcamentos (status)",
-        "CREATE UNIQUE INDEX idx_orcamentos_numero_org ON orcamentos (organizacao_id, numero)"
+        "CREATE UNIQUE INDEX idx_orcamentos_numero_org ON orcamentos (organizacao_id, numero)",
+        "CREATE UNIQUE INDEX `idx_orcamentos_link_token` ON `orcamentos` (link_token) WHERE link_token != ''"
       ]
     },
     {
@@ -1897,7 +2169,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["previsto", "recebido", "atrasado", "cancelado"]
+          "selectValues": [
+            "previsto",
+            "recebido",
+            "atrasado",
+            "cancelado"
+          ]
         },
         {
           "name": "comprovante",
@@ -1910,14 +2187,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1953,7 +2235,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["classico", "moderno", "minimalista", "labora"]
+          "selectValues": [
+            "classico",
+            "moderno",
+            "minimalista",
+            "labora"
+          ]
         },
         {
           "name": "cor_primaria",
@@ -2014,14 +2301,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "itens_inclusos_padrao",
@@ -2072,7 +2364,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_modelos_proposta_org ON modelos_proposta (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_modelos_proposta_org ON modelos_proposta (organizacao_id)"
+      ]
     },
     {
       "name": "normas_referencia",
@@ -2109,17 +2403,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_normas_referencia_org ON normas_referencia (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_normas_referencia_org ON normas_referencia (organizacao_id)"
+      ]
     },
     {
       "name": "lista_espera",
@@ -2155,14 +2456,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "termos_versao",
@@ -2177,7 +2483,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_lista_espera_email ON lista_espera (email)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_lista_espera_email ON lista_espera (email)"
+      ]
     },
     {
       "name": "manual_imagens",
@@ -2207,14 +2515,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -2277,7 +2590,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["em_dia", "mudou", "erro"]
+          "selectValues": [
+            "em_dia",
+            "mudou",
+            "erro"
+          ]
         },
         {
           "name": "mudancas",
@@ -2314,17 +2631,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_normas_monitor_nr ON normas_monitor (nr)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_normas_monitor_nr ON normas_monitor (nr)"
+      ]
     },
     {
       "name": "blog_autores",
@@ -2360,17 +2684,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_blog_autores_nome ON blog_autores (nome)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_blog_autores_nome ON blog_autores (nome)"
+      ]
     }
   ]
 }

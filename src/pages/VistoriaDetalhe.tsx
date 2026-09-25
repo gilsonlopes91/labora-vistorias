@@ -32,6 +32,7 @@ import {
 } from '@/lib/filaOffline'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
+import { METODOLOGIA_PADRAO, rascunhoConclusao } from '@/lib/textosRelatorio'
 import { ehOrganizacaoLabora } from '@/lib/identidadeVisual'
 import LoadingScreen from '@/components/LoadingScreen'
 import TextoNorma from '@/components/TextoNorma'
@@ -225,6 +226,11 @@ export default function VistoriaDetalhe() {
   const [acompanhanteNome, setAcompanhanteNome] = useState('')
   const [acompanhanteCargo, setAcompanhanteCargo] = useState('')
   const [artNumero, setArtNumero] = useState('')
+  // Conclusão e metodologia do relatório (item 22).
+  const [conclusao, setConclusao] = useState('')
+  const [metodologia, setMetodologia] = useState('')
+  const [metodologiaOrg, setMetodologiaOrg] = useState('')
+  const [mostrarMetodologia, setMostrarMetodologia] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
 
   // Itens sem resposta na hora de finalizar (marcar como N/A ou voltar).
@@ -367,6 +373,7 @@ export default function VistoriaDetalhe() {
         const url = urlLogoOrganizacao(org)
         setLogoMarcaDagua(url || (ehOrganizacaoLabora(org.nome) ? laboraLogoUrl : ''))
         if (org.nome) setNomeOrganizacao(org.nome)
+        setMetodologiaOrg(org.dados_documentos?.metodologia_relatorio || '')
       })
       .catch(() => {
         // sem organização carregada — documentos saem sem logo
@@ -820,6 +827,8 @@ export default function VistoriaDetalhe() {
       tipoNrReferencia: tipoV?.nr_referencia,
       checklists: checklistsInfo,
       assinaturaRtUrl,
+      metodologia: v.metodologia || metodologiaOrg || METODOLOGIA_PADRAO,
+      conclusao: v.conclusao,
       organizacaoNome: nomeOrganizacao,
       logoUrl: logoMarcaDagua,
       itens: itensOrdenados,
@@ -844,6 +853,25 @@ export default function VistoriaDetalhe() {
     }
   }
 
+  // Rascunho da conclusão com os números da vistoria, para o RT ajustar.
+  const montarRascunhoConclusao = () =>
+    rascunhoConclusao({
+      dataVistoria: vistoria?.data_realizada || formatLocalDate(new Date()),
+      checklists: checklistsInfo.map((c) => c.rotulo),
+      ...resumo,
+      prazos: itensOrdenados
+        .map((item) => respostasVisiveis[item.id])
+        .filter((r) => r?.situacao === 'N/C' && r.prazo_adequacao)
+        .map((r) => String(r!.prazo_adequacao).slice(0, 10)),
+    })
+
+  // Ao abrir a finalização sem conclusão escrita, já traz o rascunho. Roda
+  // depois da renderização, com os N/A recém-marcados já contados.
+  useEffect(() => {
+    if (rtDialogAberto && !conclusao.trim()) setConclusao(montarRascunhoConclusao())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rtDialogAberto])
+
   const abrirDialogRT = () => {
     const existente = vistoria?.responsavel_tecnico_nome
       ? responsaveis.find((r) => r.nome === vistoria.responsavel_tecnico_nome)
@@ -860,6 +888,9 @@ export default function VistoriaDetalhe() {
     setAcompanhanteNome(vistoria?.acompanhante_nome || vistoria?.contato_local_nome || '')
     setAcompanhanteCargo(vistoria?.acompanhante_cargo || '')
     setArtNumero(vistoria?.art_numero || '')
+    setConclusao(vistoria?.conclusao || '')
+    setMetodologia(vistoria?.metodologia || metodologiaOrg || METODOLOGIA_PADRAO)
+    setMostrarMetodologia(false)
     setRtDialogAberto(true)
   }
 
@@ -1083,6 +1114,8 @@ export default function VistoriaDetalhe() {
         acompanhante_nome: acompanhanteNome.trim(),
         acompanhante_cargo: acompanhanteCargo.trim(),
         art_numero: artNumero.trim(),
+        conclusao: conclusao.trim(),
+        metodologia: metodologia.trim(),
         // Data em que a vistoria foi feita de fato (a agendada pode ser outra).
         // Se a vistoria foi reaberta, mantém a data original.
         ...(vistoria.data_realizada ? {} : { data_realizada: toPocketBaseDate(new Date()) }),
@@ -1097,6 +1130,8 @@ export default function VistoriaDetalhe() {
         acompanhante_nome: updated.acompanhante_nome,
         acompanhante_cargo: updated.acompanhante_cargo,
         art_numero: updated.art_numero,
+        conclusao: updated.conclusao,
+        metodologia: updated.metodologia,
       }
       setVistoria(vistoriaFinalizada)
       setRtDialogAberto(false)
@@ -2299,7 +2334,7 @@ export default function VistoriaDetalhe() {
       </Dialog>
 
       <Dialog open={rtDialogAberto} onOpenChange={setRtDialogAberto}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Responsável técnico do relatório</DialogTitle>
             <DialogDescription>
@@ -2435,6 +2470,56 @@ export default function VistoriaDetalhe() {
                   placeholder="Ex.: PI20260123456"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="conclusao" className="text-xs font-semibold">
+                  Conclusão do relatório
+                </Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 text-xs"
+                  onClick={() => setConclusao(montarRascunhoConclusao())}
+                >
+                  Refazer o rascunho
+                </Button>
+              </div>
+              <Textarea
+                id="conclusao"
+                rows={8}
+                value={conclusao}
+                onChange={(e) => setConclusao(e.target.value)}
+                maxLength={5000}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Rascunho feito com os números da vistoria. Ajuste o que precisar antes de assinar.
+              </p>
+            </div>
+
+            <div className="rounded-md border p-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-left text-xs font-semibold"
+                onClick={() => setMostrarMetodologia((m) => !m)}
+                aria-expanded={mostrarMetodologia}
+              >
+                <span>Metodologia</span>
+                <span className="font-normal text-muted-foreground">
+                  {mostrarMetodologia ? 'fechar' : 'ver e ajustar'}
+                </span>
+              </button>
+              {mostrarMetodologia && (
+                <Textarea
+                  className="mt-2"
+                  rows={6}
+                  value={metodologia}
+                  onChange={(e) => setMetodologia(e.target.value)}
+                  maxLength={5000}
+                />
+              )}
             </div>
           </div>
 

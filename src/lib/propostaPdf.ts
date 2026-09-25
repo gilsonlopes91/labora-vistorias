@@ -113,9 +113,16 @@ export interface DadosProposta {
   organizacaoNome: string
   /** Logo da organização, usada quando o modelo não tem logo própria. */
   logoOrganizacaoUrl?: string | null
+  /** false = só devolve o arquivo (para o link público), sem baixar. */
+  salvar?: boolean
 }
 
-export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
+export interface PdfGerado {
+  blob: Blob
+  nome: string
+}
+
+export async function gerarPdfProposta(entrada: DadosProposta): Promise<PdfGerado> {
   // Logo e cores da organização (Configurações > Identidade visual) valem para
   // todo modelo que não tenha sido configurado com identidade própria.
   const identidade = await carregarIdentidade()
@@ -135,6 +142,7 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
       modelo,
       organizacaoNome,
       logoOrganizacaoUrl: dados.logoOrganizacaoUrl,
+      salvar: entrada.salvar,
     })
   }
 
@@ -612,7 +620,7 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
 
-  doc.save(
-    `proposta-${(orcamento.numero || 's-n').replace(/\//g, '-')}-${slug(nomeCliente) || 'cliente'}.pdf`,
-  )
+  const nome = `proposta-${(orcamento.numero || 's-n').replace(/\//g, '-')}-${slug(nomeCliente) || 'cliente'}.pdf`
+  if (entrada.salvar !== false) doc.save(nome)
+  return { blob: doc.output('blob'), nome }
 }

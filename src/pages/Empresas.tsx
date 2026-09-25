@@ -9,7 +9,8 @@ import { Plus, Pencil, Trash2, Building2, Search, Mail, MapPin, Phone, Users } f
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
-import { buscarDadosCnpj, cnpjValido, formatarCnpj } from '@/lib/cnpj'
+import { buscarCep, buscarDadosCnpj, cnpjValido, formatarCnpj } from '@/lib/cnpj'
+import { buscarCnae, classeDoCnae, digitosCnae, formatarCnae } from '@/lib/cnaeNr04'
 import { useAuth } from '@/hooks/use-auth'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import {
@@ -17,6 +18,8 @@ import {
   createEmpresa,
   updateEmpresa,
   deleteEmpresa,
+  montarEndereco,
+  temEnderecoEmPartes,
   type Empresa,
 } from '@/services/empresas'
 import { getFormularios, type Formulario } from '@/services/registrosFormulario'
@@ -88,6 +91,21 @@ const empresaSchema = z.object({
   grau_risco: z.string().optional(),
   numero_funcionarios: z.string().optional(),
   endereco: z.string().optional(),
+  cnae: z.string().optional(),
+  cnae_descricao: z.string().optional(),
+  cep: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{5}-?\d{3}$/.test(v.trim()), 'CEP com 8 números'),
+  logradouro: z.string().optional(),
+  numero_endereco: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  uf: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^[A-Za-z]{2}$/.test(v.trim()), 'UF com 2 letras'),
   contato_nome: z.string().optional(),
   contato_telefone: z.string().optional(),
   contato_email: z.union([z.string().email('E-mail inválido'), z.literal('')]).optional(),
@@ -103,6 +121,15 @@ const emptyValues: EmpresaFormValues = {
   grau_risco: '',
   numero_funcionarios: '',
   endereco: '',
+  cnae: '',
+  cnae_descricao: '',
+  cep: '',
+  logradouro: '',
+  numero_endereco: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
   contato_nome: '',
   contato_telefone: '',
   contato_email: '',
@@ -125,6 +152,9 @@ export default function Empresas() {
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
   const [busca, setBusca] = useState('')
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const [buscandoCep, setBuscandoCep] = useState(false)
+  // Texto digitado no campo de CNAE (código ou palavras da atividade).
+  const [textoCnae, setTextoCnae] = useState('')
 
   const empresasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -183,7 +213,48 @@ export default function Empresas() {
   const openCreate = () => {
     setEditing(null)
     form.reset(emptyValues)
+    setTextoCnae('')
     setDialogOpen(true)
+  }
+
+  // CNAE escolhido: grava a subclasse/classe e puxa o grau de risco da NR-04.
+  const escolherCnae = (codigo: string, descricao?: string) => {
+    const classe = classeDoCnae(codigo)
+    form.setValue('cnae', digitosCnae(codigo))
+    form.setValue('cnae_descricao', descricao || classe?.descricao || '')
+    setTextoCnae(formatarCnae(codigo))
+    if (classe) form.setValue('grau_risco', String(classe.gr))
+  }
+
+  const aoDigitarCnae = (texto: string) => {
+    setTextoCnae(texto)
+    const d = digitosCnae(texto)
+    const classe = /^[\d.\-/\s]+$/.test(texto.trim()) && d.length >= 5 ? classeDoCnae(d) : undefined
+    if (classe) {
+      form.setValue('cnae', d)
+      form.setValue('cnae_descricao', classe.descricao)
+      form.setValue('grau_risco', String(classe.gr))
+    } else {
+      form.setValue('cnae', '')
+      form.setValue('cnae_descricao', '')
+    }
+  }
+
+  const preencherPeloCep = async () => {
+    setBuscandoCep(true)
+    try {
+      const d = await buscarCep(form.getValues('cep') || '')
+      form.setValue('cep', d.cep)
+      if (d.logradouro) form.setValue('logradouro', d.logradouro)
+      if (d.bairro) form.setValue('bairro', d.bairro)
+      if (d.cidade) form.setValue('cidade', d.cidade)
+      if (d.uf) form.setValue('uf', d.uf)
+      form.clearErrors('cep')
+    } catch (error) {
+      form.setError('cep', { message: getErrorMessage(error) })
+    } finally {
+      setBuscandoCep(false)
+    }
   }
 
   // Preenche o cadastro com os dados públicos do CNPJ (Receita). Só completa
@@ -204,11 +275,33 @@ export default function Empresas() {
       if (d.telefone && vazio('contato_telefone'))
         form.setValue('contato_telefone', formatTelefone(d.telefone))
       if (d.porte && vazio('porte')) form.setValue('porte', d.porte)
+      // Endereço em partes: só se ainda não tem nenhuma parte digitada.
+      if (!temEnderecoEmPartes(form.getValues())) {
+        form.setValue('cep', d.cep)
+        form.setValue('logradouro', d.logradouro)
+        form.setValue('numero_endereco', d.numero)
+        form.setValue('complemento', d.complemento)
+        form.setValue('bairro', d.bairro)
+        form.setValue('cidade', d.cidade)
+        form.setValue('uf', d.uf)
+      }
+      let grTexto = ''
+      if (d.cnae_codigo && vazio('cnae')) {
+        const classe = classeDoCnae(d.cnae_codigo)
+        form.setValue('cnae', d.cnae_codigo)
+        form.setValue('cnae_descricao', d.cnae_descricao || classe?.descricao || '')
+        setTextoCnae(formatarCnae(d.cnae_codigo))
+        if (classe && vazio('grau_risco')) {
+          form.setValue('grau_risco', String(classe.gr))
+          grTexto = `Grau de risco ${classe.gr} pela NR-04`
+        }
+      }
       toast.success('Dados da Receita preenchidos', {
         description: [
           d.situacao ? `Situação: ${d.situacao}` : '',
           d.cnae ? `Atividade principal: ${d.cnae}` : '',
-          'Confira e complete o nº de empregados e o grau de risco.',
+          grTexto,
+          'Confira e complete o nº de empregados.',
         ]
           .filter(Boolean)
           .join('. '),
@@ -231,10 +324,20 @@ export default function Empresas() {
       numero_funcionarios:
         empresa.numero_funcionarios != null ? String(empresa.numero_funcionarios) : '',
       endereco: empresa.endereco ?? '',
+      cnae: empresa.cnae ?? '',
+      cnae_descricao: empresa.cnae_descricao ?? '',
+      cep: empresa.cep ?? '',
+      logradouro: empresa.logradouro ?? '',
+      numero_endereco: empresa.numero_endereco ?? '',
+      complemento: empresa.complemento ?? '',
+      bairro: empresa.bairro ?? '',
+      cidade: empresa.cidade ?? '',
+      uf: empresa.uf ?? '',
       contato_nome: empresa.contato_nome ?? '',
       contato_telefone: empresa.contato_telefone ? formatTelefone(empresa.contato_telefone) : '',
       contato_email: empresa.contato_email ?? '',
     })
+    setTextoCnae(empresa.cnae ? formatarCnae(empresa.cnae) : '')
     setDialogOpen(true)
   }
 
@@ -264,7 +367,20 @@ export default function Empresas() {
       numero_funcionarios: values.numero_funcionarios
         ? Number(values.numero_funcionarios)
         : undefined,
-      endereco: values.endereco?.trim() || undefined,
+      // Com o endereço em partes, a linha completa é montada a partir delas;
+      // cadastro antigo, só com a linha, continua como estava.
+      endereco: temEnderecoEmPartes(values)
+        ? montarEndereco(values)
+        : values.endereco?.trim() || undefined,
+      cnae: values.cnae || '',
+      cnae_descricao: values.cnae ? values.cnae_descricao || '' : '',
+      cep: values.cep?.trim() || '',
+      logradouro: values.logradouro?.trim() || '',
+      numero_endereco: values.numero_endereco?.trim() || '',
+      complemento: values.complemento?.trim() || '',
+      bairro: values.bairro?.trim() || '',
+      cidade: values.cidade?.trim() || '',
+      uf: values.uf?.trim().toUpperCase() || '',
       contato_nome: values.contato_nome?.trim() || undefined,
       contato_telefone: values.contato_telefone?.trim() || undefined,
       contato_email: values.contato_email?.trim() || undefined,
@@ -447,6 +563,19 @@ export default function Empresas() {
                                   {empresa.porte}
                                 </Badge>
                               )}
+                              {empresa.grau_risco != null && empresa.grau_risco > 0 && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px]"
+                                  title={
+                                    empresa.cnae
+                                      ? `CNAE ${formatarCnae(empresa.cnae)}${empresa.cnae_descricao ? ` · ${empresa.cnae_descricao}` : ''}`
+                                      : undefined
+                                  }
+                                >
+                                  Grau de risco {empresa.grau_risco}
+                                </Badge>
+                              )}
                               {empresa.numero_funcionarios != null && (
                                 <Badge variant="outline" className="text-[10px]">
                                   {empresa.numero_funcionarios} empregados
@@ -479,7 +608,7 @@ export default function Empresas() {
       </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar empresa' : 'Nova empresa'}</DialogTitle>
             <DialogDescription>
@@ -568,6 +697,58 @@ export default function Empresas() {
                   )}
                 />
               </div>
+              <div className="space-y-1.5">
+                <FormLabel>CNAE principal</FormLabel>
+                <Input
+                  value={textoCnae}
+                  onChange={(e) => aoDigitarCnae(e.target.value)}
+                  placeholder="Código (41.20-4) ou atividade (construção de edifícios)"
+                />
+                {(() => {
+                  const cnae = form.watch('cnae')
+                  const classe = classeDoCnae(cnae)
+                  if (classe) {
+                    const gr = form.watch('grau_risco')
+                    return (
+                      <div className="space-y-0.5 text-xs text-muted-foreground">
+                        <p>
+                          {form.watch('cnae_descricao') || classe.descricao} · classe{' '}
+                          {classe.codigo} · grau de risco {classe.gr} pela NR-04
+                        </p>
+                        {gr && gr !== String(classe.gr) && (
+                          <p className="text-amber-700">
+                            O grau escolhido abaixo ({gr}) é diferente do que a NR-04 indica para
+                            esse CNAE ({classe.gr}).
+                          </p>
+                        )}
+                      </div>
+                    )
+                  }
+                  const sugestoes = textoCnae.trim().length >= 3 ? buscarCnae(textoCnae, 6) : []
+                  if (!sugestoes.length) {
+                    return textoCnae.trim().length >= 3 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhuma atividade encontrada. Tente outra palavra ou o código.
+                      </p>
+                    ) : null
+                  }
+                  return (
+                    <div className="max-h-44 overflow-y-auto rounded-md border">
+                      {sugestoes.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => escolherCnae(c.id, c.descricao)}
+                          className="block w-full border-b px-3 py-1.5 text-left text-xs last:border-b-0 hover:bg-accent"
+                        >
+                          <span className="font-mono">{c.codigo}</span> {c.descricao}{' '}
+                          <span className="text-muted-foreground">· GR {c.gr}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -612,19 +793,136 @@ export default function Empresas() {
                   )}
                 />
               </div>
-              <FormField
-                control={form.control}
-                name="endereco"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Rua, número, bairro, cidade" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <div className="space-y-3 rounded-md border p-3">
+                <p className="text-sm font-medium">Endereço</p>
+                {editing?.endereco && !temEnderecoEmPartes(editing) && (
+                  <p className="text-xs text-muted-foreground">
+                    Cadastrado numa linha só: {editing.endereco}. Preencha os campos abaixo (o CEP
+                    ajuda) para separar; se deixar em branco, fica como está.
+                  </p>
                 )}
-              />
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="cep"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel className="text-xs">CEP</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="00000-000"
+                            inputMode="numeric"
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const d = e.target.value.replace(/\D/g, '').slice(0, 8)
+                              field.onChange(d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d)
+                            }}
+                            onBlur={() => {
+                              field.onBlur()
+                              const d = (field.value || '').replace(/\D/g, '')
+                              if (d.length === 8 && !form.getValues('logradouro'))
+                                preencherPeloCep()
+                            }}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto px-0 text-xs"
+                          onClick={preencherPeloCep}
+                          disabled={buscandoCep}
+                        >
+                          <Search className="mr-1 h-3 w-3" />
+                          {buscandoCep ? 'Buscando...' : 'Buscar CEP'}
+                        </Button>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="logradouro"
+                    render={({ field }) => (
+                      <FormItem className="col-span-3 sm:col-span-2">
+                        <FormLabel className="text-xs">Rua / avenida</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Av. Industrial" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="numero_endereco"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Número</FormLabel>
+                        <FormControl>
+                          <Input placeholder="910" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="complemento"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel className="text-xs">Complemento</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Galpão 2" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-6 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="bairro"
+                    render={({ field }) => (
+                      <FormItem className="col-span-6 sm:col-span-2">
+                        <FormLabel className="text-xs">Bairro</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cidade"
+                    render={({ field }) => (
+                      <FormItem className="col-span-4 sm:col-span-3">
+                        <FormLabel className="text-xs">Cidade</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="uf"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel className="text-xs">UF</FormLabel>
+                        <FormControl>
+                          <Input
+                            maxLength={2}
+                            value={field.value ?? ''}
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

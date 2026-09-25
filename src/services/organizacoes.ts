@@ -9,6 +9,8 @@ export interface DadosDocumentos {
   endereco?: string
   site?: string
   cidade_emissao?: string
+  /** Texto de metodologia que abre o relatório de vistoria. Vazio = texto padrão. */
+  metodologia_relatorio?: string
   banco?: {
     favorecido?: string
     instituicao?: string

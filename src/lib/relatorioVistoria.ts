@@ -84,6 +84,9 @@ export interface DadosRelatorioVistoria {
   checklists?: { id: string; rotulo: string; nome: string }[]
   /** Imagem da assinatura do RT que assinou (link com token). Opcional. */
   assinaturaRtUrl?: string
+  /** Metodologia (da vistoria ou o padrão da organização) e conclusão do RT. */
+  metodologia?: string
+  conclusao?: string
   organizacaoNome: string
   logoUrl: string
   itens: ItemChecklist[]
@@ -318,6 +321,35 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     margin: { left: margin, right: margin },
   })
   y = (finalYDadosGerais || y) + 18
+
+  // Parágrafos longos (metodologia, conclusão), com quebra de página por linha.
+  const paragrafos = (titulo: string, texto: string) => {
+    if (y > pageHeight - 110) {
+      doc.addPage()
+      y = margin
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text(titulo, margin, y)
+    y += 16
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    for (const bloco of texto.split(/\n\s*\n/)) {
+      const linhas: string[] = doc.splitTextToSize(bloco.trim(), larguraUtil)
+      for (const linha of linhas) {
+        if (y > pageHeight - 60) {
+          doc.addPage()
+          y = margin
+        }
+        doc.text(linha, margin, y)
+        y += 12
+      }
+      y += 5
+    }
+    y += 10
+  }
+
+  if (dados.metodologia?.trim()) paragrafos('Metodologia', dados.metodologia)
 
   // Resumo executivo
   doc.setFont('helvetica', 'bold')
@@ -676,6 +708,11 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       margin: { left: margin, right: margin },
     })
     y = (fimNA || y) + 12
+  }
+
+  if (dados.conclusao?.trim()) {
+    y += 6
+    paragrafos('Conclusão', dados.conclusao)
   }
 
   // Assinaturas: responsável técnico (com a assinatura digitalizada, se houver)

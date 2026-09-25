@@ -47,6 +47,9 @@ export interface Vistoria extends RecordModel {
   acompanhante_cargo?: string
   art_numero?: string
   rt_assinante_id?: string
+  /** Conclusão e metodologia do relatório (migration 0132). */
+  conclusao?: string
+  metodologia?: string
   client_uuid: string
   created: string
   updated: string
@@ -87,6 +90,8 @@ export interface VistoriaInput {
   acompanhante_cargo?: string
   art_numero?: string
   rt_assinante_id?: string
+  conclusao?: string
+  metodologia?: string
   client_uuid: string
 }
 

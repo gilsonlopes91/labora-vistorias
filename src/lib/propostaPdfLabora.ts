@@ -116,9 +116,13 @@ export interface DadosPropostaLabora {
   modelo: ModeloProposta
   organizacaoNome: string
   logoOrganizacaoUrl?: string | null
+  /** false = só devolve o arquivo (para o link público), sem baixar. */
+  salvar?: boolean
 }
 
-export async function gerarPdfPropostaLabora(dados: DadosPropostaLabora): Promise<void> {
+export async function gerarPdfPropostaLabora(
+  dados: DadosPropostaLabora,
+): Promise<{ blob: Blob; nome: string }> {
   const { orcamento, empresa, modelo, organizacaoNome } = dados
   // Contato, CNPJ e dados bancários: o que estiver preenchido no modelo vale;
   // o que estiver vazio vem de Configurações > Dados da empresa nos documentos.
@@ -1001,7 +1005,7 @@ export async function gerarPdfPropostaLabora(dados: DadosPropostaLabora): Promis
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
 
-  doc.save(
-    `proposta-${(numero || 's-n').replace(/\//g, '-')}-${slug(nomeCliente) || 'cliente'}.pdf`,
-  )
+  const nome = `proposta-${(numero || 's-n').replace(/\//g, '-')}-${slug(nomeCliente) || 'cliente'}.pdf`
+  if (dados.salvar !== false) doc.save(nome)
+  return { blob: doc.output('blob'), nome }
 }

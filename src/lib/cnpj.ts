@@ -46,8 +46,20 @@ export interface DadosCnpj {
   endereco: string
   telefone: string
   porte: string
+  /** CNAE principal em texto ("4120400 - Construção de Edifícios"), para aviso. */
   cnae: string
+  /** CNAE principal só com os dígitos da subclasse (7 dígitos). */
+  cnae_codigo: string
+  cnae_descricao: string
   situacao: string
+  // Endereço em partes
+  cep: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
 }
 
 /** Porte do cadastro da Receita no formato usado no app. */
@@ -83,6 +95,8 @@ export async function buscarDadosCnpj(valor: string): Promise<DadosCnpj> {
   ]
     .filter(Boolean)
     .join(', ')
+  const cnaeDigitos = s('cnae_fiscal').replace(/\D/g, '').padStart(7, '0')
+  const cepDigitos = s('cep').replace(/\D/g, '')
   return {
     razao_social: s('razao_social'),
     nome_fantasia: tituloCaso(s('nome_fantasia')),
@@ -90,6 +104,57 @@ export async function buscarDadosCnpj(valor: string): Promise<DadosCnpj> {
     telefone: s('ddd_telefone_1'),
     porte: portePadrao(s('porte'), d.opcao_pelo_mei === true),
     cnae: [s('cnae_fiscal'), tituloCaso(s('cnae_fiscal_descricao'))].filter(Boolean).join(' - '),
+    cnae_codigo: s('cnae_fiscal') ? cnaeDigitos : '',
+    cnae_descricao: s('cnae_fiscal_descricao'),
     situacao: s('descricao_situacao_cadastral'),
+    cep: cepDigitos.length === 8 ? `${cepDigitos.slice(0, 5)}-${cepDigitos.slice(5)}` : '',
+    logradouro: tituloCaso(rua),
+    numero: s('numero'),
+    complemento: tituloCaso(s('complemento')),
+    bairro: tituloCaso(s('bairro')),
+    cidade: tituloCaso(s('municipio')),
+    uf: s('uf').toUpperCase(),
+  }
+}
+
+export interface DadosCep {
+  cep: string
+  logradouro: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
+/** Endereço pelo CEP (BrasilAPI; se ela não responder, ViaCEP). */
+export async function buscarCep(valor: string): Promise<DadosCep> {
+  const cep = (valor || '').replace(/\D/g, '')
+  if (cep.length !== 8) throw new Error('O CEP tem 8 números.')
+  const formatado = `${cep.slice(0, 5)}-${cep.slice(5)}`
+  try {
+    const r = await fetch(`https://brasilapi.com.br/api/cep/v1/${cep}`)
+    if (r.ok) {
+      const d = (await r.json()) as Record<string, string>
+      return {
+        cep: formatado,
+        logradouro: d.street || '',
+        bairro: d.neighborhood || '',
+        cidade: d.city || '',
+        uf: (d.state || '').toUpperCase(),
+      }
+    }
+    if (r.status === 404) throw new Error('CEP não encontrado.')
+  } catch (e) {
+    if (e instanceof Error && e.message === 'CEP não encontrado.') throw e
+  }
+  const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+  if (!r.ok) throw new Error('A busca de CEP não respondeu agora. Preencha à mão.')
+  const d = (await r.json()) as Record<string, string | boolean>
+  if (d.erro) throw new Error('CEP não encontrado.')
+  return {
+    cep: formatado,
+    logradouro: String(d.logradouro || ''),
+    bairro: String(d.bairro || ''),
+    cidade: String(d.localidade || ''),
+    uf: String(d.uf || '').toUpperCase(),
   }
 }
