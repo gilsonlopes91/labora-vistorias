@@ -9,7 +9,8 @@ import { toast } from 'sonner'
 import { ArrowLeft, Copy, Eye, Pencil, Star, Upload, X } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { gerarPdfProposta } from '@/lib/propostaPdf'
+import { gerarPdfProposta, type PdfGerado } from '@/lib/propostaPdf'
+import VisualizadorPdf from '@/components/VisualizadorPdf'
 import {
   carregarIdentidade,
   hexValido,
@@ -194,6 +195,7 @@ export default function ModelosProposta() {
   const [nomeOrg, setNomeOrg] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [gerando, setGerando] = useState('')
+  const [pdfNaTela, setPdfNaTela] = useState<{ pdf: PdfGerado; titulo: string } | null>(null)
 
   const [emEdicao, setEmEdicao] = useState<ModeloProposta | null>(null)
   const [salvando, setSalvando] = useState(false)
@@ -252,16 +254,19 @@ export default function ModelosProposta() {
     }
   }
 
-  const verExemplo = async (modelo: ModeloProposta) => {
+  // Mostra o PDF de exemplo na tela; baixar é opcional, dentro da janela.
+  const verExemplo = async (modelo: ModeloProposta, titulo = `Exemplo: ${modelo.nome}`) => {
     setGerando(modelo.id)
     try {
-      await gerarPdfProposta({
+      const pdf = await gerarPdfProposta({
         orcamento: ORCAMENTO_EXEMPLO,
         empresa: EMPRESA_EXEMPLO,
         modelo,
         organizacaoNome: nomeOrg,
         logoOrganizacaoUrl: identidade?.logoUrl,
+        salvar: false,
       })
+      setPdfNaTela({ pdf, titulo })
     } catch (error) {
       toast.error('Não foi possível gerar o exemplo', { description: getErrorMessage(error) })
     } finally {
@@ -317,6 +322,30 @@ export default function ModelosProposta() {
     } finally {
       setSalvando(false)
     }
+  }
+
+  // Pré-visualização com o que está na tela de edição, antes de salvar.
+  const verEdicao = () => {
+    if (!emEdicao) return
+    verExemplo(
+      {
+        ...emEdicao,
+        nome: nome.trim() || emEdicao.nome,
+        layout,
+        usar_identidade_org: usarIdentidade,
+        cor_primaria: hexValido(corPrimaria) ? corPrimaria.toUpperCase() : emEdicao.cor_primaria,
+        cor_secundaria: hexValido(corSecundaria)
+          ? corSecundaria.toUpperCase()
+          : emEdicao.cor_secundaria,
+        secoes,
+        texto_apresentacao: apresentacao,
+        texto_encerramento: encerramento,
+        itens_inclusos_padrao: linhas(inclusos),
+        itens_exclusos_padrao: linhas(exclusos),
+        dados_institucionais: inst,
+      },
+      `Prévia (ainda não salva): ${nome.trim() || emEdicao.nome}`,
+    )
   }
 
   const corDoModelo = (m: ModeloProposta) =>
@@ -422,6 +451,13 @@ export default function ModelosProposta() {
           ))}
         </div>
       )}
+
+      <VisualizadorPdf
+        pdf={pdfNaTela?.pdf || null}
+        titulo={pdfNaTela?.titulo || 'Exemplo'}
+        descricao="Proposta de exemplo, com cliente e valores fictícios."
+        onFechar={() => setPdfNaTela(null)}
+      />
 
       <Dialog open={!!emEdicao} onOpenChange={(o) => !o && setEmEdicao(null)}>
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
@@ -660,7 +696,16 @@ export default function ModelosProposta() {
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={verEdicao}
+              disabled={salvando || (!!emEdicao && gerando === emEdicao.id)}
+              className="sm:mr-auto"
+            >
+              <Eye className="mr-1.5 h-4 w-4" />
+              {emEdicao && gerando === emEdicao.id ? 'Gerando...' : 'Ver como fica'}
+            </Button>
             <Button variant="outline" onClick={() => setEmEdicao(null)} disabled={salvando}>
               Cancelar
             </Button>

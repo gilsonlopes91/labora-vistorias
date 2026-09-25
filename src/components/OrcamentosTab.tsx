@@ -12,7 +12,7 @@ import {
   Archive,
   ArchiveRestore,
   Copy,
-  FileDown,
+  Eye,
   FileSpreadsheet,
   Pencil,
   Plus,
@@ -47,6 +47,7 @@ import {
 import { OrcamentoDialog } from '@/components/OrcamentoDialog'
 import { OrcamentoKpis } from '@/components/OrcamentoKpis'
 import { EnviarPropostaDialog } from '@/components/EnviarPropostaDialog'
+import VisualizadorPdf from '@/components/VisualizadorPdf'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -119,6 +120,8 @@ export function OrcamentosTab({
   const [formaRecebimento, setFormaRecebimento] = useState('PIX')
   const [dataRecebimento, setDataRecebimento] = useState('')
   const [gerandoPdf, setGerandoPdf] = useState('')
+  // PDF aberto na tela (sem baixar); o download fica dentro da janela.
+  const [pdfNaTela, setPdfNaTela] = useState<{ pdf: PdfGerado; titulo: string } | null>(null)
   const [paraEnviar, setParaEnviar] = useState<Orcamento | null>(null)
 
   const carregar = () =>
@@ -237,7 +240,8 @@ export function OrcamentosTab({
   const gerarPdf = async (orcamento: Orcamento) => {
     setGerandoPdf(orcamento.id)
     try {
-      await montarPdf(orcamento)
+      const pdf = await montarPdf(orcamento, false)
+      if (pdf) setPdfNaTela({ pdf, titulo: `Proposta ${orcamento.numero || ''}`.trim() })
     } catch (error) {
       toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
     } finally {
@@ -480,11 +484,11 @@ export function OrcamentosTab({
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Gerar PDF da proposta"
+                      title="Ver o PDF da proposta"
                       disabled={gerandoPdf === orcamento.id}
                       onClick={() => gerarPdf(orcamento)}
                     >
-                      <FileDown className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -552,6 +556,12 @@ export function OrcamentosTab({
           </div>
         </Card>
       )}
+
+      <VisualizadorPdf
+        pdf={pdfNaTela?.pdf || null}
+        titulo={pdfNaTela?.titulo || 'Proposta'}
+        onFechar={() => setPdfNaTela(null)}
+      />
 
       <EnviarPropostaDialog
         orcamento={paraEnviar}
