@@ -42,6 +42,11 @@ export interface Vistoria extends RecordModel {
   equipamentos?: string
   orientacoes_equipe?: string
   reaberturas?: ReaberturaVistoria[] | null
+  /** Quem acompanhou pela empresa, ART e RT que assinou (migration 0130). */
+  acompanhante_nome?: string
+  acompanhante_cargo?: string
+  art_numero?: string
+  rt_assinante_id?: string
   client_uuid: string
   created: string
   updated: string
@@ -78,6 +83,10 @@ export interface VistoriaInput {
   equipe_apoio?: string
   equipamentos?: string
   orientacoes_equipe?: string
+  acompanhante_nome?: string
+  acompanhante_cargo?: string
+  art_numero?: string
+  rt_assinante_id?: string
   client_uuid: string
 }
 

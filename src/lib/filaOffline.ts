@@ -23,6 +23,9 @@ export interface PendenciaResposta {
   numero_funcionarios_irregulares?: number
   fotos: File[]
   localizacao?: GeoLocalizacao
+  /** Plano de ação do item não conforme. */
+  recomendacao?: string
+  prazo_adequacao?: string
   atualizado_em: number
   /** Última falha que não foi de conexão (ex.: vistoria concluída no servidor). */
   erro?: string
@@ -31,7 +34,12 @@ export interface PendenciaResposta {
 export type AlteracaoResposta = Partial<
   Pick<
     PendenciaResposta,
-    'situacao' | 'observacao' | 'numero_funcionarios_irregulares' | 'localizacao'
+    | 'situacao'
+    | 'observacao'
+    | 'numero_funcionarios_irregulares'
+    | 'localizacao'
+    | 'recomendacao'
+    | 'prazo_adequacao'
   >
 > & { fotos?: File[] }
 
@@ -117,6 +125,8 @@ export async function enfileirarAlteracao(
     numero_funcionarios_irregulares:
       alteracao.numero_funcionarios_irregulares ?? atual?.numero_funcionarios_irregulares,
     localizacao: alteracao.localizacao ?? atual?.localizacao,
+    recomendacao: alteracao.recomendacao ?? atual?.recomendacao,
+    prazo_adequacao: alteracao.prazo_adequacao ?? atual?.prazo_adequacao,
     fotos: [...(atual?.fotos || []), ...(alteracao.fotos || [])],
     atualizado_em: Date.now(),
   }

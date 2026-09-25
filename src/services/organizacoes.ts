@@ -1,5 +1,23 @@
 import pb from '@/lib/pocketbase/client'
 
+/** Dados da organização que saem nos documentos (propostas e relatórios). */
+export interface DadosDocumentos {
+  razao_social?: string
+  cnpj?: string
+  telefone?: string
+  email?: string
+  endereco?: string
+  site?: string
+  cidade_emissao?: string
+  banco?: {
+    favorecido?: string
+    instituicao?: string
+    agencia?: string
+    conta?: string
+    pix?: string
+  }
+}
+
 export interface Organizacao {
   id: string
   nome: string
@@ -7,6 +25,7 @@ export interface Organizacao {
   logo?: string
   cor_primaria?: string
   cor_secundaria?: string
+  dados_documentos?: DadosDocumentos | null
   created: string
   updated: string
 }
@@ -32,6 +51,9 @@ export const atualizarCoresOrganizacao = (
   id: string,
   cores: { cor_primaria: string; cor_secundaria: string },
 ) => pb.collection('organizacoes').update<Organizacao>(id, cores)
+
+export const atualizarDadosDocumentos = (id: string, dados: DadosDocumentos) =>
+  pb.collection('organizacoes').update<Organizacao>(id, { dados_documentos: dados })
 
 export const removerLogoOrganizacao = (id: string) =>
   pb.collection('organizacoes').update<Organizacao>(id, { logo: null })

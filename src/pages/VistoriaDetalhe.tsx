@@ -19,7 +19,7 @@ import {
   ImagePlus,
 } from 'lucide-react'
 
-import { formatBrazilianDate, toPocketBaseDate } from '@/lib/date'
+import { formatBrazilianDate, formatLocalDate, toPocketBaseDate } from '@/lib/date'
 import { rotuloCurtoNorma, rotuloItemRef } from '@/lib/normas'
 import { getErrorMessage, isErroDeConexao } from '@/lib/pocketbase/errors'
 import {
@@ -32,6 +32,7 @@ import {
 } from '@/lib/filaOffline'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
+import { ehOrganizacaoLabora } from '@/lib/identidadeVisual'
 import LoadingScreen from '@/components/LoadingScreen'
 import TextoNorma from '@/components/TextoNorma'
 import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png'
@@ -64,6 +65,7 @@ import {
   criarResponsavelTecnico,
   definirComoPadrao,
   formatarRegistroRT,
+  urlAssinaturaRT,
   TIPOS_REGISTRO_RT,
   type ResponsavelTecnico,
   type TipoRegistroRT,
@@ -205,8 +207,9 @@ export default function VistoriaDetalhe() {
   // Logo e nome usados no laudo e na marca d'água das fotos: os da
   // organização, com os da Labora como padrão pra quem ainda não configurou
   // os próprios (ver /configuracoes).
-  const [logoMarcaDagua, setLogoMarcaDagua] = useState<string>(laboraLogoUrl)
-  const [nomeOrganizacao, setNomeOrganizacao] = useState<string>('LABORA')
+  // Sem logo próprio, a organização fica sem logo (só a Labora usa o da Labora).
+  const [logoMarcaDagua, setLogoMarcaDagua] = useState<string>('')
+  const [nomeOrganizacao, setNomeOrganizacao] = useState<string>('')
 
   // Finalização da vistoria — escolha do responsável técnico que assina o
   // laudo, e geração do PDF.
@@ -218,6 +221,10 @@ export default function VistoriaDetalhe() {
   const [novoRTNumero, setNovoRTNumero] = useState('')
   const [novoRTUf, setNovoRTUf] = useState('')
   const [novoRTPadrao, setNovoRTPadrao] = useState(false)
+  // Quem acompanhou pela empresa (assina junto) e nº da ART, pedidos ao finalizar.
+  const [acompanhanteNome, setAcompanhanteNome] = useState('')
+  const [acompanhanteCargo, setAcompanhanteCargo] = useState('')
+  const [artNumero, setArtNumero] = useState('')
   const [finalizando, setFinalizando] = useState(false)
 
   // Itens sem resposta na hora de finalizar (marcar como N/A ou voltar).
@@ -358,11 +365,11 @@ export default function VistoriaDetalhe() {
     getMinhaOrganizacao()
       .then((org) => {
         const url = urlLogoOrganizacao(org)
-        if (url) setLogoMarcaDagua(url)
+        setLogoMarcaDagua(url || (ehOrganizacaoLabora(org.nome) ? laboraLogoUrl : ''))
         if (org.nome) setNomeOrganizacao(org.nome)
       })
       .catch(() => {
-        // sem organização carregada ainda — segue com os padrões da Labora
+        // sem organização carregada — documentos saem sem logo
       })
   }, [])
 
@@ -488,6 +495,50 @@ export default function VistoriaDetalhe() {
     }
   }
 
+  // Plano de ação do item não conforme: recomendação e prazo para corrigir.
+  const handlePlanoAcao = async (
+    item: ItemChecklist,
+    alteracao: { recomendacao?: string; prazo_adequacao?: string },
+  ) => {
+    if (travada) return
+    const atual = respostasVisiveis[item.id]
+    if (!atual) return
+    if (
+      alteracao.recomendacao !== undefined &&
+      (atual.recomendacao || '') === alteracao.recomendacao
+    )
+      return
+    if (
+      alteracao.prazo_adequacao !== undefined &&
+      (atual.prazo_adequacao || '').slice(0, 10) === alteracao.prazo_adequacao.slice(0, 10)
+    )
+      return
+    const existing = respostas[item.id]
+    if (!existing || deveGuardarNoAparelho(item)) {
+      await guardarNoAparelho(item, alteracao)
+      return
+    }
+    try {
+      const updated = await updateResposta(existing.id, alteracao)
+      setRespostas((prev) => ({ ...prev, [item.id]: updated }))
+    } catch (error) {
+      if (isErroDeConexao(error)) {
+        await guardarNoAparelho(item, alteracao)
+        return
+      }
+      toast.error('Não foi possível salvar o plano de ação', {
+        description: getErrorMessage(error),
+      })
+    }
+  }
+
+  // Prazo rápido: hoje + N dias (0 = imediato).
+  const prazoEmDias = (dias: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + dias)
+    return toPocketBaseDate(formatLocalDate(d))
+  }
+
   const handleFotoChange = async (item: ItemChecklist, fileList: FileList | null) => {
     if (!vistoria || travada || !fileList || fileList.length === 0) return
     const arquivosOriginais = Array.from(fileList)
@@ -572,6 +623,8 @@ export default function VistoriaDetalhe() {
               numero_funcionarios_irregulares: p.numero_funcionarios_irregulares,
               fotos: p.fotos.length > 0 ? p.fotos : undefined,
               localizacao: p.localizacao,
+              recomendacao: p.recomendacao,
+              prazo_adequacao: p.prazo_adequacao,
             }
             const salvo = existente
               ? await updateResposta(existente.id, dados)
@@ -663,6 +716,8 @@ export default function VistoriaDetalhe() {
         numero_funcionarios_irregulares:
           p.numero_funcionarios_irregulares ?? base?.numero_funcionarios_irregulares,
         localizacao: p.localizacao ?? base?.localizacao,
+        recomendacao: p.recomendacao ?? base?.recomendacao,
+        prazo_adequacao: p.prazo_adequacao ?? base?.prazo_adequacao,
         // A multa é calculada no servidor: se a situação mudou sem internet,
         // o valor antigo não vale mais.
         valor_multa_min: mudouSituacao ? undefined : base?.valor_multa_min,
@@ -743,6 +798,18 @@ export default function VistoriaDetalhe() {
   const gerarPdf = async (v: Vistoria, respostasPdf: Record<string, RespostaVistoria>) => {
     const empresaV = v.expand?.empresa_id
     const tipoV = v.expand?.tipo_vistoria_id
+    // Assinatura digitalizada do RT que assinou (arquivo protegido: link com token).
+    const rtAssinante =
+      responsaveis.find((r) => r.id === v.rt_assinante_id) ||
+      responsaveis.find((r) => r.nome === v.responsavel_tecnico_nome)
+    let assinaturaRtUrl = ''
+    if (rtAssinante?.assinatura) {
+      try {
+        assinaturaRtUrl = urlAssinaturaRT(rtAssinante, await getTokenArquivos())
+      } catch {
+        assinaturaRtUrl = ''
+      }
+    }
     await gerarPdfVistoria({
       vistoria: v,
       empresaNome: empresaV?.nome_fantasia || empresaV?.razao_social || 'Empresa',
@@ -752,6 +819,7 @@ export default function VistoriaDetalhe() {
       tipoNome: tipoV?.nome || '',
       tipoNrReferencia: tipoV?.nr_referencia,
       checklists: checklistsInfo,
+      assinaturaRtUrl,
       organizacaoNome: nomeOrganizacao,
       logoUrl: logoMarcaDagua,
       itens: itensOrdenados,
@@ -789,6 +857,9 @@ export default function VistoriaDetalhe() {
     setNovoRTNumero('')
     setNovoRTUf('')
     setNovoRTPadrao(responsaveis.length === 0)
+    setAcompanhanteNome(vistoria?.acompanhante_nome || vistoria?.contato_local_nome || '')
+    setAcompanhanteCargo(vistoria?.acompanhante_cargo || '')
+    setArtNumero(vistoria?.art_numero || '')
     setRtDialogAberto(true)
   }
 
@@ -971,6 +1042,7 @@ export default function VistoriaDetalhe() {
     try {
       let nomeRT: string
       let registroRT: string
+      let rtAssinanteId = ''
 
       if (rtSelecionadoId === NOVO_RESPONSAVEL) {
         if (!novoRTNome.trim() || !novoRTNumero.trim()) {
@@ -989,6 +1061,7 @@ export default function VistoriaDetalhe() {
         if (criado.padrao) await definirComoPadrao(vistoria.organizacao_id, criado.id)
         nomeRT = criado.nome
         registroRT = formatarRegistroRT(criado)
+        rtAssinanteId = criado.id
         setResponsaveis(await getResponsaveisTecnicos(vistoria.organizacao_id))
       } else {
         const rt = responsaveis.find((r) => r.id === rtSelecionadoId)
@@ -999,12 +1072,17 @@ export default function VistoriaDetalhe() {
         }
         nomeRT = rt.nome
         registroRT = formatarRegistroRT(rt)
+        rtAssinanteId = rt.id
       }
 
       const updated = await updateVistoria(vistoria.id, {
         status: 'concluida',
         responsavel_tecnico_nome: nomeRT,
         responsavel_tecnico_registro: registroRT,
+        rt_assinante_id: rtAssinanteId || undefined,
+        acompanhante_nome: acompanhanteNome.trim(),
+        acompanhante_cargo: acompanhanteCargo.trim(),
+        art_numero: artNumero.trim(),
         // Data em que a vistoria foi feita de fato (a agendada pode ser outra).
         // Se a vistoria foi reaberta, mantém a data original.
         ...(vistoria.data_realizada ? {} : { data_realizada: toPocketBaseDate(new Date()) }),
@@ -1015,6 +1093,10 @@ export default function VistoriaDetalhe() {
         data_realizada: updated.data_realizada,
         responsavel_tecnico_nome: updated.responsavel_tecnico_nome,
         responsavel_tecnico_registro: updated.responsavel_tecnico_registro,
+        rt_assinante_id: updated.rt_assinante_id,
+        acompanhante_nome: updated.acompanhante_nome,
+        acompanhante_cargo: updated.acompanhante_cargo,
+        art_numero: updated.art_numero,
       }
       setVistoria(vistoriaFinalizada)
       setRtDialogAberto(false)
@@ -1953,6 +2035,68 @@ export default function VistoriaDetalhe() {
                           className="mb-2 text-sm"
                         />
 
+                        {resposta.situacao === 'N/C' && (
+                          <div className="mb-2 rounded-md border border-dashed p-2.5">
+                            <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                              Plano de ação
+                            </div>
+                            <Textarea
+                              placeholder="Recomendação: o que a empresa deve fazer para corrigir"
+                              defaultValue={resposta.recomendacao}
+                              onBlur={(e) =>
+                                handlePlanoAcao(item, { recomendacao: e.target.value.trim() })
+                              }
+                              readOnly={travada}
+                              rows={2}
+                              className="mb-2 text-sm"
+                            />
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Label
+                                htmlFor={`prazo-${item.id}`}
+                                className="text-xs text-muted-foreground"
+                              >
+                                Prazo
+                              </Label>
+                              <Input
+                                id={`prazo-${item.id}`}
+                                type="date"
+                                value={(resposta.prazo_adequacao || '').slice(0, 10)}
+                                onChange={(e) =>
+                                  handlePlanoAcao(item, {
+                                    prazo_adequacao: e.target.value
+                                      ? toPocketBaseDate(e.target.value)
+                                      : '',
+                                  })
+                                }
+                                disabled={travada}
+                                className="h-9 w-40 text-sm"
+                              />
+                              {!travada &&
+                                [
+                                  { rotulo: 'Imediato', dias: 0 },
+                                  { rotulo: '30 dias', dias: 30 },
+                                  { rotulo: '60 dias', dias: 60 },
+                                  { rotulo: '90 dias', dias: 90 },
+                                ].map((p) => (
+                                  <Button
+                                    key={p.dias}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 text-xs"
+                                    onClick={() =>
+                                      handlePlanoAcao(item, {
+                                        prazo_adequacao: prazoEmDias(p.dias),
+                                      })
+                                    }
+                                  >
+                                    {p.rotulo}
+                                  </Button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap items-center gap-2">
                           {!travada && (
                             <>
@@ -2253,6 +2397,45 @@ export default function VistoriaDetalhe() {
                 </div>
               </div>
             )}
+
+            <div className="grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-2">
+              <div className="sm:col-span-2 text-xs font-semibold text-muted-foreground">
+                Quem acompanhou pela empresa (assina o relatório junto)
+              </div>
+              <div>
+                <Label htmlFor="acompanhante-nome" className="mb-1.5 block text-xs">
+                  Nome
+                </Label>
+                <Input
+                  id="acompanhante-nome"
+                  value={acompanhanteNome}
+                  onChange={(e) => setAcompanhanteNome(e.target.value)}
+                  placeholder="Ex.: Maria Souza"
+                />
+              </div>
+              <div>
+                <Label htmlFor="acompanhante-cargo" className="mb-1.5 block text-xs">
+                  Cargo
+                </Label>
+                <Input
+                  id="acompanhante-cargo"
+                  value={acompanhanteCargo}
+                  onChange={(e) => setAcompanhanteCargo(e.target.value)}
+                  placeholder="Ex.: Técnica de segurança"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="art-numero" className="mb-1.5 block text-xs">
+                  Nº da ART (opcional)
+                </Label>
+                <Input
+                  id="art-numero"
+                  value={artNumero}
+                  onChange={(e) => setArtNumero(e.target.value)}
+                  placeholder="Ex.: PI20260123456"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter>

@@ -21,6 +21,8 @@ export interface ResponsavelTecnico {
   numero_registro: string
   uf?: string
   padrao?: boolean
+  /** Imagem da assinatura (arquivo protegido, migration 0130). */
+  assinatura?: string
   created: string
   updated: string
 }
@@ -48,6 +50,20 @@ export const atualizarResponsavelTecnico = (id: string, data: Partial<Responsave
 
 export const excluirResponsavelTecnico = (id: string) =>
   pb.collection('responsaveis_tecnicos').delete(id)
+
+/** Envia (ou troca) a imagem da assinatura do responsável técnico. */
+export const enviarAssinaturaRT = (id: string, arquivo: File) => {
+  const fd = new FormData()
+  fd.append('assinatura', arquivo)
+  return pb.collection('responsaveis_tecnicos').update<ResponsavelTecnico>(id, fd)
+}
+
+export const removerAssinaturaRT = (id: string) =>
+  pb.collection('responsaveis_tecnicos').update<ResponsavelTecnico>(id, { assinatura: null })
+
+/** Link da assinatura (arquivo protegido: precisa do token de pb.files.getToken()). */
+export const urlAssinaturaRT = (rt: ResponsavelTecnico, token: string) =>
+  rt.assinatura ? pb.files.getURL(rt, rt.assinatura, { token }) : ''
 
 // Marca um responsável como padrão da organização e desmarca os demais.
 export const definirComoPadrao = async (organizacaoId: string, id: string) => {

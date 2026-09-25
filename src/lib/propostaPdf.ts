@@ -500,6 +500,18 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
   if (secaoAtiva(modelo, 'prazo_entrega') && orcamento.prazo_entrega) {
     condicoes.push(['Prazo de entrega', orcamento.prazo_entrega])
   }
+  // Dados para pagamento (Configurações > Dados da empresa nos documentos).
+  const banco = identidade.dados?.banco
+  if (secaoAtiva(modelo, 'condicoes_pagamento') && banco && (banco.pix || banco.conta)) {
+    const partes = [
+      banco.pix ? `PIX: ${banco.pix}` : '',
+      banco.instituicao ? `Banco: ${banco.instituicao}` : '',
+      banco.agencia ? `Agência: ${banco.agencia}` : '',
+      banco.conta ? `Conta: ${banco.conta}` : '',
+      banco.favorecido ? `Favorecido: ${banco.favorecido}` : '',
+    ].filter(Boolean)
+    condicoes.push(['Dados para pagamento', partes.join('   ·   ')])
+  }
   if (secaoAtiva(modelo, 'validade') && orcamento.validade_dias) {
     const texto = orcamento.data_proposta
       ? (() => {
@@ -541,9 +553,11 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
   }
 
   // ----- Assinatura -----
+  // O bloco ocupa uns 60 pt: só vai para outra página quando não cabe mesmo
+  // (antes uma proposta curta ganhava uma página só com as assinaturas).
   if (secaoAtiva(modelo, 'assinatura')) {
-    novaPaginaSePreciso(120)
-    y += 30
+    novaPaginaSePreciso(80)
+    y += 24
     const larguraLinha = (larguraUtil - 40) / 2
     doc.setDrawColor(120)
     doc.line(margem, y, margem + larguraLinha, y)
@@ -570,8 +584,16 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
     doc.setPage(i)
     doc.setFontSize(7.5)
     doc.setTextColor(150)
+    const dadosOrg = identidade.dados
     doc.text(
-      `${organizacaoNome}   ·   Proposta ${orcamento.numero || ''}${orcamento.versao ? ' ' + orcamento.versao : ''}`,
+      [
+        dadosOrg?.razao_social || organizacaoNome,
+        dadosOrg?.cnpj ? `CNPJ ${dadosOrg.cnpj}` : '',
+        dadosOrg?.telefone || '',
+        `Proposta ${orcamento.numero || ''}${orcamento.versao ? ' ' + orcamento.versao : ''}`,
+      ]
+        .filter(Boolean)
+        .join('   ·   '),
       margem,
       alturaPagina - 24,
     )

@@ -4,7 +4,7 @@
 import { jsPDF } from 'jspdf'
 import autoTablePlugin, { applyPlugin as autoTableApplyPlugin } from 'jspdf-autotable'
 
-import { formatBrazilianDate } from '@/lib/date'
+import { formatBrazilianDate, formatarDataCalendario } from '@/lib/date'
 import { rotuloItemRef } from '@/lib/normas'
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
@@ -82,6 +82,8 @@ export interface DadosRelatorioVistoria {
   /** Checklists da vistoria, na ordem (principal e adicionais). Com mais de um,
    *  o relatório lista todos e cada seção diz de qual norma ou anexo é. */
   checklists?: { id: string; rotulo: string; nome: string }[]
+  /** Imagem da assinatura do RT que assinou (link com token). Opcional. */
+  assinaturaRtUrl?: string
   organizacaoNome: string
   logoUrl: string
   itens: ItemChecklist[]
@@ -132,10 +134,14 @@ async function carregarImagemComoDataUrl(
   opcoes: OpcoesImagem = {},
 ): Promise<ImagemCarregada | null> {
   const limite = opcoes.maxDimensao || MAX_DIMENSAO_IMAGEM_PDF
+  // Sem logo (organização que não enviou o seu) ou link que não é imagem:
+  // o relatório sai sem a imagem, em vez de quebrar.
+  if (!url) return null
   try {
     const resposta = await fetch(url)
     if (!resposta.ok) return null
     const blob = await resposta.blob()
+    if (!blob.type.startsWith('image/')) return null
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
@@ -297,6 +303,17 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       ...(variosChecklists
         ? [['Checklists', dados.checklists!.map((c) => c.nome).join('\n')]]
         : []),
+      ...(dados.vistoria.acompanhante_nome
+        ? [
+            [
+              'Acompanhou pela empresa',
+              [dados.vistoria.acompanhante_nome, dados.vistoria.acompanhante_cargo]
+                .filter(Boolean)
+                .join(' — '),
+            ],
+          ]
+        : []),
+      ...(dados.vistoria.art_numero ? [['ART', dados.vistoria.art_numero]] : []),
     ],
     margin: { left: margin, right: margin },
   })
@@ -396,6 +413,52 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   // relatório. Com mais de um checklist, a seção diz de qual norma ou anexo é
   // ("NR-12 · Anexo VIII · ..."), na ordem em que os checklists foram escolhidos.
   const rotuloChecklist = new Map((dados.checklists || []).map((c) => [c.id, c.rotulo]))
+  const situacaoDe = (item: ItemChecklist) => dados.respostas[item.id]?.situacao
+
+  // Plano de ação: cada não conformidade com o que foi encontrado, a
+  // recomendação e o prazo para corrigir.
+  const itensNC = dados.itens.filter((item) => situacaoDe(item) === 'N/C')
+  if (itensNC.length > 0) {
+    if (y > pageHeight - 140) {
+      doc.addPage()
+      y = margin
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('Plano de ação', margin, y)
+    const fimPlano = executarAutoTable(doc, {
+      startY: y + 8,
+      head: [['Item', 'Situação encontrada', 'Recomendação', 'Prazo']],
+      body: itensNC.map((item) => {
+        const r = dados.respostas[item.id]
+        const origem = variosChecklists
+          ? `${rotuloChecklist.get(item.tipo_vistoria_id) || ''}\n`
+          : ''
+        return [
+          `${origem}${rotuloItemRef(item.item_ref)}${item.grau ? `\nInfração I${item.grau}` : ''}`,
+          r?.observacao || 'Não atende ao item da norma.',
+          r?.recomendacao || 'A definir',
+          r?.prazo_adequacao ? formatarDataCalendario(r.prazo_adequacao) : 'A definir',
+        ]
+      }),
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 4, valign: 'top', overflow: 'linebreak' },
+      headStyles: { fillColor: primaria },
+      columnStyles: { 0: { cellWidth: 78 }, 3: { cellWidth: 58 } },
+      margin: { left: margin, right: margin },
+    })
+    y = (fimPlano || y) + 24
+  }
+
+  // No detalhamento entram os itens C e N/C com o texto da norma. Os N/A vão
+  // numa lista curta no fim, a não ser que tenham observação ou foto.
+  const detalhar = (item: ItemChecklist) => {
+    const r = dados.respostas[item.id]
+    if (!r?.situacao) return false
+    if (r.situacao !== 'N/A') return true
+    return !!(r.observacao || (r.foto && r.foto.length))
+  }
+
   const grupos = new Map<string, ItemChecklist[]>()
   for (const item of dados.itens) {
     const secao = item.secao || 'Disposições gerais'
@@ -407,7 +470,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   }
 
   for (const [secao, itensGrupo] of grupos) {
-    const itensRespondidos = itensGrupo.filter((item) => dados.respostas[item.id]?.situacao)
+    const itensRespondidos = itensGrupo.filter(detalhar)
     if (itensRespondidos.length === 0) continue
 
     if (y > pageHeight - 90) {
@@ -509,6 +572,25 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         doc.setFont('helvetica', 'normal')
       }
 
+      if (resposta.situacao === 'N/C' && (resposta.recomendacao || resposta.prazo_adequacao)) {
+        doc.setFont('helvetica', 'italic')
+        doc.setFontSize(8)
+        const linhasPlano = doc.splitTextToSize(
+          [
+            resposta.recomendacao ? `Recomendação: ${resposta.recomendacao}` : '',
+            resposta.prazo_adequacao
+              ? `Prazo: ${formatarDataCalendario(resposta.prazo_adequacao)}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('  ·  '),
+          larguraColunaDescricao,
+        )
+        doc.text(linhasPlano, margin, y)
+        y += linhasPlano.length * 10 + 2
+        doc.setFont('helvetica', 'normal')
+      }
+
       if (ehNr31) {
         // NR-31: explica o critério rural no laudo
         doc.setFont('helvetica', 'italic')
@@ -566,38 +648,135 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     }
   }
 
-  // Assinatura do responsável técnico
-  if (y > pageHeight - 90) {
-    doc.addPage()
-    y = margin
-  } else {
-    y += 26
+  // Itens que não se aplicam: lista curta, sem o texto da norma.
+  const itensNA = dados.itens.filter((item) => situacaoDe(item) === 'N/A' && !detalhar(item))
+  if (itensNA.length > 0) {
+    if (y > pageHeight - 110) {
+      doc.addPage()
+      y = margin
+    } else {
+      y += 6
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text(`Itens que não se aplicam a este estabelecimento (${itensNA.length})`, margin, y)
+    const fimNA = executarAutoTable(doc, {
+      startY: y + 8,
+      head: [['Item', 'Código', variosChecklists ? 'Checklist · seção' : 'Seção']],
+      body: itensNA.map((item) => [
+        rotuloItemRef(item.item_ref),
+        item.codigo || '',
+        (variosChecklists ? `${rotuloChecklist.get(item.tipo_vistoria_id) || ''} · ` : '') +
+          (item.secao || 'Disposições gerais'),
+      ]),
+      theme: 'striped',
+      styles: { fontSize: 7.5, cellPadding: 2.5, overflow: 'linebreak' },
+      headStyles: { fillColor: primaria },
+      columnStyles: { 0: { cellWidth: 150 }, 1: { cellWidth: 62 } },
+      margin: { left: margin, right: margin },
+    })
+    y = (fimNA || y) + 12
   }
-  const centro = pageWidth / 2
+
+  // Assinaturas: responsável técnico (com a assinatura digitalizada, se houver)
+  // e o representante da empresa que acompanhou a vistoria.
+  const alturaBlocoAssinatura = 120
+  if (y > pageHeight - alturaBlocoAssinatura - 40) {
+    doc.addPage()
+    y = margin + 60
+  } else {
+    y += 60
+  }
+  const larguraAssinatura = 200
+  const xRT = margin + (larguraUtil / 2 - larguraAssinatura) / 2
+  const xEmpresa = margin + larguraUtil / 2 + (larguraUtil / 2 - larguraAssinatura) / 2
+  const centroRT = xRT + larguraAssinatura / 2
+  const centroEmpresa = xEmpresa + larguraAssinatura / 2
+
+  if (dados.assinaturaRtUrl) {
+    const assinatura = await carregarImagemComoDataUrl(dados.assinaturaRtUrl, {
+      maxDimensao: MAX_DIMENSAO_LOGO_PDF * 2,
+    })
+    if (assinatura) {
+      const alturaImg = 44
+      const larguraImg = Math.min(
+        larguraAssinatura,
+        alturaImg * (assinatura.largura / assinatura.altura),
+      )
+      const formato = assinatura.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+      doc.addImage(
+        assinatura.dataUrl,
+        formato,
+        centroRT - larguraImg / 2,
+        y - alturaImg - 2,
+        larguraImg,
+        alturaImg,
+      )
+    }
+  }
+
   doc.setDrawColor(0)
-  doc.line(centro - 100, y, centro + 100, y)
-  y += 14
+  doc.line(xRT, y, xRT + larguraAssinatura, y)
+  doc.line(xEmpresa, y, xEmpresa + larguraAssinatura, y)
+
+  let yRT = y + 14
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
-  doc.text(dados.vistoria.responsavel_tecnico_nome || 'Responsável técnico', centro, y, {
+  doc.text(dados.vistoria.responsavel_tecnico_nome || 'Responsável técnico', centroRT, yRT, {
     align: 'center',
   })
-  y += 12
+  yRT += 12
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text(dados.vistoria.responsavel_tecnico_registro || '', centro, y, { align: 'center' })
-  y += 10
+  doc.text(dados.vistoria.responsavel_tecnico_registro || '', centroRT, yRT, { align: 'center' })
+  yRT += 10
   doc.setFontSize(8)
   doc.setTextColor(120)
-  doc.text('Responsável técnico', centro, y, { align: 'center' })
+  doc.text('Responsável técnico', centroRT, yRT, { align: 'center' })
+  if (dados.vistoria.art_numero) {
+    yRT += 10
+    doc.text(`ART nº ${dados.vistoria.art_numero}`, centroRT, yRT, { align: 'center' })
+  }
   doc.setTextColor(0)
 
-  // Rodapé em todas as páginas
+  let yEmpresa = y + 14
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text(dados.vistoria.acompanhante_nome || ' ', centroEmpresa, yEmpresa, { align: 'center' })
+  yEmpresa += 12
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  if (dados.vistoria.acompanhante_cargo) {
+    doc.text(dados.vistoria.acompanhante_cargo, centroEmpresa, yEmpresa, { align: 'center' })
+  }
+  yEmpresa += 10
+  doc.setFontSize(8)
+  doc.setTextColor(120)
+  const linhasEmpresa: string[] = doc.splitTextToSize(
+    `Representante da empresa · ${dados.empresaNome}`,
+    larguraAssinatura,
+  )
+  doc.text(linhasEmpresa, centroEmpresa, yEmpresa, { align: 'center' })
+  doc.setTextColor(0)
+
+  // Rodapé em todas as páginas: dados da organização (Configurações) e página.
+  const dadosOrg = identidade?.dados
+  const linhaOrganizacao = [
+    dadosOrg?.razao_social || dados.organizacaoNome,
+    dadosOrg?.cnpj ? `CNPJ ${dadosOrg.cnpj}` : '',
+    dadosOrg?.telefone || '',
+    dadosOrg?.email || '',
+  ]
+    .filter(Boolean)
+    .join('  ·  ')
   const totalPaginas = doc.getNumberOfPages()
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i)
     doc.setFontSize(7)
     doc.setTextColor(140)
+    if (linhaOrganizacao) {
+      doc.text(linhaOrganizacao, pageWidth / 2, pageHeight - 30, { align: 'center' })
+    }
     doc.text(
       `Gerado em ${new Date().toLocaleString('pt-BR')} — página ${i} de ${totalPaginas}`,
       pageWidth / 2,

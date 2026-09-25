@@ -29,12 +29,16 @@ export async function aplicarMarcaDagua(file: File, opcoes: OpcoesMarcaDagua): P
       URL.revokeObjectURL(objectUrl)
     }
 
+    // Foto de celular (12 MP ou mais) reduzida para no máximo 2000 px no lado
+    // maior: continua nítida no relatório e sobe bem mais rápido no 4G.
+    const LADO_MAXIMO = 2000
+    const escala = Math.min(1, LADO_MAXIMO / Math.max(foto.naturalWidth, foto.naturalHeight))
     const canvas = document.createElement('canvas')
-    canvas.width = foto.naturalWidth
-    canvas.height = foto.naturalHeight
+    canvas.width = Math.round(foto.naturalWidth * escala)
+    canvas.height = Math.round(foto.naturalHeight * escala)
     const ctx = canvas.getContext('2d')
     if (!ctx) return file
-    ctx.drawImage(foto, 0, 0)
+    ctx.drawImage(foto, 0, 0, canvas.width, canvas.height)
 
     const faixaAltura = Math.max(56, Math.round(canvas.height * 0.09))
     const faixaY = canvas.height - faixaAltura
@@ -84,7 +88,7 @@ export async function aplicarMarcaDagua(file: File, opcoes: OpcoesMarcaDagua): P
     }
 
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.9),
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85),
     )
     if (!blob) return file
 

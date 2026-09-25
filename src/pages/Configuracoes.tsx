@@ -1,10 +1,12 @@
-/* Configurações da organização — nome, logo (relatórios/marca d'água) e os
- * responsáveis técnicos que podem assinar os laudos de vistoria. */
+/* Configurações da organização — nome, logo (relatórios/marca d'água), dados
+ * que saem nos documentos e os responsáveis técnicos que assinam os relatórios
+ * de vistoria (com a assinatura digitalizada). */
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Building2, Palette, Upload, UserCog, Star, Trash2 } from 'lucide-react'
+import { Building2, FileText, Palette, PenLine, Upload, UserCog, Star, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { COR_PRIMARIA_LABORA, COR_SECUNDARIA_LABORA, hexValido } from '@/lib/identidadeVisual'
+import { coresPadrao, ehOrganizacaoLabora, hexValido } from '@/lib/identidadeVisual'
+import { cnpjValido, formatarCnpj } from '@/lib/cnpj'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
@@ -12,7 +14,9 @@ import {
   atualizarNomeOrganizacao,
   atualizarLogoOrganizacao,
   atualizarCoresOrganizacao,
+  atualizarDadosDocumentos,
   urlLogoOrganizacao,
+  type DadosDocumentos,
   type Organizacao,
 } from '@/services/organizacoes'
 import {
@@ -20,6 +24,9 @@ import {
   criarResponsavelTecnico,
   excluirResponsavelTecnico,
   definirComoPadrao,
+  enviarAssinaturaRT,
+  removerAssinaturaRT,
+  urlAssinaturaRT,
   formatarRegistroRT,
   TIPOS_REGISTRO_RT,
   type ResponsavelTecnico,
@@ -50,9 +57,15 @@ export default function Configuracoes() {
   const [loading, setLoading] = useState(true)
   const [salvandoNome, setSalvandoNome] = useState(false)
   const [enviandoLogo, setEnviandoLogo] = useState(false)
-  const [corPrimaria, setCorPrimaria] = useState(COR_PRIMARIA_LABORA)
-  const [corSecundaria, setCorSecundaria] = useState(COR_SECUNDARIA_LABORA)
+  const [corPrimaria, setCorPrimaria] = useState(coresPadrao().primaria)
+  const [corSecundaria, setCorSecundaria] = useState(coresPadrao().secundaria)
   const [salvandoCores, setSalvandoCores] = useState(false)
+  // Dados que saem nos documentos (propostas e relatórios).
+  const [dadosDoc, setDadosDoc] = useState<DadosDocumentos>({})
+  const [salvandoDados, setSalvandoDados] = useState(false)
+  // Assinatura digitalizada dos RTs: arquivos protegidos, abertos com token.
+  const [tokenArquivos, setTokenArquivos] = useState('')
+  const [enviandoAssinatura, setEnviandoAssinatura] = useState<string | null>(null)
 
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [carregandoRT, setCarregandoRT] = useState(true)
@@ -66,7 +79,15 @@ export default function Configuracoes() {
   const carregarResponsaveis = (organizacaoId: string) => {
     setCarregandoRT(true)
     getResponsaveisTecnicos(organizacaoId)
-      .then(setResponsaveis)
+      .then((lista) => {
+        setResponsaveis(lista)
+        if (lista.some((rt) => rt.assinatura)) {
+          pb.files
+            .getToken()
+            .then(setTokenArquivos)
+            .catch(() => setTokenArquivos(''))
+        }
+      })
       .catch((error) =>
         toast.error('Não foi possível carregar os responsáveis técnicos', {
           description: getErrorMessage(error),
@@ -80,8 +101,12 @@ export default function Configuracoes() {
       .then((o) => {
         setOrg(o)
         setNome(o.nome)
-        if (hexValido(o.cor_primaria)) setCorPrimaria(o.cor_primaria!.toUpperCase())
-        if (hexValido(o.cor_secundaria)) setCorSecundaria(o.cor_secundaria!.toUpperCase())
+        const padrao = coresPadrao(o.nome)
+        setCorPrimaria(hexValido(o.cor_primaria) ? o.cor_primaria!.toUpperCase() : padrao.primaria)
+        setCorSecundaria(
+          hexValido(o.cor_secundaria) ? o.cor_secundaria!.toUpperCase() : padrao.secundaria,
+        )
+        setDadosDoc(o.dados_documentos || {})
         carregarResponsaveis(o.id)
       })
       .catch((error) =>
@@ -164,8 +189,86 @@ export default function Configuracoes() {
 
   const coresMudaram =
     !!org &&
-    (corPrimaria.toUpperCase() !== (org.cor_primaria || COR_PRIMARIA_LABORA).toUpperCase() ||
-      corSecundaria.toUpperCase() !== (org.cor_secundaria || COR_SECUNDARIA_LABORA).toUpperCase())
+    (corPrimaria.toUpperCase() !==
+      (org.cor_primaria || coresPadrao(org.nome).primaria).toUpperCase() ||
+      corSecundaria.toUpperCase() !==
+        (org.cor_secundaria || coresPadrao(org.nome).secundaria).toUpperCase())
+
+  const campoDoc = (campo: keyof Omit<DadosDocumentos, 'banco'>, valor: string) =>
+    setDadosDoc((d) => ({ ...d, [campo]: valor }))
+  const campoBanco = (campo: keyof NonNullable<DadosDocumentos['banco']>, valor: string) =>
+    setDadosDoc((d) => ({ ...d, banco: { ...(d.banco || {}), [campo]: valor } }))
+
+  const handleSalvarDados = async () => {
+    if (!org) return
+    if (dadosDoc.cnpj && !cnpjValido(dadosDoc.cnpj)) {
+      toast.error('CNPJ inválido', { description: 'Confira os números do CNPJ.' })
+      return
+    }
+    // Campos vazios não vão para o documento.
+    const limpar = (o: Record<string, unknown>) =>
+      Object.fromEntries(
+        Object.entries(o)
+          .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])
+          .filter(([, v]) => v !== '' && v !== undefined),
+      )
+    const banco = limpar((dadosDoc.banco || {}) as Record<string, unknown>)
+    const dados = {
+      ...limpar({ ...dadosDoc, banco: undefined }),
+      ...(Object.keys(banco).length ? { banco } : {}),
+    } as DadosDocumentos
+    setSalvandoDados(true)
+    try {
+      const atualizado = await atualizarDadosDocumentos(org.id, dados)
+      setOrg(atualizado)
+      setDadosDoc(atualizado.dados_documentos || {})
+      toast.success('Dados salvos', {
+        description: 'Os próximos PDFs de proposta e de vistoria já saem com eles.',
+      })
+    } catch (error) {
+      toast.error('Não foi possível salvar os dados', { description: getErrorMessage(error) })
+    } finally {
+      setSalvandoDados(false)
+    }
+  }
+
+  const handleAssinatura = async (rtId: string, fileList: FileList | null) => {
+    if (!org || !fileList || fileList.length === 0) return
+    const arquivo = fileList[0]
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(arquivo.type)) {
+      toast.error('Envie a assinatura em PNG ou JPG', {
+        description:
+          'O melhor é PNG com fundo transparente: assinatura em papel branco, fotografada ou escaneada.',
+      })
+      return
+    }
+    if (arquivo.size > 2 * 1024 * 1024) {
+      toast.error('Arquivo muito grande', { description: 'O limite é 2 MB.' })
+      return
+    }
+    setEnviandoAssinatura(rtId)
+    try {
+      await enviarAssinaturaRT(rtId, arquivo)
+      carregarResponsaveis(org.id)
+      toast.success('Assinatura salva', {
+        description: 'Ela entra no relatório das vistorias assinadas por este responsável.',
+      })
+    } catch (error) {
+      toast.error('Não foi possível salvar a assinatura', { description: getErrorMessage(error) })
+    } finally {
+      setEnviandoAssinatura(null)
+    }
+  }
+
+  const handleRemoverAssinatura = async (rtId: string) => {
+    if (!org) return
+    try {
+      await removerAssinaturaRT(rtId)
+      carregarResponsaveis(org.id)
+    } catch (error) {
+      toast.error('Não foi possível remover a assinatura', { description: getErrorMessage(error) })
+    }
+  }
 
   const handleAdicionarRT = async () => {
     if (!org || !rtNome.trim() || !rtNumero.trim()) return
@@ -222,6 +325,8 @@ export default function Configuracoes() {
   }
 
   const logoAtual = org ? urlLogoOrganizacao(org) : null
+  // Sem logo próprio, os documentos saem sem logo (a Labora usa o dela).
+  const logoExibido = logoAtual || (ehOrganizacaoLabora(org?.nome) ? laboraLogoUrl : null)
 
   // Quem edita o quê: o dono da conta (cliente final) e o gerente editam nome,
   // logo e cores; responsáveis técnicos seguem restritos a quem é gestor.
@@ -286,8 +391,8 @@ export default function Configuracoes() {
               </CardTitle>
               <CardDescription>
                 Logo e cores da sua empresa. Valem para todos os documentos gerados: propostas de
-                orçamento, laudos de vistoria e a marca nas fotos. Enquanto não enviar os seus, o
-                sistema usa o logo e as cores da Labora.
+                orçamento, relatórios de vistoria e a marca nas fotos. Enquanto não enviar os seus,
+                os documentos saem sem logo e com cores neutras.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -302,11 +407,15 @@ export default function Configuracoes() {
                   }}
                   title="O quadriculado mostra as áreas transparentes do logo"
                 >
-                  <img
-                    src={logoAtual || laboraLogoUrl}
-                    alt="Logo da organização"
-                    className="h-full w-full object-contain"
-                  />
+                  {logoExibido ? (
+                    <img
+                      src={logoExibido}
+                      alt="Logo da organização"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-center text-[10px] text-muted-foreground">Sem logo</span>
+                  )}
                 </div>
                 <div>
                   <input
@@ -378,19 +487,23 @@ export default function Configuracoes() {
               <div className="overflow-hidden rounded-xl border">
                 <div
                   className="h-2"
-                  style={{ background: hexValido(corPrimaria) ? corPrimaria : COR_PRIMARIA_LABORA }}
+                  style={{
+                    background: hexValido(corPrimaria) ? corPrimaria : coresPadrao().primaria,
+                  }}
                 />
                 <div className="flex items-center gap-3 p-3">
-                  <img
-                    src={logoAtual || laboraLogoUrl}
-                    alt=""
-                    className="h-8 w-auto max-w-[96px] object-contain"
-                  />
+                  {logoExibido && (
+                    <img
+                      src={logoExibido}
+                      alt=""
+                      className="h-8 w-auto max-w-[96px] object-contain"
+                    />
+                  )}
                   <div className="min-w-0">
                     <div
                       className="truncate text-sm font-bold"
                       style={{
-                        color: hexValido(corSecundaria) ? corSecundaria : COR_SECUNDARIA_LABORA,
+                        color: hexValido(corSecundaria) ? corSecundaria : coresPadrao().secundaria,
                       }}
                     >
                       Proposta comercial
@@ -402,7 +515,7 @@ export default function Configuracoes() {
                   <span
                     className="ml-auto rounded px-2 py-1 text-xs font-semibold text-white"
                     style={{
-                      background: hexValido(corPrimaria) ? corPrimaria : COR_PRIMARIA_LABORA,
+                      background: hexValido(corPrimaria) ? corPrimaria : coresPadrao().primaria,
                     }}
                   >
                     VALOR TOTAL
@@ -427,6 +540,161 @@ export default function Configuracoes() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4" />
+                Dados da empresa nos documentos
+              </CardTitle>
+              <CardDescription>
+                Saem no rodapé do relatório de vistoria e nas propostas (contato, CNPJ e dados para
+                pagamento). No modelo de proposta dá para trocar algum deles, se precisar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="doc-razao" className="mb-1.5 block text-xs">
+                    Razão social
+                  </Label>
+                  <Input
+                    id="doc-razao"
+                    value={dadosDoc.razao_social || ''}
+                    onChange={(e) => campoDoc('razao_social', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doc-cnpj" className="mb-1.5 block text-xs">
+                    CNPJ
+                  </Label>
+                  <Input
+                    id="doc-cnpj"
+                    value={dadosDoc.cnpj || ''}
+                    onChange={(e) => campoDoc('cnpj', formatarCnpj(e.target.value))}
+                    placeholder="00.000.000/0000-00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doc-telefone" className="mb-1.5 block text-xs">
+                    Telefone
+                  </Label>
+                  <Input
+                    id="doc-telefone"
+                    value={dadosDoc.telefone || ''}
+                    onChange={(e) => campoDoc('telefone', e.target.value)}
+                    placeholder="(86) 99999-0000"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doc-email" className="mb-1.5 block text-xs">
+                    E-mail
+                  </Label>
+                  <Input
+                    id="doc-email"
+                    type="email"
+                    value={dadosDoc.email || ''}
+                    onChange={(e) => campoDoc('email', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doc-site" className="mb-1.5 block text-xs">
+                    Site (opcional)
+                  </Label>
+                  <Input
+                    id="doc-site"
+                    value={dadosDoc.site || ''}
+                    onChange={(e) => campoDoc('site', e.target.value)}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="doc-endereco" className="mb-1.5 block text-xs">
+                    Endereço
+                  </Label>
+                  <Input
+                    id="doc-endereco"
+                    value={dadosDoc.endereco || ''}
+                    onChange={(e) => campoDoc('endereco', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doc-cidade" className="mb-1.5 block text-xs">
+                    Cidade de emissão
+                  </Label>
+                  <Input
+                    id="doc-cidade"
+                    value={dadosDoc.cidade_emissao || ''}
+                    onChange={(e) => campoDoc('cidade_emissao', e.target.value)}
+                    placeholder="Ex.: Teresina - PI"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs font-semibold text-muted-foreground">
+                  Dados para pagamento (saem na proposta)
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="doc-pix" className="mb-1.5 block text-xs">
+                      Chave PIX
+                    </Label>
+                    <Input
+                      id="doc-pix"
+                      value={dadosDoc.banco?.pix || ''}
+                      onChange={(e) => campoBanco('pix', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="doc-banco" className="mb-1.5 block text-xs">
+                      Banco
+                    </Label>
+                    <Input
+                      id="doc-banco"
+                      value={dadosDoc.banco?.instituicao || ''}
+                      onChange={(e) => campoBanco('instituicao', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="doc-favorecido" className="mb-1.5 block text-xs">
+                      Favorecido
+                    </Label>
+                    <Input
+                      id="doc-favorecido"
+                      value={dadosDoc.banco?.favorecido || ''}
+                      onChange={(e) => campoBanco('favorecido', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="doc-agencia" className="mb-1.5 block text-xs">
+                      Agência
+                    </Label>
+                    <Input
+                      id="doc-agencia"
+                      value={dadosDoc.banco?.agencia || ''}
+                      onChange={(e) => campoBanco('agencia', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="doc-conta" className="mb-1.5 block text-xs">
+                      Conta
+                    </Label>
+                    <Input
+                      id="doc-conta"
+                      value={dadosDoc.banco?.conta || ''}
+                      onChange={(e) => campoBanco('conta', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSalvarDados} disabled={salvandoDados}>
+                  {salvandoDados ? 'Salvando...' : 'Salvar dados'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -438,9 +706,9 @@ export default function Configuracoes() {
               Responsáveis técnicos
             </CardTitle>
             <CardDescription>
-              Quem pode assinar os laudos de vistoria. O marcado como padrão é sugerido
-              automaticamente ao finalizar uma vistoria — dá pra escolher outro ou adicionar um novo
-              na hora.
+              Quem pode assinar os relatórios de vistoria. O marcado como padrão é sugerido ao
+              finalizar uma vistoria; dá para escolher outro ou adicionar um novo na hora. Com a
+              assinatura digitalizada, ela entra no PDF acima do nome.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -462,7 +730,45 @@ export default function Configuracoes() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        id={`assinatura-${rt.id}`}
+                        className="hidden"
+                        onChange={(e) => {
+                          handleAssinatura(rt.id, e.target.files)
+                          e.target.value = ''
+                        }}
+                      />
+                      {rt.assinatura && tokenArquivos && (
+                        <img
+                          src={urlAssinaturaRT(rt, tokenArquivos)}
+                          alt={`Assinatura de ${rt.nome}`}
+                          className="h-7 max-w-[90px] rounded border bg-white object-contain"
+                        />
+                      )}
+                      <label
+                        htmlFor={`assinatura-${rt.id}`}
+                        className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs hover:bg-accent"
+                      >
+                        <PenLine className="h-3.5 w-3.5" />
+                        {enviandoAssinatura === rt.id
+                          ? 'Enviando...'
+                          : rt.assinatura
+                            ? 'Trocar assinatura'
+                            : 'Enviar assinatura'}
+                      </label>
+                      {rt.assinatura && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-muted-foreground"
+                          onClick={() => handleRemoverAssinatura(rt.id)}
+                        >
+                          Tirar assinatura
+                        </Button>
+                      )}
                       {!rt.padrao && (
                         <Button
                           variant="ghost"

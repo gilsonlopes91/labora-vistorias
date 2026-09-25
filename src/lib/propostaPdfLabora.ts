@@ -28,6 +28,7 @@ import {
   type ModeloProposta,
 } from '@/services/modelosProposta'
 import { formatarDataCalendario } from '@/lib/date'
+import { getMinhaOrganizacao, type DadosDocumentos } from '@/services/organizacoes'
 
 type RGB = [number, number, number]
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
@@ -119,7 +120,31 @@ export interface DadosPropostaLabora {
 
 export async function gerarPdfPropostaLabora(dados: DadosPropostaLabora): Promise<void> {
   const { orcamento, empresa, modelo, organizacaoNome } = dados
-  const inst: DadosInstitucionais = modelo.dados_institucionais || {}
+  // Contato, CNPJ e dados bancários: o que estiver preenchido no modelo vale;
+  // o que estiver vazio vem de Configurações > Dados da empresa nos documentos.
+  let dadosOrg: DadosDocumentos = {}
+  try {
+    dadosOrg = (await getMinhaOrganizacao()).dados_documentos || {}
+  } catch {
+    dadosOrg = {}
+  }
+  const doModelo: DadosInstitucionais = modelo.dados_institucionais || {}
+  const preencher = (a?: string, b?: string) => (a && a.trim() ? a : b || undefined)
+  const inst: DadosInstitucionais = {
+    ...doModelo,
+    telefone: preencher(doModelo.telefone, dadosOrg.telefone),
+    email: preencher(doModelo.email, dadosOrg.email),
+    cnpj: preencher(doModelo.cnpj, dadosOrg.cnpj),
+    razao_social: preencher(doModelo.razao_social, dadosOrg.razao_social),
+    cidade_emissao: preencher(doModelo.cidade_emissao, dadosOrg.cidade_emissao),
+    banco: {
+      favorecido: preencher(doModelo.banco?.favorecido, dadosOrg.banco?.favorecido),
+      instituicao: preencher(doModelo.banco?.instituicao, dadosOrg.banco?.instituicao),
+      agencia: preencher(doModelo.banco?.agencia, dadosOrg.banco?.agencia),
+      conta: preencher(doModelo.banco?.conta, dadosOrg.banco?.conta),
+      pix: preencher(doModelo.banco?.pix, dadosOrg.banco?.pix),
+    },
+  }
 
   const primaria = hexParaRgb(modelo.cor_primaria, [108, 136, 69])
   const escura = hexParaRgb(modelo.cor_secundaria, [61, 77, 39])
@@ -870,9 +895,13 @@ export async function gerarPdfPropostaLabora(dados: DadosPropostaLabora): Promis
     doc.setFontSize(7.5)
     doc.setTextColor(textoCorpo[0], textoCorpo[1], textoCorpo[2])
     if (orcamento.crea) doc.text(`Registro profissional: ${orcamento.crea}`, margem + 4, y5 + 16)
+    // Técnico de segurança (registro no MTE) não emite ART; engenheiro sim.
+    const registroMTE = /^\s*MTE/i.test(orcamento.crea || '')
     doc.text(
       doc.splitTextToSize(
-        'Os laudos e programas acompanham anotação de responsabilidade técnica emitida junto ao respectivo conselho de classe.',
+        registroMTE
+          ? 'Os documentos são assinados pelo responsável técnico acima, com registro profissional no Ministério do Trabalho e Emprego.'
+          : 'Os laudos e programas acompanham anotação de responsabilidade técnica emitida junto ao respectivo conselho de classe.',
         larguraUtil - 8,
       ),
       margem + 4,

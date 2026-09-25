@@ -273,6 +273,19 @@ export function OrcamentoDialog({
     setCrea(formatarRegistroRT(padrao))
   }, [open, editando, rts, rtEscolhido, engenheiro, crea])
 
+  // Técnico de segurança (registro no MTE) não emite ART/RRT: avisa quando o
+  // escopo padrão traz essa linha.
+  const rtAtual = rts.find((r) => r.id === rtEscolhido)
+  const linhaEhArt = (linha: string) => /\b(ART|RRT)\b/.test(linha)
+  const artNoEscopoSemEngenheiro =
+    rtAtual?.tipo_registro === 'MTE' && linhasParaLista(inclusos).some(linhaEhArt)
+  const tirarArtDoEscopo = () =>
+    setInclusos(
+      linhasParaLista(inclusos)
+        .filter((l) => !linhaEhArt(l))
+        .join('\n'),
+    )
+
   const escolherRt = (id: string) => {
     setRtEscolhido(id)
     if (id === RT_OUTRO) return
@@ -706,6 +719,23 @@ export function OrcamentoDialog({
                   <SelectItem value={RT_OUTRO}>Outro (digitar)</SelectItem>
                 </SelectContent>
               </Select>
+              {artNoEscopoSemEngenheiro && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <span className="flex-1">
+                    Técnico de segurança (registro no MTE) não emite ART. O escopo traz uma linha de
+                    ART/RRT.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={tirarArtDoEscopo}
+                  >
+                    Tirar do escopo
+                  </Button>
+                </div>
+              )}
               {rtEscolhido === RT_OUTRO && (
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <Input

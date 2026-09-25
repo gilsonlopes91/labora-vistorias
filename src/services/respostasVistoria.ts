@@ -18,6 +18,9 @@ export interface RespostaVistoria {
   valor_multa_max?: number
   foto?: string[]
   localizacao?: GeoLocalizacao
+  /** Plano de ação do item não conforme (migration 0130). */
+  recomendacao?: string
+  prazo_adequacao?: string
   client_uuid: string
   // Cópia do item da norma no momento da resposta; congelada quando a vistoria
   // é concluída (migration 0110). O laudo de vistoria concluída usa esta cópia.
@@ -41,6 +44,8 @@ interface RespostaCreateInput {
   client_uuid: string
   fotos?: File[]
   localizacao?: GeoLocalizacao
+  recomendacao?: string
+  prazo_adequacao?: string
 }
 
 interface RespostaUpdateInput {
@@ -49,6 +54,8 @@ interface RespostaUpdateInput {
   numero_funcionarios_irregulares?: number
   fotos?: File[]
   localizacao?: GeoLocalizacao
+  recomendacao?: string
+  prazo_adequacao?: string
 }
 
 // Monta FormData porque o upload de foto exige multipart. "foto+" instrui o
