@@ -255,6 +255,15 @@ export default function Login() {
                         {submitting ? 'Entrando...' : 'Entrar'}
                       </Button>
 
+                      <div className="text-center">
+                        <Link
+                          to="/esqueci-senha"
+                          className="text-sm text-primary underline-offset-2 hover:underline"
+                        >
+                          Esqueci minha senha
+                        </Link>
+                      </div>
+
                       <div className="pt-2 text-center">
                         <Link
                           to="/"

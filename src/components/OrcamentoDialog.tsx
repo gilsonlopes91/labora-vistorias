@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { ChevronDown, Plus, Search, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { formatLocalDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { getEmpresas, type Empresa } from '@/services/empresas'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
@@ -45,6 +46,7 @@ import {
   type TipoOrcamento,
 } from '@/services/orcamentos'
 
+import CampoMoeda from '@/components/CampoMoeda'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -231,7 +233,8 @@ export function OrcamentoDialog({
       setTitulo('')
       setDescricao('')
       setStatus('rascunho')
-      setDataProposta(new Date().toISOString().slice(0, 10))
+      // data de hoje no fuso do aparelho (toISOString daria o dia seguinte à noite)
+      setDataProposta(formatLocalDate(new Date()))
       setValidadeDias('30')
       setItens([itemServicoVazio()])
       setValorEntrada('')
@@ -573,17 +576,12 @@ export function OrcamentoDialog({
                         value={(item as ItemTreinamento).turmas}
                         onChange={(e) => atualizarItem(indice, 'turmas', Number(e.target.value))}
                       />
-                      <Input
+                      <CampoMoeda
                         className="col-span-5 sm:col-span-2"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="R$ por pessoa"
+                        placeholder="por pessoa"
                         title="Valor por pessoa"
-                        value={item.valor_unitario || ''}
-                        onChange={(e) =>
-                          atualizarItem(indice, 'valor_unitario', Number(e.target.value))
-                        }
+                        valor={item.valor_unitario || 0}
+                        onChange={(v) => atualizarItem(indice, 'valor_unitario', v)}
                       />
                       <div className="col-span-1 flex items-center justify-end">
                         <Button
@@ -616,17 +614,12 @@ export function OrcamentoDialog({
                           atualizarItem(indice, 'quantidade', Number(e.target.value))
                         }
                       />
-                      <Input
+                      <CampoMoeda
                         className="col-span-3 sm:col-span-3"
-                        type="number"
-                        min="0"
-                        step="0.01"
                         placeholder="Valor unit."
                         title="Valor unitário"
-                        value={item.valor_unitario || ''}
-                        onChange={(e) =>
-                          atualizarItem(indice, 'valor_unitario', Number(e.target.value))
-                        }
+                        valor={item.valor_unitario || 0}
+                        onChange={(v) => atualizarItem(indice, 'valor_unitario', v)}
                       />
                       <div className="col-span-1 flex items-center justify-end">
                         <Button
@@ -914,13 +907,10 @@ export function OrcamentoDialog({
                 </div>
                 <div>
                   <Label htmlFor="entrada">Valor de entrada (opcional)</Label>
-                  <Input
+                  <CampoMoeda
                     id="entrada"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={valorEntrada}
-                    onChange={(e) => setValorEntrada(e.target.value)}
+                    valor={Number(valorEntrada) || 0}
+                    onChange={(v) => setValorEntrada(v ? String(v) : '')}
                     className="mt-1.5"
                   />
                 </div>

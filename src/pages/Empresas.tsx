@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, Building2, Search, Mail, MapPin, Phone, Users } f
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
+import { buscarDadosCnpj, cnpjValido, formatarCnpj } from '@/lib/cnpj'
 import { useAuth } from '@/hooks/use-auth'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import {
@@ -62,15 +63,8 @@ import {
 
 const PORTE_VALUES = ['MEI', 'ME', 'EPP', 'Demais / Não se enquadra'] as const
 
-function formatCnpj(val: string): string {
-  const digits = val.replace(/\D/g, '').slice(0, 14)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`
-  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`
-  if (digits.length <= 12)
-    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`
-  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`
-}
+// CNPJ numérico ou alfanumérico (ver lib/cnpj).
+const formatCnpj = formatarCnpj
 
 function formatTelefone(val: string): string {
   const digits = val.replace(/\D/g, '').slice(0, 11)
@@ -88,9 +82,8 @@ const empresaSchema = z.object({
     .optional()
     .refine((val) => {
       if (!val || !val.trim()) return true
-      const digits = val.replace(/\D/g, '')
-      return digits.length === 14
-    }, 'CNPJ deve conter 14 dígitos (ex.: 00.000.000/0000-00)'),
+      return cnpjValido(val)
+    }, 'CNPJ inválido: confira os números (ex.: 00.000.000/0000-00)'),
   porte: z.string().optional(),
   grau_risco: z.string().optional(),
   numero_funcionarios: z.string().optional(),
@@ -131,6 +124,7 @@ export default function Empresas() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null)
   const [busca, setBusca] = useState('')
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
 
   const empresasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -190,6 +184,40 @@ export default function Empresas() {
     setEditing(null)
     form.reset(emptyValues)
     setDialogOpen(true)
+  }
+
+  // Preenche o cadastro com os dados públicos do CNPJ (Receita). Só completa
+  // os campos vazios, para não apagar o que já foi digitado.
+  const preencherPeloCnpj = async () => {
+    const cnpj = form.getValues('cnpj') || ''
+    if (!cnpjValido(cnpj)) {
+      form.setError('cnpj', { message: 'Digite um CNPJ válido para buscar' })
+      return
+    }
+    setBuscandoCnpj(true)
+    try {
+      const d = await buscarDadosCnpj(cnpj)
+      const vazio = (campo: keyof EmpresaFormValues) => !String(form.getValues(campo) || '').trim()
+      if (d.razao_social && vazio('razao_social')) form.setValue('razao_social', d.razao_social)
+      if (d.nome_fantasia && vazio('nome_fantasia')) form.setValue('nome_fantasia', d.nome_fantasia)
+      if (d.endereco && vazio('endereco')) form.setValue('endereco', d.endereco)
+      if (d.telefone && vazio('contato_telefone'))
+        form.setValue('contato_telefone', formatTelefone(d.telefone))
+      if (d.porte && vazio('porte')) form.setValue('porte', d.porte)
+      toast.success('Dados da Receita preenchidos', {
+        description: [
+          d.situacao ? `Situação: ${d.situacao}` : '',
+          d.cnae ? `Atividade principal: ${d.cnae}` : '',
+          'Confira e complete o nº de empregados e o grau de risco.',
+        ]
+          .filter(Boolean)
+          .join('. '),
+      })
+    } catch (error) {
+      toast.error('Não foi possível buscar o CNPJ', { description: getErrorMessage(error) })
+    } finally {
+      setBuscandoCnpj(false)
+    }
   }
 
   const openEdit = (empresa: Empresa) => {
@@ -265,6 +293,16 @@ export default function Empresas() {
       setSubmitting(false)
     }
   }
+
+  // Link "Editar" da página da empresa: /empresas?editar=<id> abre o cadastro.
+  const editarParam = searchParams.get('editar')
+  useEffect(() => {
+    if (!editarParam || !empresas.length) return
+    const alvo = empresas.find((e) => e.id === editarParam)
+    if (alvo) openEdit(alvo)
+    setSearchParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editarParam, empresas])
 
   const confirmDelete = async () => {
     if (!deleteTarget) return
@@ -490,6 +528,17 @@ export default function Empresas() {
                           onChange={(e) => field.onChange(formatCnpj(e.target.value))}
                         />
                       </FormControl>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto px-0 text-xs"
+                        onClick={preencherPeloCnpj}
+                        disabled={buscandoCnpj}
+                      >
+                        <Search className="mr-1 h-3 w-3" />
+                        {buscandoCnpj ? 'Buscando...' : 'Buscar dados na Receita'}
+                      </Button>
                       <FormMessage />
                     </FormItem>
                   )}

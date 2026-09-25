@@ -9,7 +9,6 @@ import {
   getEquipe,
   getPapelUsuarioLogado,
   type MembroEquipe,
-  type Papel,
 } from '@/services/equipe'
 
 import { Button } from '@/components/ui/button'
@@ -34,10 +33,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const PAPEL_LABEL: Record<Papel, string> = {
+const PAPEL_LABEL: Record<string, string> = {
   dono: 'Dono',
   gerente: 'Gerente',
   executor: 'Executor (técnico)',
+  admin_plataforma: 'Administração da plataforma',
+  staff_labora: 'Equipe Labora',
 }
 
 export default function Equipe() {
@@ -172,10 +173,12 @@ export default function Equipe() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {membros.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+          {membros.length <= 1 && (
+            <p className="py-2 text-center text-sm text-muted-foreground">
               Nenhum membro além de você ainda.
             </p>
+          )}
+          {membros.length === 0 ? null : (
           ) : (
             membros.map((m) => (
               <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
@@ -185,7 +188,7 @@ export default function Equipe() {
                 </div>
                 <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
                   <ShieldCheck className="mr-1 h-3 w-3" />
-                  {PAPEL_LABEL[m.papel]}
+                  {PAPEL_LABEL[m.papel] || m.papel}
                 </Badge>
               </div>
             ))

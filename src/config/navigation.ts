@@ -12,6 +12,7 @@ import {
   FileText,
   BookOpenCheck,
   Palette,
+  KeyRound,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -89,6 +90,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
   // Aberto a todos: o dono da conta sempre edita a identidade visual; o resto
   // da página é controlado por perfil dentro dela.
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
+  // A página já existia (troca obrigatória no primeiro acesso), mas não tinha link.
+  { to: '/trocar-senha', label: 'Trocar senha', icon: KeyRound },
   { to: '/admin/normas', label: 'Normas (catálogo NR)', icon: BookOpenCheck, adminOnly: true },
 ]
 

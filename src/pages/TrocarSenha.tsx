@@ -1,6 +1,7 @@
-/* Redefinição obrigatória de senha — usuário com trocar_senha=true cai aqui
-   após o login. Usa a API padrão do PocketBase (oldPassword + password +
-   passwordConfirm) e limpa o flag trocar_senha. */
+/* Troca de senha. Usuário com trocar_senha=true cai aqui após o login
+   (senha temporária); os demais chegam pelo menu "Trocar senha". Usa a API
+   padrão do PocketBase (oldPassword + password + passwordConfirm) e limpa o
+   flag trocar_senha. */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -26,7 +27,7 @@ import { Input } from '@/components/ui/input'
 
 const schema = z
   .object({
-    senhaAntiga: z.string().min(1, 'Informe a senha atual (a temporária que você recebeu)'),
+    senhaAntiga: z.string().min(1, 'Informe a senha atual'),
     senha: z.string().min(8, 'A nova senha deve ter no mínimo 8 caracteres'),
     confirmacao: z.string().min(8, 'Confirme a nova senha'),
   })
@@ -39,6 +40,8 @@ export default function TrocarSenha() {
   const { user, signOut } = useAuth()
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
+  // Troca obrigatória (senha temporária) ou troca pelo menu.
+  const obrigatoria = !!(pb.authStore.record as { trocar_senha?: boolean } | null)?.trocar_senha
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -55,6 +58,15 @@ export default function TrocarSenha() {
         passwordConfirm: values.confirmacao,
         trocar_senha: false,
       })
+      // Trocar a senha invalida a sessão atual: entra de novo com a senha nova.
+      const email = (pb.authStore.record as { email?: string } | null)?.email
+      if (email) {
+        try {
+          await pb.collection('users').authWithPassword(email, values.senha)
+        } catch {
+          // se não der, a pessoa entra de novo pelo login
+        }
+      }
       toast.success('Senha alterada com sucesso!')
       navigate('/painel', { replace: true })
     } catch (error) {
@@ -75,9 +87,13 @@ export default function TrocarSenha() {
             <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <KeyRound className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-2xl font-extrabold">Defina sua nova senha</h1>
+            <h1 className="text-2xl font-extrabold">
+              {obrigatoria ? 'Defina sua nova senha' : 'Trocar senha'}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Por segurança, você precisa criar uma nova senha antes de continuar.
+              {obrigatoria
+                ? 'Por segurança, você precisa criar uma nova senha antes de continuar.'
+                : 'Informe a senha atual e escolha uma nova.'}
             </p>
           </div>
           <Form {...form}>
@@ -87,11 +103,13 @@ export default function TrocarSenha() {
                 name="senhaAntiga"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Senha atual (temporária)</FormLabel>
+                    <FormLabel>
+                      {obrigatoria ? 'Senha atual (temporária)' : 'Senha atual'}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="A senha que você recebeu"
+                        placeholder={obrigatoria ? 'A senha que você recebeu' : ''}
                         className="h-11 rounded-xl"
                         {...field}
                       />
@@ -143,17 +161,28 @@ export default function TrocarSenha() {
               >
                 {submitting ? 'Salvando...' : 'Salvar nova senha'}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => {
-                  signOut()
-                  navigate('/login', { replace: true })
-                }}
-              >
-                Sair
-              </Button>
+              {obrigatoria ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    signOut()
+                    navigate('/login', { replace: true })
+                  }}
+                >
+                  Sair
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => navigate(-1)}
+                >
+                  Voltar
+                </Button>
+              )}
             </form>
           </Form>
         </CardContent>

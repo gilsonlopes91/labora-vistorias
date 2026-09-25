@@ -6,7 +6,7 @@ export interface MembroEquipe {
   id: string
   name: string
   email: string
-  papel: Papel
+  papel: Papel | 'admin_plataforma' | 'staff_labora'
 }
 
 export const getPapelUsuarioLogado = (): Papel | 'admin_plataforma' | 'staff_labora' => {
@@ -39,21 +39,17 @@ export const isAdmin = (): boolean => {
   )
 }
 
+// A coleção users só deixa cada um ver o próprio registro; a lista da equipe
+// vem de uma rota do servidor que devolve só nome, e-mail e papel.
+const ORDEM_PAPEL: Record<string, number> = { dono: 0, gerente: 1, executor: 2 }
+
 export const getEquipe = async (): Promise<MembroEquipe[]> => {
-  const org = await pb.collection('organizacoes').getFirstListItem('')
-  const donoId = org.dono_id
-  const membrosIds: string[] = org.membros || []
-  const ids = [donoId, ...membrosIds]
-  const usuarios = await pb.collection('users').getFullList({
-    filter: pb.filter('id ?= {:ids}', { ids }),
-    sort: '-papel,name',
-  })
-  return usuarios.map((u) => ({
-    id: u.id,
-    name: u.name || u.email,
-    email: u.email,
-    papel: (u.papel as Papel) || 'dono',
-  }))
+  const r = await pb.send<{ membros: MembroEquipe[] }>('/backend/v1/equipe', { method: 'GET' })
+  return (r.membros || []).sort(
+    (a, b) =>
+      (ORDEM_PAPEL[a.papel] ?? 3) - (ORDEM_PAPEL[b.papel] ?? 3) ||
+      a.name.localeCompare(b.name, 'pt-BR'),
+  )
 }
 
 export interface ConviteInput {

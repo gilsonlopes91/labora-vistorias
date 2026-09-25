@@ -13,6 +13,7 @@ import {
   DollarSign,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   TrendingUp,
   Users,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react'
 
 import { formatBrazilianDate } from '@/lib/date'
+import { rotuloCurtoNorma } from '@/lib/normas'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresa, type Empresa } from '@/services/empresas'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -176,12 +178,20 @@ export default function EmpresaDetalhe() {
             </div>
           )}
         </div>
-        <Button asChild variant="outline">
-          <Link to="/vistorias">
-            <ClipboardCheck className="mr-2 h-4 w-4" />
-            Agendar vistoria
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link to={`/empresas?editar=${empresa.id}`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar dados
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/vistorias">
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              Agendar vistoria
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
@@ -256,8 +266,12 @@ export default function EmpresaDetalhe() {
               <div className="divide-y">
                 {vistorias.map((vistoria) => {
                   const tipo = vistoria.expand?.tipo_vistoria_id
-                  const nome =
-                    tipo?.nr_referencia || tipo?.nome || 'Vistoria sem checklist principal'
+                  const extras = vistoria.expand?.checklists || []
+                  const nome = tipo
+                    ? [tipo, ...extras].map((t) => rotuloCurtoNorma(t)).join(', ')
+                    : extras.length
+                      ? extras.map((t) => rotuloCurtoNorma(t)).join(', ')
+                      : 'Vistoria sem checklist principal'
                   return (
                     <Link
                       key={vistoria.id}

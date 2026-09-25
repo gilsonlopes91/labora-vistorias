@@ -18,6 +18,7 @@ import {
   getNomeAutorArtigo,
   type Artigo,
 } from '@/services/artigos'
+import { definirTituloPagina } from '@/components/TituloPorRota'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card } from '@/components/ui/card'
@@ -51,6 +52,13 @@ export default function ArtigoDetalhe() {
       })
       .finally(() => setLoading(false))
   }, [slug, navigate])
+
+  // Título da aba e descrição da página com os dados do artigo (busca no
+  // Google e compartilhamento).
+  useEffect(() => {
+    if (artigo) definirTituloPagina(artigo.titulo, artigo.resumo)
+    else definirTituloPagina('Blog de segurança do trabalho')
+  }, [artigo])
 
   const formatarData = (dataIso: string) => {
     try {

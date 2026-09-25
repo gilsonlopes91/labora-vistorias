@@ -9,6 +9,8 @@ import LoadingScreen from '@/components/LoadingScreen'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Index from './pages/Index'
 import Login from './pages/Login'
+import EsqueciSenha from './pages/EsqueciSenha'
+import RedefinirSenha from './pages/RedefinirSenha'
 import PublicLayout from './components/PublicLayout'
 import PublicHome from './pages/PublicHome'
 import CalculadoraPublica from './pages/CalculadoraPublica'
@@ -39,6 +41,7 @@ import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
 import { trackPublicPageView } from '@/lib/analytics'
 import AvisoCookies from '@/components/AvisoCookies'
+import TituloPorRota from '@/components/TituloPorRota'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
@@ -77,6 +80,7 @@ function PublicAnalyticsTracker() {
 const App = () => (
   <BrowserRouter>
     <PublicAnalyticsTracker />
+    <TituloPorRota />
     <AvisoCookies />
     <AuthProvider>
       <TooltipProvider>
@@ -93,6 +97,10 @@ const App = () => (
             <Route path="/privacidade" element={<DocumentoLegal tipo="privacidade" />} />
           </Route>
           <Route path="/login" element={<Login />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          {/* /reset-password é o endereço do link no e-mail do Skip Cloud */}
+          <Route path="/reset-password" element={<RedefinirSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route element={<Layout />}>
             <Route
               path="/painel"
