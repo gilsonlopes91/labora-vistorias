@@ -1,5 +1,6 @@
 /* Main App Component - Handles routing (using react-router-dom), query client and other providers - use this file to add all routes */
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -36,12 +37,45 @@ import AdminNormas from './pages/AdminNormas'
 import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
+import { trackPublicPageView } from '@/lib/analytics'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
 
+/**
+ * Monitor de navegação para rastrear páginas públicas no Google Analytics 4.
+ * Rastreia rotas públicas isoladas como /login e rotas sob PublicLayout (/ , /calculadora, /blog, /blog/:slug, etc.)
+ * Evita disparar page_view nas rotas do painel/sistema logado.
+ */
+function PublicAnalyticsTracker() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const path = location.pathname
+    const rotasPublicas = [
+      '/',
+      '/login',
+      '/calculadora',
+      '/blog',
+      '/em-breve',
+      '/termos',
+      '/privacidade',
+    ]
+
+    const ehRotaPublica =
+      rotasPublicas.includes(path) || path.startsWith('/blog/') || path.startsWith('/calculadora')
+
+    if (ehRotaPublica) {
+      trackPublicPageView(path + location.search)
+    }
+  }, [location.pathname, location.search])
+
+  return null
+}
+
 const App = () => (
   <BrowserRouter>
+    <PublicAnalyticsTracker />
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
