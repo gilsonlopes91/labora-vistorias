@@ -178,21 +178,20 @@ export default function Equipe() {
               Nenhum membro além de você ainda.
             </p>
           )}
-          {membros.length === 0 ? null : (
-          ) : (
-            membros.map((m) => (
-              <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <div className="font-medium">{m.name}</div>
-                  <div className="text-sm text-muted-foreground">{m.email}</div>
+          {membros.length === 0
+            ? null
+            : membros.map((m) => (
+                <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <div className="font-medium">{m.name}</div>
+                    <div className="text-sm text-muted-foreground">{m.email}</div>
+                  </div>
+                  <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
+                    <ShieldCheck className="mr-1 h-3 w-3" />
+                    {PAPEL_LABEL[m.papel] || m.papel}
+                  </Badge>
                 </div>
-                <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
-                  <ShieldCheck className="mr-1 h-3 w-3" />
-                  {PAPEL_LABEL[m.papel] || m.papel}
-                </Badge>
-              </div>
-            ))
-          )}
+              ))}
         </CardContent>
       </Card>
     </div>
