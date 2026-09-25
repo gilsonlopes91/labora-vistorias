@@ -28,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
+import BarraOffline from '@/components/BarraOffline'
 
 /**
  * Avalia se um sub-item está ativo comparando pathname e search (aba)
@@ -370,6 +371,7 @@ export default function Layout() {
             <span className="text-sm font-medium text-muted-foreground">{currentLabel}</span>
           )}
         </header>
+        <BarraOffline />
         <div className="flex-1">
           <Outlet />
         </div>

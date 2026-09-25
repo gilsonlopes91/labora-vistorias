@@ -5,7 +5,8 @@
    (a última situação, a última observação e todas as fotos novas), então
    marcar C e depois N/C sem sinal gera um envio só.
 
-   Etapa 2 (ainda não feita): abrir o app e a vistoria já sem internet. */
+   Etapa 2 (abrir o app e a vistoria já sem internet): public/sw.js,
+   cacheOffline.ts e prepararOffline.ts. */
 import type { GeoLocalizacao, Situacao } from '@/services/respostasVistoria'
 
 const DB_NOME = 'labora-vistorias-offline'

@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import LoadingScreen from '@/components/LoadingScreen'
+import { limparCacheOffline, podarCacheOffline } from '@/lib/cacheOffline'
 
 interface AuthContextType {
   user: RecordModel | null
@@ -34,12 +35,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(pb.authStore.isValid ? record : null)
       setIsAuthenticated(pb.authStore.isValid)
     })
-    // Refresh on boot; clear on failure (revoked server-side).
+    // Refresh on boot; clear on failure (revoked server-side). Sem internet
+    // (status 0) a sessão continua, para o app abrir em campo (modo offline).
     if (pb.authStore.isValid) {
+      // Sinal fraco: não segura a tela de abertura mais que 8 segundos.
+      const espera = setTimeout(() => setLoading(false), 8000)
       pb.collection('users')
         .authRefresh()
-        .catch(() => pb.authStore.clear())
-        .finally(() => setLoading(false))
+        .catch((erro: { status?: number }) => {
+          if (erro?.status) pb.authStore.clear()
+        })
+        .finally(() => {
+          clearTimeout(espera)
+          setLoading(false)
+        })
+      podarCacheOffline()
     } else {
       if (pb.authStore.record) pb.authStore.clear()
       setLoading(false)
@@ -76,6 +86,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = () => {
     pb.authStore.clear()
+    // As cópias guardadas para uso sem internet saem junto com a conta.
+    limparCacheOffline()
   }
 
   return (
