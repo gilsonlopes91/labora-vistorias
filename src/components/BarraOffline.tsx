@@ -15,7 +15,13 @@ export default function BarraOffline() {
       prepararParaCampo().catch(() => {})
     }
     const off = () => setOnline(false)
-    const copia = () => setUsandoCopia(true)
+    // Com internet, o aviso de cópia local some sozinho depois de um tempo.
+    let apagar: ReturnType<typeof setTimeout> | undefined
+    const copia = () => {
+      setUsandoCopia(true)
+      clearTimeout(apagar)
+      apagar = setTimeout(() => setUsandoCopia(false), 20000)
+    }
     window.addEventListener('online', on)
     window.addEventListener('offline', off)
     window.addEventListener('labora:copia-local', copia)
@@ -28,6 +34,7 @@ export default function BarraOffline() {
       window.removeEventListener('offline', off)
       window.removeEventListener('labora:copia-local', copia)
       clearTimeout(t)
+      clearTimeout(apagar)
     }
   }, [])
 
