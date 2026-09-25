@@ -1,7 +1,7 @@
 // Pacotes (módulos) contratados pela organização — fonte: organizacoes.modulos
 // (JSON gravado pelo console admin via /backend/v1/admin/usuario).
 // Fallback: tudo liberado (orgs antigas sem o campo, ou erro de leitura).
-import pb from '@/lib/pocketbase/client'
+import { getMinhaOrganizacao } from '@/services/organizacoes'
 
 export interface Modulos {
   auditoria: boolean
@@ -21,8 +21,10 @@ export const MODULOS_DEFAULT: Modulos = {
 
 export const getModulos = async (): Promise<Modulos> => {
   try {
-    const org = await pb.collection('organizacoes').getFirstListItem('')
-    const raw = typeof org.modulos === 'string' ? JSON.parse(org.modulos) : org.modulos
+    const org = (await getMinhaOrganizacao()) as unknown as { modulos?: unknown }
+    const raw = (
+      typeof org.modulos === 'string' ? JSON.parse(org.modulos) : org.modulos
+    ) as Partial<Modulos> | null
     return { ...MODULOS_DEFAULT, ...(raw || {}) }
   } catch (_) {
     return MODULOS_DEFAULT

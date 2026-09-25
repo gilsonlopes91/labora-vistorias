@@ -33,12 +33,18 @@ export interface Organizacao {
 }
 
 /**
- * Toda conta nova ganha automaticamente uma organização (hook auto_create_organizacao).
- * Como as regras de acesso já restringem a listagem a dono_id = usuário logado,
- * basta pegar o primeiro (e único) registro.
+ * Organização em que o usuário trabalha: a do campo organizacao_id. Antes pegava
+ * o primeiro registro visível, o que dava errado para quem é dono de uma
+ * organização e membro de outra (e para o admin, que vê todas).
  */
-export const getMinhaOrganizacao = () =>
-  pb.collection('organizacoes').getFirstListItem<Organizacao>('')
+export const getMinhaOrganizacao = () => {
+  const registro = pb.authStore.record
+  const orgId = registro?.organizacao_id as string | undefined
+  if (orgId) return pb.collection('organizacoes').getOne<Organizacao>(orgId)
+  return pb
+    .collection('organizacoes')
+    .getFirstListItem<Organizacao>(pb.filter('dono_id = {:u}', { u: registro?.id || '' }))
+}
 
 export const atualizarNomeOrganizacao = (id: string, nome: string) =>
   pb.collection('organizacoes').update<Organizacao>(id, { nome })

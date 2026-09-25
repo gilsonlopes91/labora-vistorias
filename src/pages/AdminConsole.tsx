@@ -314,15 +314,16 @@ export default function AdminConsole() {
     }
     setGerandoSenha(true)
     try {
-      const dono = await pb.collection('users').getFirstListItem(
-        pb.filter('organizacao_id = {:org} || id = {:dono}', {
-          org: senhaAlvo.id,
-          dono: senhaAlvo.dono_id || '__nenhum__',
-        }),
-      )
+      // A senha é sempre do dono da organização (antes pegava o primeiro
+      // usuário encontrado, que podia ser outro membro).
+      if (!senhaAlvo.dono_id) throw new Error('Esta organização não tem dono cadastrado.')
       await pb.send('/backend/v1/admin/usuario', {
         method: 'POST',
-        body: JSON.stringify({ acao: 'nova_senha', user_id: dono.id, senha: novaSenha }),
+        body: JSON.stringify({
+          acao: 'nova_senha',
+          user_id: senhaAlvo.dono_id,
+          senha: novaSenha,
+        }),
       })
       toast.success('Senha enviada! O usuário redefine no próximo login.')
       setSenhaAlvo(null)
