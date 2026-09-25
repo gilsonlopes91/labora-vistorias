@@ -9,6 +9,7 @@ import {
   eachWeekOfInterval,
   endOfMonth,
   endOfWeek,
+  endOfYear,
   format,
   isSameDay,
   isSameMonth,
@@ -17,6 +18,7 @@ import {
   startOfDay,
   startOfMonth,
   startOfWeek,
+  startOfYear,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -70,6 +72,13 @@ const VISAO_LABEL: Record<Visao, string> = {
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 const diaKey = (d: Date) => format(d, 'yyyy-MM-dd')
+
+// "setembro de 2026" → "Setembro de 2026" (só a primeira letra; o CSS
+// capitalize deixava "Setembro De 2026").
+const primeiraMaiuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1)
+
+// Horário da vistoria, quando informado no agendamento.
+const horaDe = (v: Vistoria) => (v.hora_inicio ? v.hora_inicio.slice(0, 5) : '')
 
 export default function Agenda() {
   const [vistorias, setVistorias] = useState<Vistoria[]>([])
@@ -139,6 +148,10 @@ export default function Agenda() {
       } as unknown as Vistoria)
       mapa.set(key, lista)
     })
+    // No mesmo dia, as com horário vêm primeiro, em ordem de hora.
+    for (const lista of mapa.values()) {
+      lista.sort((a, b) => (horaDe(a) || '99:99').localeCompare(horaDe(b) || '99:99'))
+    }
     return mapa
   }, [filtradas, formularios])
 
@@ -157,7 +170,7 @@ export default function Agenda() {
 
   const tituloPeriodo =
     visao === 'mes'
-      ? format(cursor, "MMMM 'de' yyyy", { locale: ptBR })
+      ? primeiraMaiuscula(format(cursor, "MMMM 'de' yyyy", { locale: ptBR }))
       : visao === 'semana'
         ? `${format(startOfWeek(cursor, { locale: ptBR }), 'dd MMM', { locale: ptBR })} — ${format(
             endOfWeek(cursor, { locale: ptBR }),
@@ -187,7 +200,10 @@ export default function Agenda() {
   )
 
   // 12 meses do ano (visão ano).
-  const mesesDoAno = useMemo(() => eachMonthOfInterval({ start: cursor, end: cursor }), [cursor])
+  const mesesDoAno = useMemo(
+    () => eachMonthOfInterval({ start: startOfYear(cursor), end: endOfYear(cursor) }),
+    [cursor],
+  )
 
   const irParaDia = (d: Date) => {
     setSelected(d)
@@ -219,6 +235,7 @@ export default function Agenda() {
         rotuloTipoVistoria(v) ? ` · ${rotuloTipoVistoria(v)}` : ''
       }${v.expand?.responsavel_tecnico_id?.nome ? ' · ' + v.expand.responsavel_tecnico_id.nome : ''}`}
     >
+      {horaDe(v) && <span className="font-semibold">{horaDe(v)} </span>}
       {v.expand?.empresa_id?.nome_fantasia || v.expand?.empresa_id?.razao_social || '—'}
       {v.expand?.responsavel_tecnico_id?.nome ? ` · ${v.expand.responsavel_tecnico_id.nome}` : ''}
     </div>
@@ -254,6 +271,7 @@ export default function Agenda() {
                       '—'}
                   </div>
                   <div className="text-sm text-muted-foreground">
+                    {horaDe(v) ? `${horaDe(v)} · ` : ''}
                     {rotuloTipoVistoria(v) || '—'}
                     {v.expand?.responsavel_tecnico_id?.nome
                       ? ` · ${v.expand.responsavel_tecnico_id.nome}`
@@ -335,7 +353,7 @@ export default function Agenda() {
           <Button variant="outline" size="icon" onClick={() => navegar(1)} aria-label="Próximo">
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <span className="ml-2 text-lg font-semibold capitalize">{tituloPeriodo}</span>
+          <span className="ml-2 text-lg font-semibold">{tituloPeriodo}</span>
         </div>
       </div>
 
@@ -435,6 +453,7 @@ export default function Agenda() {
                           className="cursor-pointer rounded bg-accent px-1.5 py-1 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
                         >
                           <div className="truncate font-medium">
+                            {horaDe(v) ? `${horaDe(v)} ` : ''}
                             {v.expand?.empresa_id?.nome_fantasia ||
                               v.expand?.empresa_id?.razao_social ||
                               '—'}

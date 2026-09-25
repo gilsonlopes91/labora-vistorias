@@ -26,8 +26,8 @@ export default function PublicHome() {
             <span className="text-primary">grátis e em segundos</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Escolha a norma, escolha o item, informe o número de trabalhadores e veja o valor da
-            multa da NR-28 com a explicação em linguagem simples. Sem cadastro, sem cartão.
+            Escolha a norma, escolha o item, informe o número de empregados e veja o valor da multa
+            pela tabela da NR-28, com o texto do item como está na norma. Sem cadastro, sem cartão.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="rounded-full px-8 text-base">
@@ -44,7 +44,7 @@ export default function PublicHome() {
               <ShieldCheck className="h-4 w-4 text-primary" /> Valores oficiais NR-28
             </span>
             <span className="flex items-center gap-2">
-              <Calculator className="h-4 w-4 text-primary" /> 38 NRs no catálogo
+              <Calculator className="h-4 w-4 text-primary" /> 36 NRs vigentes no catálogo
             </span>
             <span className="flex items-center gap-2">
               <ClipboardCheck className="h-4 w-4 text-primary" /> Sem cadastro
@@ -63,7 +63,7 @@ export default function PublicHome() {
             {
               n: '1',
               titulo: 'Escolha a norma',
-              desc: 'Todas as NRs do catálogo oficial, com seus anexos.',
+              desc: 'Todas as NRs vigentes, cada anexo separado.',
             },
             {
               n: '2',
@@ -102,8 +102,8 @@ export default function PublicHome() {
               },
               {
                 icon: FileText,
-                titulo: 'Explicação simples',
-                desc: 'Cada item traduzido: o que a norma exige e por que a multa existe.',
+                titulo: 'Texto da norma',
+                desc: 'Cada item com o texto como está na NR, o código da ementa e a infração (I1 a I4).',
               },
               {
                 icon: ShieldCheck,

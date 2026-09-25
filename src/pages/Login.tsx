@@ -48,7 +48,10 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false)
   const [conteudo, setConteudo] = useState<Record<string, string>>({})
   const [searchParams] = useSearchParams()
-  const [aba, setAba] = useState(searchParams.get('criar') ? 'signup' : 'login')
+  // ?aba=lista (ou o antigo ?criar=1) abre direto a lista de espera.
+  const [aba, setAba] = useState(
+    searchParams.get('criar') || searchParams.get('aba') === 'lista' ? 'signup' : 'login',
+  )
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -97,6 +100,8 @@ export default function Login() {
       toast.error('Não foi possível entrar', { description: getErrorMessage(error) })
       return
     }
+    // Some com o aviso de erro de uma tentativa anterior.
+    toast.dismiss()
     // Troca de senha obrigatória: usuário com o flag ativo cai na redefinição.
     const rec = pb.authStore.record as { trocar_senha?: boolean } | null
     if (rec?.trocar_senha) {
@@ -148,7 +153,7 @@ export default function Login() {
           onClick={() => setAba('signup')}
           className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-subtle transition-opacity hover:opacity-90"
         >
-          Começar agora
+          Entrar na lista de espera
         </a>
       </header>
 
@@ -199,7 +204,7 @@ export default function Login() {
                     Entrar
                   </TabsTrigger>
                   <TabsTrigger value="signup" className="rounded-full">
-                    Criar conta
+                    Lista de espera
                   </TabsTrigger>
                 </TabsList>
 
@@ -263,6 +268,10 @@ export default function Login() {
                 </TabsContent>
 
                 <TabsContent value="signup" className="mt-6">
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    O acesso ao app está sendo liberado aos poucos. Deixe seu nome e e-mail e
+                    avisamos quando chegar a sua vez.
+                  </p>
                   <Form {...signupForm}>
                     <form onSubmit={signupForm.handleSubmit(onSignup)} className="space-y-4">
                       <FormField
@@ -342,7 +351,7 @@ export default function Login() {
                         className="h-11 w-full rounded-full text-base font-semibold"
                         disabled={submitting}
                       >
-                        {submitting ? 'Enviando...' : 'Avançar'}
+                        {submitting ? 'Enviando...' : 'Entrar na lista'}
                       </Button>
                       <p className="text-center text-xs text-muted-foreground">
                         Só nome e e-mail. Avisamos quando o acesso for liberado.

@@ -96,15 +96,18 @@ export default function EmpresaDetalhe() {
 
   const resumoVistorias = useMemo(() => {
     const porStatus = (status: string) => vistorias.filter((v) => v.status === status).length
+    // "Última vistoria" = a data em que foi feita de fato (data_realizada);
+    // vistorias antigas, sem esse dado, usam a data agendada.
+    const dataFeita = (v: Vistoria) => v.data_realizada || v.data_agendada || ''
     const concluidas = vistorias
       .filter((v) => v.status === 'concluida')
-      .sort((a, b) => (b.data_agendada || '').localeCompare(a.data_agendada || ''))
+      .sort((a, b) => dataFeita(b).localeCompare(dataFeita(a)))
     return {
       total: vistorias.length,
       agendadas: porStatus('agendada'),
       emAndamento: porStatus('em_andamento'),
       concluidas: concluidas.length,
-      ultima: concluidas[0]?.data_agendada,
+      ultima: concluidas[0] ? dataFeita(concluidas[0]) : undefined,
     }
   }, [vistorias])
 
@@ -264,9 +267,11 @@ export default function EmpresaDetalhe() {
                       <div className="min-w-48 flex-1">
                         <div className="font-medium leading-snug">{nome}</div>
                         <div className="text-xs text-muted-foreground">
-                          {vistoria.data_agendada
-                            ? formatBrazilianDate(vistoria.data_agendada)
-                            : 'sem data'}
+                          {vistoria.status === 'concluida' && vistoria.data_realizada
+                            ? `realizada em ${formatBrazilianDate(vistoria.data_realizada)}`
+                            : vistoria.data_agendada
+                              ? formatBrazilianDate(vistoria.data_agendada)
+                              : 'sem data'}
                           {vistoria.responsavel_tecnico_nome && (
                             <> · {vistoria.responsavel_tecnico_nome}</>
                           )}

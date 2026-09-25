@@ -1,4 +1,4 @@
-/* Página "em breve" — destino de quem se inscreve pelo "Criar conta" enquanto
+/* Página "em breve" — destino de quem se inscreve na lista de espera enquanto
    o app não está liberado ao público. Mostra a confirmação da inscrição e um
    manual do que dá para fazer no app, com capturas de tela reais
    (coleção manual_imagens, leitura pública, a mais recente por chave). */
@@ -28,7 +28,7 @@ const SECOES: Secao[] = [
     titulo: '2. Cadastro das empresas clientes',
     texto: [
       'Cada cliente fica com CNPJ, contato, endereço, grau de risco e número de empregados.',
-      'O número de empregados e o grau de risco entram no cálculo da multa da NR-28. Ao abrir uma empresa, você vê as vistorias, os formulários e os orçamentos dela.',
+      'O número de empregados é o que define a faixa da multa da NR-28, junto com a infração de cada item (I1 a I4). Ao abrir uma empresa, você vê as vistorias e os orçamentos dela.',
     ],
   },
   {
@@ -60,13 +60,15 @@ const SECOES: Secao[] = [
     texto: [
       'Cada item traz o número do item na norma, o código da ementa e o grau da infração. Quando você marca N/C, aparece a faixa de multa daquele item.',
       'Você escreve a observação e anexa fotos pelo celular. A foto recebe uma marca com data, hora, coordenada GPS (quando ativado) e o logo da sua empresa.',
+      'Se o sinal cair durante a vistoria, o que você marca fica guardado no celular e é enviado sozinho quando a conexão volta.',
     ],
   },
   {
     chave: 'vistoria_concluida',
     titulo: '7. Finalização e relatório em PDF',
     texto: [
-      'Ao finalizar, você escolhe o responsável técnico que assina. O app gera o PDF com o logo da sua empresa, os dados do cliente, o resumo por situação, os itens agrupados por seção com as fotos, a estimativa de multa e o bloco de assinatura.',
+      'Ao finalizar, você escolhe o responsável técnico que assina. Se faltar item sem resposta, o app avisa antes. O PDF sai com o logo da sua empresa, os dados do cliente, o resumo por situação, os itens agrupados por seção com as fotos, a estimativa de multa e o bloco de assinatura.',
+      'Depois de concluída, a vistoria fica travada, para o relatório continuar igual ao que foi assinado. Se precisar corrigir, o dono ou o gerente reabre, e fica registrado quem reabriu e por quê.',
     ],
   },
   {
@@ -104,7 +106,7 @@ const SECOES: Secao[] = [
 
 const EXTRAS = [
   'Equipe com papéis: dono, gerente e executor. O executor só preenche as vistorias atribuídas a ele.',
-  'Assistente de IA dentro do app para tirar dúvidas sobre as NRs.',
+  'Agenda que aparece no Google Agenda, no Outlook e no calendário do iPhone.',
   'Calculadora de multas da NR-28 aberta no site, sem precisar de conta.',
 ]
 
@@ -153,7 +155,7 @@ export default function EmBreve() {
               puder entrar.
             </>
           ) : (
-            ' Deixe seu nome e e-mail em "Criar conta" para ser avisado quando o acesso abrir.'
+            ' Deixe seu nome e e-mail na lista de espera para ser avisado quando o acesso abrir.'
           )}
         </p>
         <p className="mt-3 text-muted-foreground">

@@ -63,6 +63,7 @@ export interface VistoriaInput {
   tecnico_id?: string
   responsavel_tecnico_id?: string
   data_agendada: string
+  data_realizada?: string
   status?: StatusVistoria
   observacoes_gerais?: string
   fotos_georreferenciadas?: boolean

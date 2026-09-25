@@ -42,15 +42,24 @@ routerAdd(
         return e.notFoundError('organização não encontrada')
       }
       const m = body.modulos || {}
-      org.set(
-        'modulos',
-        JSON.stringify({
-          auditoria: !!m.auditoria,
-          relatorios: !!m.relatorios,
-          formularios: !!m.formularios,
-          ia: !!m.ia,
-        }),
-      )
+      // Mantém os módulos que o console não mandou (ex.: orçamentos). Antes o
+      // objeto era montado só com quatro chaves, e salvar os pacotes apagava o
+      // módulo de orçamentos da organização.
+      let atuais = {}
+      try {
+        const raw = org.get('modulos')
+        const txt = raw ? toString(raw) : ''
+        let lido = txt ? JSON.parse(txt) : {}
+        if (typeof lido === 'string') lido = JSON.parse(lido)
+        if (lido && typeof lido === 'object') atuais = lido
+      } catch (_) {
+        atuais = {}
+      }
+      const CHAVES = ['auditoria', 'relatorios', 'formularios', 'ia', 'orcamentos']
+      for (const chave of CHAVES) {
+        if (Object.prototype.hasOwnProperty.call(m, chave)) atuais[chave] = !!m[chave]
+      }
+      org.set('modulos', JSON.stringify(atuais))
       $app.save(org)
       return e.json(200, { ok: true, modulos: org.getString('modulos') })
     }

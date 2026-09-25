@@ -222,8 +222,8 @@ export default function Blog() {
           Quer saber os riscos de autuação da sua empresa?
         </h2>
         <p className="mt-3 max-w-xl mx-auto text-muted-foreground text-sm sm:text-base">
-          Calcule agora mesmo as multas da NR-28 em poucos cliques com a nossa calculadora oficial e
-          gratuita.
+          Calcule em poucos cliques a multa de cada item, com os valores oficiais da NR-28. É
+          gratuito e não precisa de cadastro.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" className="rounded-full px-8">

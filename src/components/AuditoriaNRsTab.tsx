@@ -126,10 +126,14 @@ export function AuditoriaNRsTab() {
 
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
 
-  const qtdNrs = tipos.reduce((max, t) => {
-    const n = Number((t.nr_referencia || t.nome || '').match(/NR-(\d+)/i)?.[1] || 0)
-    return n > max ? n : max
-  }, 0)
+  // Conta as NRs distintas do catálogo (a NR-02 e a NR-27 foram revogadas, então
+  // o maior número, 38, não é a quantidade de normas).
+  const qtdNrs = new Set(
+    tipos
+      .map((t) => (t.nr_referencia || t.nome || '').match(/NR-(\d+)/i)?.[1])
+      .filter((n): n is string => !!n)
+      .map((n) => Number(n)),
+  ).size
 
   return (
     <div className="space-y-4">
@@ -139,7 +143,7 @@ export function AuditoriaNRsTab() {
             <h2 className="text-xl font-bold tracking-tight">Auditoria de NRs</h2>
             <Badge variant="secondary" className="gap-1">
               <Lock className="h-3 w-3" />
-              Catálogo fixo ({qtdNrs} NRs e seus anexos)
+              Catálogo fixo ({qtdNrs} NRs vigentes e seus anexos)
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">

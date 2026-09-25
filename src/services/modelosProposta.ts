@@ -8,7 +8,7 @@ export const LAYOUT_LABEL: Record<LayoutProposta, string> = {
   classico: 'Clássico',
   moderno: 'Moderno',
   minimalista: 'Minimalista',
-  labora: 'Labora completo',
+  labora: 'Completo',
 }
 
 export const LAYOUT_DESCRICAO: Record<LayoutProposta, string> = {
@@ -17,9 +17,9 @@ export const LAYOUT_DESCRICAO: Record<LayoutProposta, string> = {
   moderno:
     'Capa colorida ocupando a página inteira, títulos de seção em blocos na cor da marca e tabela zebrada. Chama mais atenção na primeira página.',
   minimalista:
-    'Sem capa, muito espaço em branco e tabela sem linhas. O documento começa direto no objeto da proposta, em duas ou três páginas. É o mais curto dos quatro.',
+    'Sem capa, muito espaço em branco e tabela sem linhas. O documento começa direto no objeto da proposta, em duas ou três páginas. É o formato mais curto.',
   labora:
-    'Documento completo de cinco páginas, no desenho da proposta original da Labora: capa com logo e foto, página institucional com metodologia, valores e portfólio, escopo com normas e exclusões, página de investimento com dados bancários, e fechamento com responsabilidade técnica e termo de aceite.',
+    'Documento completo de cinco páginas: capa com logo e foto, página institucional com metodologia, valores e portfólio, escopo com normas e exclusões, página de investimento com dados bancários, e fechamento com responsabilidade técnica e termo de aceite. Os textos institucionais, o contato e os dados bancários são preenchidos em "Editar".',
 }
 
 /** Bloco institucional usado só pelo layout "labora". */

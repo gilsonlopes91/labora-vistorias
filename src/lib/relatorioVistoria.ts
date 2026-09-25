@@ -218,7 +218,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text('Laudo de Vistoria de Segurança do Trabalho', pageWidth - margin, y + 28, {
+  doc.text('Relatório de Vistoria de Segurança e Saúde no Trabalho', pageWidth - margin, y + 28, {
     align: 'right',
   })
   y += 52
@@ -238,15 +238,17 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const titulo =
     dados.tipoNrReferencia && !nomeTipoJaTemReferencia
       ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
-      : dados.tipoNome || 'Laudo de Vistoria SST'
+      : dados.tipoNome || 'Relatório de Vistoria SST'
   const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
   doc.text(linhasTitulo, margin, y)
   y += linhasTitulo.length * 17 + 6
 
-  // Dados gerais
-  const dataAgendada = dados.vistoria.data_agendada
-    ? formatBrazilianDate(dados.vistoria.data_agendada)
-    : '-'
+  // Dados gerais — vale a data em que a vistoria foi feita; se não houver,
+  // a data agendada.
+  const dataVistoria =
+    dados.vistoria.data_realizada || dados.vistoria.data_agendada
+      ? formatBrazilianDate(dados.vistoria.data_realizada || dados.vistoria.data_agendada)
+      : '-'
   const finalYDadosGerais = executarAutoTable(doc, {
     startY: y,
     theme: 'plain',
@@ -260,7 +262,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         'Nº de empregados',
         dados.empresaNumeroEmpregados ? String(dados.empresaNumeroEmpregados) : 'não informado',
       ],
-      ['Data da vistoria', dataAgendada],
+      ['Data da vistoria', dataVistoria],
     ],
     margin: { left: margin, right: margin },
   })
@@ -575,5 +577,5 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
-  doc.save(`laudo-${slugEmpresa || 'empresa'}-${slugTipo || 'vistoria'}.pdf`)
+  doc.save(`relatorio-${slugEmpresa || 'empresa'}-${slugTipo || 'vistoria'}.pdf`)
 }

@@ -68,7 +68,10 @@ export function OrcamentoKpis({ dados }: { dados: IndicadoresOrcamento }) {
     },
     {
       rotulo: 'Conversão',
-      valor: `${dados.taxaConversao.toFixed(1)}%`,
+      valor: `${dados.taxaConversao.toLocaleString('pt-BR', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })}%`,
       icone: Percent,
       cor: 'bg-teal-600',
     },

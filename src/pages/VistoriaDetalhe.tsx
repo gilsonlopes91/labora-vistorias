@@ -17,7 +17,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 
-import { formatBrazilianDate } from '@/lib/date'
+import { formatBrazilianDate, toPocketBaseDate } from '@/lib/date'
 import { getErrorMessage, isErroDeConexao } from '@/lib/pocketbase/errors'
 import {
   listarPendencias,
@@ -411,6 +411,10 @@ export default function VistoriaDetalhe() {
             client_uuid: crypto.randomUUID(),
           })
       setRespostas((prev) => ({ ...prev, [item.id]: updated }))
+      // O servidor passa a vistoria para "em andamento" na primeira resposta.
+      if (vistoria.status === 'agendada') {
+        setVistoria((prev) => (prev ? { ...prev, status: 'em_andamento' } : prev))
+      }
     } catch (error) {
       if (isErroDeConexao(error)) {
         await guardarNoAparelho(item, { situacao })
@@ -942,10 +946,14 @@ export default function VistoriaDetalhe() {
         status: 'concluida',
         responsavel_tecnico_nome: nomeRT,
         responsavel_tecnico_registro: registroRT,
+        // Data em que a vistoria foi feita de fato (a agendada pode ser outra).
+        // Se a vistoria foi reaberta, mantém a data original.
+        ...(vistoria.data_realizada ? {} : { data_realizada: toPocketBaseDate(new Date()) }),
       })
       const vistoriaFinalizada: Vistoria = {
         ...vistoria,
         status: updated.status,
+        data_realizada: updated.data_realizada,
         responsavel_tecnico_nome: updated.responsavel_tecnico_nome,
         responsavel_tecnico_registro: updated.responsavel_tecnico_registro,
       }
@@ -1144,6 +1152,11 @@ export default function VistoriaDetalhe() {
           <p className="text-sm text-muted-foreground">
             {nomeTipoPrincipal}
             {vistoria.data_agendada && <> · {formatBrazilianDate(vistoria.data_agendada)}</>}
+            {vistoria.data_realizada &&
+              formatBrazilianDate(vistoria.data_realizada) !==
+                formatBrazilianDate(vistoria.data_agendada) && (
+                <> · realizada em {formatBrazilianDate(vistoria.data_realizada)}</>
+              )}
           </p>
           {vistoria.responsavel_tecnico_nome && (
             <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -1939,7 +1952,7 @@ export default function VistoriaDetalhe() {
       <Dialog open={rtDialogAberto} onOpenChange={setRtDialogAberto}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Responsável técnico do laudo</DialogTitle>
+            <DialogTitle>Responsável técnico do relatório</DialogTitle>
             <DialogDescription>
               Escolha quem assina esta vistoria como responsável técnico. Ao confirmar, a vistoria é
               finalizada e o PDF é gerado.

@@ -1,8 +1,9 @@
 /* Calculadora pública de multas — escolhe NR → escolhe item → dados da
    empresa → valor da multa + explicação. Sem login (rotas /backend/v1/public). */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Calculator, ChevronRight, Info } from 'lucide-react'
+import { ArrowRight, Calculator, ChevronRight, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import TabelaAnexoI from '@/components/TabelaAnexoI'
@@ -51,8 +52,9 @@ interface Resultado {
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 // Faixa do Anexo I (1-8) a partir do nº de empregados — mesma regra do
-// hook público e do cálculo interno do app. A norma usa "empregados"; "grau"
-// aqui é sempre o grau de risco da NR-4, nunca a infração da NR-28 (I1 a I4).
+// hook público e do cálculo interno do app. O grau de risco da NR-4 não entra
+// no cálculo (a grade usa nº de empregados × infração I1 a I4), por isso a
+// calculadora não pergunta por ele.
 const faixaDoCalculo = (trabalhadores: string): number => {
   const n = parseInt(trabalhadores, 10)
   if (!(n > 0)) return 0
@@ -63,15 +65,12 @@ const faixaDoCalculo = (trabalhadores: string): number => {
   return 7
 }
 
-const GRAU_LABEL: Record<number, string> = { 1: '1', 2: '2', 3: '3', 4: '4' }
-
 export default function CalculadoraPublica() {
   const [nrs, setNrs] = useState<Nr[]>([])
   const [nrId, setNrId] = useState<string>('')
   const [itens, setItens] = useState<ItemNr[]>([])
   const [itemId, setItemId] = useState<string>('')
   const [trabalhadores, setTrabalhadores] = useState<string>('')
-  const [grauEmpresa, setGrauEmpresa] = useState<string>('')
   const [busca, setBusca] = useState('')
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [calculando, setCalculando] = useState(false)
@@ -125,7 +124,6 @@ export default function CalculadoraPublica() {
         body: JSON.stringify({
           item_id: itemId,
           trabalhadores: n,
-          grau_risco: grauEmpresa ? parseInt(grauEmpresa, 10) : undefined,
         }),
       })
       setResultado(data)
@@ -153,8 +151,8 @@ export default function CalculadoraPublica() {
         Calculadora de <span className="text-primary">multas NR-28</span>
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-        Escolha a norma e o item, informe o número de empregados e veja o valor da multa com
-        explicação simples.
+        Escolha a norma e o item, informe o número de empregados e veja o valor da multa, com o
+        texto do item como está na norma.
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.2fr]">
@@ -204,7 +202,10 @@ export default function CalculadoraPublica() {
                   <button
                     key={it.id}
                     type="button"
-                    onClick={() => setItemId(it.id)}
+                    onClick={() => {
+                      setItemId(it.id)
+                      setResultado(null)
+                    }}
                     className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
                       itemId === it.id ? 'border-primary bg-primary/5' : 'hover:bg-muted'
                     }`}
@@ -226,7 +227,7 @@ export default function CalculadoraPublica() {
 
           <Card className="rounded-2xl border-none p-5 shadow-subtle">
             <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              3. Dados da empresa
+              3. Tamanho da empresa
             </div>
             <div className="mt-3 space-y-3">
               <div>
@@ -236,25 +237,17 @@ export default function CalculadoraPublica() {
                   type="number"
                   min="1"
                   value={trabalhadores}
-                  onChange={(e) => setTrabalhadores(e.target.value)}
+                  onChange={(e) => {
+                    setTrabalhadores(e.target.value)
+                    setResultado(null)
+                  }}
                   placeholder="Ex.: 45"
                   className="mt-1.5"
                 />
-              </div>
-              <div>
-                <Label htmlFor="grau">Grau de risco (NR-4)</Label>
-                <Select value={grauEmpresa} onValueChange={setGrauEmpresa}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="1, 2, 3 ou 4" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4].map((g) => (
-                      <SelectItem key={g} value={String(g)}>
-                        {GRAU_LABEL[g]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  A multa da NR-28 depende do número de empregados e da infração (I1 a I4). O grau
+                  de risco da NR-4 não entra na conta.
+                </p>
               </div>
               <Button onClick={calcular} disabled={calculando} className="w-full rounded-full">
                 <Calculator className="mr-2 h-4 w-4" />
@@ -268,7 +261,7 @@ export default function CalculadoraPublica() {
         <div>
           {!resultado ? (
             <Card className="flex h-full min-h-72 items-center justify-center rounded-2xl border-dashed p-10 text-center text-sm text-muted-foreground">
-              Escolha a norma, o item e informe os dados da empresa para ver o valor.
+              Escolha a norma, o item e informe o número de empregados para ver o valor.
             </Card>
           ) : (
             <Card className="rounded-2xl border-none p-6 shadow-subtle">
@@ -317,8 +310,23 @@ export default function CalculadoraPublica() {
 
               <p className="mt-4 text-xs text-muted-foreground">
                 Valor estimado com base na tabela vigente. A fiscalização considera reincidência e
-                outros fatores. Este teste é informativo — a gestão completa está no app.
+                outros fatores. Este teste é informativo.
               </p>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <div className="min-w-0 flex-1 text-sm">
+                  <div className="font-semibold">Quer fazer a vistoria completa?</div>
+                  <div className="text-xs text-muted-foreground">
+                    No app você passa a norma inteira no cliente, com foto, multa somada e relatório
+                    em PDF. Estamos liberando o acesso aos poucos.
+                  </div>
+                </div>
+                <Button asChild size="sm" className="rounded-full">
+                  <Link to="/login?aba=lista">
+                    Entrar na lista de espera <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </div>
 
               {/* Nossa versão da tabela de gradação, com a célula do cálculo
                   destacada. O rural não usa tabela — a multa é por trabalhador. */}
