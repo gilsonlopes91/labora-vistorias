@@ -11,6 +11,7 @@ const NAV = [
   { to: '/', label: 'Início', exact: true },
   { to: '/calculadora', label: 'Calculadora de multas' },
   { to: '/blog', label: 'Blog' },
+  { to: '/login?aba=lista', label: 'Lista de espera' },
 ]
 
 export default function PublicLayout() {
@@ -18,7 +19,7 @@ export default function PublicLayout() {
   const [aberto, setAberto] = useState(false)
 
   const isActive = (to: string, exact?: boolean) =>
-    exact ? location.pathname === '/' : location.pathname.startsWith(to)
+    exact ? location.pathname === '/' : !to.includes('?') && location.pathname.startsWith(to)
 
   const linkClass = (ativo: boolean) =>
     `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
