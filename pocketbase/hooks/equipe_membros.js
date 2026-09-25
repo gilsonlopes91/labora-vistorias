@@ -10,7 +10,7 @@ routerAdd(
     if (!auth) return e.unauthorizedError('auth required')
     const papel = auth.getString('papel') || 'dono'
     if (papel === 'executor') {
-      return e.json(403, { error: 'Só o dono e o gerente veem a equipe.' })
+      return e.json(403, { error: 'Só o dono e o gestor veem a equipe.' })
     }
     const orgId = auth.getString('organizacao_id')
     if (!orgId) return e.json(200, { membros: [] })

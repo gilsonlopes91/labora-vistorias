@@ -213,7 +213,7 @@ const App = () => (
             <Route
               path="/artigos"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute gestorOnly>
                   <AdminArtigos />
                 </ProtectedRoute>
               }
@@ -221,7 +221,7 @@ const App = () => (
             <Route
               path="/configuracoes"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute gestorOnly>
                   <Configuracoes />
                 </ProtectedRoute>
               }
@@ -245,7 +245,7 @@ const App = () => (
             <Route
               path="/admin/normas"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute gestorOnly>
                   <AdminNormas />
                 </ProtectedRoute>
               }

@@ -1,6 +1,6 @@
 import pb from '@/lib/pocketbase/client'
 
-export type Papel = 'dono' | 'gerente' | 'executor'
+export type Papel = 'dono' | 'gerente' | 'gestor' | 'executor'
 
 export interface MembroEquipe {
   id: string
@@ -57,7 +57,7 @@ export const getEquipe = async (): Promise<MembroEquipe[]> => {
 export interface ConviteInput {
   email: string
   nome: string
-  papel: 'gerente' | 'executor'
+  papel: 'gerente' | 'gestor' | 'executor'
 }
 
 export const convidarMembro = (data: ConviteInput) =>

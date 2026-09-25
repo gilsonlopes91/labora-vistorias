@@ -12,7 +12,10 @@ export function resumoCalculosTecnicos(
   const saida: Record<string, unknown> = { ...dados }
   for (const campo of campos) {
     if (campo.tipo !== 'calculo_tecnico') continue
-    const r = calcularTecnico(campo, dados)
+    const r = calcularTecnico(
+      campo as unknown as import('@/lib/higieneOcupacional').CampoCalculoTecnico,
+      dados,
+    )
     saida[campo.id] = r && !r.faltando.length ? r.resumo : ''
   }
   return saida
@@ -25,7 +28,10 @@ export default function ResultadoTecnicoView({
   campo: CampoFormulario
   dados: Record<string, unknown>
 }) {
-  const resultado: ResultadoTecnico | null = calcularTecnico(campo, dados)
+  const resultado: ResultadoTecnico | null = calcularTecnico(
+    campo as unknown as import('@/lib/higieneOcupacional').CampoCalculoTecnico,
+    dados,
+  )
   return (
     <div className="space-y-2 rounded-xl border p-4">
       <p className="text-sm font-semibold">{campo.nome} (automático)</p>

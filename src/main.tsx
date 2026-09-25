@@ -1,4 +1,6 @@
 /* Main entry point for the application - renders the root React component */
+// Primeiro: modo offline e erros em português no cliente do servidor.
+import './lib/clienteServidor'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './main.css'

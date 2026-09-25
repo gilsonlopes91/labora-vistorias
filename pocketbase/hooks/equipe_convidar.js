@@ -25,14 +25,14 @@ routerAdd(
       return e.badRequestError('senha deve ter ao menos 8 caracteres')
     }
     const senha = senhaInformada || $security.randomString(32)
-    if (!['gerente', 'executor'].includes(papel)) {
-      return e.badRequestError('papel deve ser gerente ou executor')
+    if (!['gerente', 'gestor', 'executor'].includes(papel)) {
+      return e.badRequestError('papel deve ser gerente, gestor ou executor')
     }
 
-    // Apenas dono ou gerente convidam.
+    // Apenas dono, gerente ou gestor convidam.
     const papelAuth = auth.getString('papel') || 'dono'
     if (papelAuth === 'executor') {
-      return e.json(403, { error: 'apenas dono ou gerente podem convidar' })
+      return e.json(403, { error: 'apenas dono ou gestor podem convidar' })
     }
 
     const orgId = auth.getString('organizacao_id')

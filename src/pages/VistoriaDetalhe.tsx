@@ -243,7 +243,10 @@ export default function VistoriaDetalhe() {
   const [reabrindo, setReabrindo] = useState(false)
   const papelUsuario = getPapelUsuarioLogado()
   const podeReabrir =
-    papelUsuario === 'dono' || papelUsuario === 'gerente' || papelUsuario === 'admin_plataforma'
+    papelUsuario === 'dono' ||
+    papelUsuario === 'gerente' ||
+    papelUsuario === 'gestor' ||
+    papelUsuario === 'admin_plataforma'
 
   // Empresa sem nº de empregados: informar ali mesmo e recalcular as multas.
   const [empregadosInformados, setEmpregadosInformados] = useState('')

@@ -42,8 +42,11 @@ routerAdd(
     if (alvo.id === donoId || papelAlvo === 'dono') {
       return e.json(403, { error: 'O dono da conta não pode ser removido.' })
     }
-    if (papelAuth === 'gerente' && papelAlvo === 'gerente') {
-      return e.json(403, { error: 'Só o dono remove um gerente.' })
+    if (
+      (papelAuth === 'gerente' || papelAuth === 'gestor') &&
+      (papelAlvo === 'gerente' || papelAlvo === 'gestor')
+    ) {
+      return e.json(403, { error: 'Só o dono remove um gerente ou gestor.' })
     }
 
     $app.runInTransaction((txApp) => {

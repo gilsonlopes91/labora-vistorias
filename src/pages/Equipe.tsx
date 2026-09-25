@@ -49,6 +49,7 @@ import {
 const PAPEL_LABEL: Record<string, string> = {
   dono: 'Dono',
   gerente: 'Gerente',
+  gestor: 'Gestor',
   executor: 'Executor (técnico)',
   admin_plataforma: 'Administração da plataforma',
   staff_labora: 'Equipe Labora',
@@ -133,11 +134,12 @@ export default function Equipe() {
     }
   }
 
-  // Dono remove qualquer um (menos ele mesmo); gerente remove executores.
+  // Dono remove qualquer um (menos ele mesmo); gerente e gestor removem executores.
   const podeRemover = (m: MembroEquipe) =>
     m.id !== meuId &&
     m.papel !== 'dono' &&
-    (meuPapel === 'dono' || (meuPapel === 'gerente' && m.papel === 'executor'))
+    (meuPapel === 'dono' ||
+      ((meuPapel === 'gerente' || meuPapel === 'gestor') && m.papel === 'executor'))
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
 

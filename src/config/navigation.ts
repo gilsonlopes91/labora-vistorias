@@ -84,15 +84,15 @@ export const NAV_ITEMS: NavItemConfig[] = [
     ],
   },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
-  // Blog é da Labora: só a administração da plataforma publica.
-  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, adminOnly: true },
+  // Blog / Artigos e Normas visíveis para gestores e administradores
+  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, gestor: true },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   // Aberto a todos: o dono da conta sempre edita a identidade visual; o resto
   // da página é controlado por perfil dentro dela.
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+  { to: '/configuracoes', label: 'Configurações', icon: Settings, gestor: true },
   // A página já existia (troca obrigatória no primeiro acesso), mas não tinha link.
   { to: '/trocar-senha', label: 'Trocar senha', icon: KeyRound },
-  { to: '/admin/normas', label: 'Normas (catálogo NR)', icon: BookOpenCheck, adminOnly: true },
+  { to: '/admin/normas', label: 'Normas (catálogo NR)', icon: BookOpenCheck, gestor: true },
 ]
 
 /**

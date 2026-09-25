@@ -330,12 +330,16 @@ export default function Configuracoes() {
   // Sem logo próprio, os documentos saem sem logo (a Labora usa o dela).
   const logoExibido = logoAtual || (ehOrganizacaoLabora(org?.nome) ? laboraLogoUrl : null)
 
-  // Quem edita o quê: o dono da conta (cliente final) e o gerente editam nome,
+  // Quem edita o quê: o dono da conta (cliente final), gerente e gestor editam nome,
   // logo e cores; responsáveis técnicos seguem restritos a quem é gestor.
   const papel = getPapelUsuarioLogado()
   const ehDono = !!org && org.dono_id === pb.authStore.record?.id
   const podeEditarOrg =
-    ehDono || papel === 'dono' || papel === 'gerente' || papel === 'admin_plataforma'
+    ehDono ||
+    papel === 'dono' ||
+    papel === 'gerente' ||
+    papel === 'gestor' ||
+    papel === 'admin_plataforma'
   const gestor = isGestor()
 
   return (

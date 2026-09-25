@@ -19,9 +19,9 @@ routerAdd(
 
     const papel = auth.getString('papel') || 'dono'
     const ehAdmin = papel === 'admin_plataforma'
-    if (!ehAdmin && papel !== 'dono' && papel !== 'gerente') {
+    if (!ehAdmin && papel !== 'dono' && papel !== 'gerente' && papel !== 'gestor') {
       return e.json(403, {
-        error: 'Só o dono ou o gerente da organização podem reabrir uma vistoria concluída.',
+        error: 'Só o dono ou o gestor da organização podem reabrir uma vistoria concluída.',
       })
     }
 

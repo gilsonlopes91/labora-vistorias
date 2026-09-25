@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T13:32:11.166Z",
+  "generatedAt": "2026-09-25T19:40:33.245Z",
   "collections": [
     {
       "name": "users",
@@ -43,7 +43,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["dono", "gerente", "executor", "admin_plataforma", "staff_labora"]
+          "selectValues": [
+            "dono",
+            "gerente",
+            "executor",
+            "admin_plataforma",
+            "staff_labora",
+            "gestor"
+          ]
         },
         {
           "name": "organizacao_id",
@@ -136,7 +143,7 @@
         "list": "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id || @request.auth.papel = 'admin_plataforma' || staff_ids.id ?= @request.auth.id)",
         "view": "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id || @request.auth.papel = 'admin_plataforma' || staff_ids.id ?= @request.auth.id)",
         "create": null,
-        "update": "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.papel = 'admin_plataforma' || (@request.auth.organizacao_id = id && @request.auth.papel = 'gerente'))",
+        "update": "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.papel = 'admin_plataforma' || (@request.auth.organizacao_id = id && (@request.auth.papel = 'gerente' || @request.auth.papel = 'gestor')))",
         "delete": null
       },
       "fields": [
