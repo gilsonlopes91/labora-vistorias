@@ -22,21 +22,27 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'Ocorreu um erro inesperado.'
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
 export function isErroDeConexao(error: unknown): boolean {
-  if (!error) return false
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return true
+  if (!navigator.onLine) return true
   if (error instanceof ClientResponseError) {
-    return error.status === 0
+    return (
+      error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504
+    )
   }
   if (error instanceof Error) {
     const msg = error.message.toLowerCase()
-    return msg.includes('network') || msg.includes('failed to fetch') || msg.includes('conexão')
+    return (
+      msg.includes('network') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('conexão') ||
+      msg.includes('offline')
+    )
   }
   return false
 }
