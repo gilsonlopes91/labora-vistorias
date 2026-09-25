@@ -69,6 +69,22 @@ routerAdd(
           } catch (_) {
             temRt = false
           }
+          // Ao sair da equipe, o responsável técnico ficou cadastrado sem
+          // login. Se houver um com o mesmo nome, religa em vez de duplicar.
+          if (!temRt) {
+            try {
+              const antigo = $app.findFirstRecordByFilter(
+                'responsaveis_tecnicos',
+                "organizacao_id = {:o} && usuario_id = '' && nome = {:n}",
+                { o: orgId, n: nome || user.getString('name') },
+              )
+              antigo.set('usuario_id', user.id)
+              $app.save(antigo)
+              temRt = true
+            } catch (_) {
+              temRt = false
+            }
+          }
           if (!temRt) {
             const rt = new Record($app.findCollectionByNameOrId('responsaveis_tecnicos'))
             rt.set('organizacao_id', orgId)
