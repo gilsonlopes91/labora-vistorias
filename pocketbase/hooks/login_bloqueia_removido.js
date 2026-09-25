@@ -7,7 +7,15 @@
 // cada convidado, então todo removido seria dono de uma.
 onRecordAuthWithPasswordRequest((e) => {
   const r = e.record
-  if (r && !r.getString('papel') && !r.getString('organizacao_id')) {
+  // Este evento roda antes da conferência da senha. Só mostra a mensagem a
+  // quem acertou a senha; senha errada segue o caminho normal ("Failed to
+  // authenticate"), para não revelar que o e-mail tem conta.
+  if (
+    r &&
+    !r.getString('papel') &&
+    !r.getString('organizacao_id') &&
+    r.validatePassword(String(e.password || ''))
+  ) {
     throw new ForbiddenError(
       'Este acesso não está mais ligado a nenhuma equipe. Fale com quem administra a conta da sua empresa.',
     )
