@@ -188,10 +188,11 @@ export default function NovaVistoriaDialog({
         .filter((t): t is TipoVistoria => !!t),
       formulariosSel.map((id) => modelos.find((m) => m.id === id)?.nome || ''),
     )
-    const atual = form.getValues('equipamentos') || ''
+    const atual = (form.getValues('equipamentos') || '').trim()
     const novo = juntarEquipamentos(atual, sugestao)
     form.setValue('equipamentos', novo)
-    if (novo === atual.trim()) toast.info('Nada a acrescentar: a lista já tem o que sugerimos.')
+    if (novo.length <= atual.replace(/[,\s]+$/, '').length)
+      toast.info('Nada a acrescentar: a lista já tem o que sugerimos.')
   }
 
   const onSubmit = async (values: FormValues) => {

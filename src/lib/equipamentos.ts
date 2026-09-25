@@ -123,19 +123,17 @@ export function sugerirEquipamentos(
   return lista
 }
 
-/** Junta a sugestão ao que já está digitado, sem repetir, dentro do limite do campo. */
+/** Junta a sugestão ao que já está digitado, sem repetir, dentro do limite do
+ *  campo. Compara por trecho do texto, não por vírgula: alguns itens têm
+ *  vírgula dentro ("EPIs básicos (capacete, óculos, ...)"), e "trena" digitado
+ *  à mão já conta como "Trena". */
 export function juntarEquipamentos(atual: string, sugestao: string[], limite = 500): string {
-  const partes = atual
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  const jaTem = new Set(partes.map((s) => s.toLowerCase()))
+  let texto = atual.trim().replace(/[,\s]+$/, '')
   for (const i of sugestao) {
-    if (jaTem.has(i.toLowerCase())) continue
-    const proximo = [...partes, i].join(', ')
+    if (texto.toLowerCase().includes(i.toLowerCase())) continue
+    const proximo = texto ? `${texto}, ${i}` : i
     if (proximo.length > limite) break
-    partes.push(i)
-    jaTem.add(i.toLowerCase())
+    texto = proximo
   }
-  return partes.join(', ')
+  return texto
 }
