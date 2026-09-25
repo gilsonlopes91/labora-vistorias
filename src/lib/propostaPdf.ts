@@ -26,6 +26,7 @@ import {
 } from '@/services/modelosProposta'
 import { gerarPdfPropostaLabora } from '@/lib/propostaPdfLabora'
 import { aplicarIdentidadeNoModelo, carregarIdentidade } from '@/lib/identidadeVisual'
+import { dataCalendario, formatBrazilianDate, formatarDataCalendario } from '@/lib/date'
 
 type RGB = [number, number, number]
 
@@ -71,14 +72,9 @@ const hexParaRgb = (hex?: string, padrao: RGB = [108, 136, 69]): RGB => {
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const formatarData = (iso?: string) => {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleDateString('pt-BR')
-  } catch {
-    return ''
-  }
-}
+// Datas da proposta são dias de calendário (gravados como 00:00 UTC). Converter
+// para o fuso do Brasil jogava a data um dia para trás.
+const formatarData = (iso?: string) => formatarDataCalendario(iso)
 
 interface ImagemCarregada {
   dataUrl: string
@@ -507,9 +503,9 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<void> {
   if (secaoAtiva(modelo, 'validade') && orcamento.validade_dias) {
     const texto = orcamento.data_proposta
       ? (() => {
-          const venc = new Date(orcamento.data_proposta)
+          const venc = new Date((dataCalendario(orcamento.data_proposta) || new Date()).getTime())
           venc.setDate(venc.getDate() + (orcamento.validade_dias || 0))
-          return `${orcamento.validade_dias} dias, até ${venc.toLocaleDateString('pt-BR')}`
+          return `${orcamento.validade_dias} dias, até ${formatBrazilianDate(venc)}`
         })()
       : `${orcamento.validade_dias} dias`
     condicoes.push(['Validade da proposta', texto])

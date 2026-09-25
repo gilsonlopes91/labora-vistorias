@@ -37,6 +37,7 @@ interface RespostaCreateInput {
   item_checklist_id: string
   situacao?: Situacao
   observacao?: string
+  numero_funcionarios_irregulares?: number
   client_uuid: string
   fotos?: File[]
   localizacao?: GeoLocalizacao
@@ -75,6 +76,21 @@ export const getRespostasByVistoria = (vistoriaId: string) =>
     filter: pb.filter('vistoria_id = {:id}', { id: vistoriaId }),
   })
 
+/** Resposta já gravada de um item (ou null). Usada ao enviar a fila offline. */
+export const buscarResposta = async (vistoriaId: string, itemId: string) => {
+  try {
+    return await pb
+      .collection('respostas_vistoria')
+      .getFirstListItem<RespostaVistoria>(
+        pb.filter('vistoria_id = {:v} && item_checklist_id = {:i}', { v: vistoriaId, i: itemId }),
+        { requestKey: null },
+      )
+  } catch (error) {
+    if ((error as { status?: number })?.status === 404) return null
+    throw error
+  }
+}
+
 export const createResposta = (data: RespostaCreateInput) =>
   pb
     .collection('respostas_vistoria')
@@ -85,5 +101,11 @@ export const updateResposta = (id: string, data: RespostaUpdateInput) =>
     .collection('respostas_vistoria')
     .update<RespostaVistoria>(id, toFormData(data as unknown as Record<string, unknown>))
 
-export const fotoUrl = (resposta: RespostaVistoria, filename: string) =>
-  pb.files.getURL(resposta, filename)
+// As fotos são arquivos protegidos (migration 0125): o link só abre com um
+// token temporário do usuário logado. Busque o token com getTokenArquivos()
+// e passe aqui. O token vale alguns minutos — para abrir a foto em outra aba
+// depois disso, gere um novo.
+export const getTokenArquivos = () => pb.files.getToken()
+
+export const fotoUrl = (resposta: RespostaVistoria, filename: string, token?: string) =>
+  pb.files.getURL(resposta, filename, token ? { token } : undefined)

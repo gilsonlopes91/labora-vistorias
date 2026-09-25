@@ -7,7 +7,12 @@ import autoTablePlugin, { applyPlugin as autoTableApplyPlugin } from 'jspdf-auto
 import { formatBrazilianDate } from '@/lib/date'
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
-import { fotoUrl, type RespostaVistoria, type Situacao } from '@/services/respostasVistoria'
+import {
+  fotoUrl,
+  getTokenArquivos,
+  type RespostaVistoria,
+  type Situacao,
+} from '@/services/respostasVistoria'
 import {
   carregarIdentidade,
   clarear,
@@ -69,6 +74,8 @@ export interface DadosRelatorioVistoria {
   empresaNome: string
   empresaCnpj?: string
   empresaEndereco?: string
+  /** Nº de empregados usado no cálculo. Vazio/0 = cadastro sem esse dado. */
+  empresaNumeroEmpregados?: number
   tipoNome: string
   tipoNrReferencia?: string
   organizacaoNome: string
@@ -249,6 +256,10 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       ['Empresa', dados.empresaNome],
       ['CNPJ', dados.empresaCnpj || '-'],
       ['Endereço', dados.empresaEndereco || '-'],
+      [
+        'Nº de empregados',
+        dados.empresaNumeroEmpregados ? String(dados.empresaNumeroEmpregados) : 'não informado',
+      ],
       ['Data da vistoria', dataAgendada],
     ],
     margin: { left: margin, right: margin },
@@ -311,6 +322,14 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         `Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRural)} por empregado em situação irregular (dobrado na reincidência), conforme o nº de empregados informado em cada item.`,
       )
     }
+    if (
+      !dados.empresaNumeroEmpregados &&
+      (regimes.has('anexo_i') || regimes.has('anexo_ia_portuario'))
+    ) {
+      notas.push(
+        'Atenção: a empresa não tinha número de empregados no cadastro, e a multa foi estimada pela menor faixa da tabela (1 a 10 empregados). O valor real pode ser maior.',
+      )
+    }
     doc.setTextColor(120)
     const linhasNota = doc.splitTextToSize(notas.join(' '), larguraUtil)
     doc.text(linhasNota, margin, y)
@@ -319,6 +338,22 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     y += 9
   } else {
     y += 4
+  }
+
+  // Fotos são arquivos protegidos: o link precisa de token temporário, renovado
+  // a cada minuto porque um laudo com muitas fotos pode demorar para montar.
+  let tokenArquivos = ''
+  let tokenObtidoEm = 0
+  const tokenAtual = async () => {
+    if (!tokenArquivos || Date.now() - tokenObtidoEm > 60_000) {
+      try {
+        tokenArquivos = await getTokenArquivos()
+        tokenObtidoEm = Date.now()
+      } catch {
+        // sem token as fotos não carregam; o laudo sai sem elas
+      }
+    }
+    return tokenArquivos
   }
 
   // Itens do checklist, agrupados por seção — só os itens respondidos entram no laudo
@@ -460,7 +495,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
           y = margin
         }
         for (const filename of resposta.foto) {
-          const imagem = await carregarImagemComoDataUrl(fotoUrl(resposta, filename))
+          const imagem = await carregarImagemComoDataUrl(
+            fotoUrl(resposta, filename, await tokenAtual()),
+          )
           if (!imagem) continue
           const largura = Math.min(larguraMaxFoto, alturaFoto * (imagem.largura / imagem.altura))
           if (x + largura > pageWidth - margin) {

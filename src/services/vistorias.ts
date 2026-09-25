@@ -7,6 +7,15 @@ import type { ModeloFormulario } from '@/services/formularios'
 
 export type StatusVistoria = 'agendada' | 'em_andamento' | 'concluida' | 'cancelada'
 
+/** Registro de cada reabertura de vistoria concluída (migration 0124). */
+export interface ReaberturaVistoria {
+  em: string
+  por_id: string
+  por_nome: string
+  motivo: string
+  rt_anterior?: string
+}
+
 export interface Vistoria extends RecordModel {
   id: string
   organizacao_id: string
@@ -32,6 +41,7 @@ export interface Vistoria extends RecordModel {
   equipe_apoio?: string
   equipamentos?: string
   orientacoes_equipe?: string
+  reaberturas?: ReaberturaVistoria[] | null
   client_uuid: string
   created: string
   updated: string
@@ -88,3 +98,17 @@ export const updateVistoria = (id: string, data: Partial<VistoriaInput>) =>
   pb.collection('vistorias').update<Vistoria>(id, data)
 
 export const deleteVistoria = (id: string) => pb.collection('vistorias').delete(id)
+
+/** Reabre uma vistoria concluída (dono/gerente), registrando o motivo. */
+export const reabrirVistoria = (id: string, motivo: string) =>
+  pb.send<{ ok: boolean; reaberturas: ReaberturaVistoria[] }>(
+    `/backend/v1/vistorias/${id}/reabrir`,
+    { method: 'POST', body: JSON.stringify({ motivo }) },
+  )
+
+/** Marca como N/A todos os itens ainda sem resposta da vistoria. */
+export const marcarPendentesComoNA = (id: string) =>
+  pb.send<{ ok: boolean; criados: number; atualizados: number }>(
+    `/backend/v1/vistorias/${id}/marcar-na`,
+    { method: 'POST' },
+  )

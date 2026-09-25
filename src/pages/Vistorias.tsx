@@ -145,17 +145,22 @@ export default function Vistorias() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDeleteTarget(v)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  {/* Vistoria concluída tem relatório assinado: não pode ser excluída. */}
+                  {status !== 'concluida' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Excluir vistoria"
+                      aria-label="Excluir vistoria"
+                      className="opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteTarget(v)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
                 </div>
               </div>
             )

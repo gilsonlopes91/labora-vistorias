@@ -1,13 +1,32 @@
 /* Execução da vistoria: checklist item a item, com cálculo automático de multa. */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { ArrowLeft, AlertTriangle, Camera, MapPin, UserCog, FileCheck2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Camera,
+  MapPin,
+  UserCog,
+  FileCheck2,
+  Lock,
+  RotateCcw,
+  CloudOff,
+  RefreshCw,
+} from 'lucide-react'
 
 import { formatBrazilianDate } from '@/lib/date'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { getErrorMessage, isErroDeConexao } from '@/lib/pocketbase/errors'
+import {
+  listarPendencias,
+  enfileirarAlteracao,
+  removerPendencia,
+  marcarErroPendencia,
+  type PendenciaResposta,
+  type AlteracaoResposta,
+} from '@/lib/filaOffline'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -16,16 +35,22 @@ import laboraLogoUrl from '@/assets/projeto-labora-engenharia-e-sst-07-83499.png
 import {
   getVistoria,
   updateVistoria,
+  reabrirVistoria,
+  marcarPendentesComoNA,
   type Vistoria,
   type StatusVistoria,
 } from '@/services/vistorias'
+import { updateEmpresa } from '@/services/empresas'
+import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getItensChecklist, type ItemChecklist } from '@/services/itensChecklist'
 import type { RegimeMulta } from '@/services/tiposVistoria'
 import {
   getRespostasByVistoria,
   createResposta,
   updateResposta,
+  buscarResposta,
   fotoUrl,
+  getTokenArquivos,
   type RespostaVistoria,
   type Situacao,
   type GeoLocalizacao,
@@ -114,6 +139,10 @@ const TEXTO_NR31 =
 
 const NOVO_RESPONSAVEL = '__novo__'
 
+// Resposta como aparece na tela: a gravada no servidor com, por cima, o que
+// ficou guardado no aparelho sem internet (ver lib/filaOffline).
+type RespostaVisivel = RespostaVistoria & { pendente?: boolean; erroEnvio?: string }
+
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 // Ordena pelo número real do item da norma (1.4.2 antes de 1.4.10), não pela
@@ -177,6 +206,39 @@ export default function VistoriaDetalhe() {
   const [novoRTUf, setNovoRTUf] = useState('')
   const [novoRTPadrao, setNovoRTPadrao] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
+
+  // Itens sem resposta na hora de finalizar (marcar como N/A ou voltar).
+  const [pendentesDialogAberto, setPendentesDialogAberto] = useState(false)
+  const [marcandoNA, setMarcandoNA] = useState(false)
+
+  // Reabertura de vistoria concluída (dono/gerente).
+  const [reabrirDialogAberto, setReabrirDialogAberto] = useState(false)
+  const [motivoReabertura, setMotivoReabertura] = useState('')
+  const [reabrindo, setReabrindo] = useState(false)
+  const papelUsuario = getPapelUsuarioLogado()
+  const podeReabrir =
+    papelUsuario === 'dono' || papelUsuario === 'gerente' || papelUsuario === 'admin_plataforma'
+
+  // Empresa sem nº de empregados: informar ali mesmo e recalcular as multas.
+  const [empregadosInformados, setEmpregadosInformados] = useState('')
+  const [salvandoEmpregados, setSalvandoEmpregados] = useState(false)
+
+  // Fotos são arquivos protegidos: o link precisa de um token temporário.
+  const [tokenArquivos, setTokenArquivos] = useState('')
+  const renovarTokenArquivos = useCallback(() => {
+    getTokenArquivos()
+      .then(setTokenArquivos)
+      .catch(() => {})
+  }, [])
+
+  // Modo offline, etapa 1: alterações guardadas no aparelho quando falta
+  // internet, enviadas sozinhas quando a conexão volta.
+  const [pendencias, setPendencias] = useState<Record<string, PendenciaResposta>>({})
+  const [sincronizando, setSincronizando] = useState(false)
+  const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine)
+  const sincronizandoRef = useRef(false)
+  const avisoOfflineRef = useRef(0)
+  const respostasRef = useRef<Record<string, RespostaVistoria>>({})
 
   // Pacotes: sem o módulo de relatórios contratado, o botão de gerar PDF some.
   const [modulos, setModulos] = useState<Modulos | null>(null)
@@ -250,6 +312,13 @@ export default function VistoriaDetalhe() {
       const map: Record<string, RespostaVistoria> = {}
       for (const r of respostasVistoria) map[r.item_checklist_id] = r
       setRespostas(map)
+      respostasRef.current = map
+      // O que ficou guardado neste aparelho sem internet aparece por cima.
+      const guardadas = await listarPendencias(v.id)
+      const mapaPendencias: Record<string, PendenciaResposta> = {}
+      for (const p of guardadas) mapaPendencias[p.item_checklist_id] = p
+      setPendencias(mapaPendencias)
+      renovarTokenArquivos()
       // NR-31: default do nº de empregados prejudicados = total de trabalhadores
       // da empresa (nomenclatura da Lei 5.889/1973). Editável no topo da página.
       const emp = v.expand?.empresa_id as { numero_funcionarios?: number } | undefined
@@ -259,11 +328,15 @@ export default function VistoriaDetalhe() {
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, renovarTokenArquivos])
 
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    respostasRef.current = respostas
+  }, [respostas])
 
   useEffect(() => {
     getMinhaOrganizacao()
@@ -286,8 +359,47 @@ export default function VistoriaDetalhe() {
       })
   }, [vistoria?.organizacao_id])
 
-  const handleSituacaoChange = async (item: ItemChecklist, situacao: Situacao) => {
+  // Vistoria concluída: respostas travadas (o servidor também bloqueia).
+  const travada = vistoria?.status === 'concluida'
+
+  const avisarGuardadoNoAparelho = () => {
+    // Um aviso por minuto, para não encher a tela de toasts em campo.
+    if (Date.now() - avisoOfflineRef.current < 60_000) return
+    avisoOfflineRef.current = Date.now()
+    toast.info('Sem internet: a resposta ficou guardada neste aparelho', {
+      description: 'Ela será enviada sozinha quando a conexão voltar. Não feche a vistoria.',
+    })
+  }
+
+  const guardarNoAparelho = async (item: ItemChecklist, alteracao: AlteracaoResposta) => {
     if (!vistoria) return
+    try {
+      const existente = respostasRef.current[item.id]
+      const p = await enfileirarAlteracao(
+        vistoria.id,
+        item.id,
+        existente?.client_uuid || crypto.randomUUID(),
+        alteracao,
+      )
+      setPendencias((prev) => ({ ...prev, [item.id]: p }))
+      avisarGuardadoNoAparelho()
+    } catch (error) {
+      toast.error('Não foi possível guardar a resposta no aparelho', {
+        description: getErrorMessage(error),
+      })
+    }
+  }
+
+  // Sem internet, ou se o item já tem alteração esperando envio (para manter a
+  // ordem), a alteração vai direto para a fila do aparelho.
+  const deveGuardarNoAparelho = (item: ItemChecklist) => !navigator.onLine || !!pendencias[item.id]
+
+  const handleSituacaoChange = async (item: ItemChecklist, situacao: Situacao) => {
+    if (!vistoria || travada) return
+    if (deveGuardarNoAparelho(item)) {
+      await guardarNoAparelho(item, { situacao })
+      return
+    }
     const existing = respostas[item.id]
     try {
       const updated = existing
@@ -300,21 +412,35 @@ export default function VistoriaDetalhe() {
           })
       setRespostas((prev) => ({ ...prev, [item.id]: updated }))
     } catch (error) {
+      if (isErroDeConexao(error)) {
+        await guardarNoAparelho(item, { situacao })
+        return
+      }
       toast.error('Não foi possível salvar a resposta', { description: getErrorMessage(error) })
     }
   }
 
   const handleIrregularesBlur = async (item: ItemChecklist, valor: string) => {
-    const existing = respostas[item.id]
-    if (!existing) return
+    if (travada) return
+    const atual = respostasVisiveis[item.id]
+    if (!atual) return
     const n = Math.max(0, Math.floor(Number(valor) || 0))
-    if ((existing.numero_funcionarios_irregulares || 0) === n) return
+    if ((atual.numero_funcionarios_irregulares || 0) === n) return
+    const existing = respostas[item.id]
+    if (!existing || deveGuardarNoAparelho(item)) {
+      await guardarNoAparelho(item, { numero_funcionarios_irregulares: n })
+      return
+    }
     try {
       const updated = await updateResposta(existing.id, {
         numero_funcionarios_irregulares: n,
-      } as unknown as { situacao?: Situacao })
+      })
       setRespostas((prev) => ({ ...prev, [item.id]: updated }))
     } catch (error) {
+      if (isErroDeConexao(error)) {
+        await guardarNoAparelho(item, { numero_funcionarios_irregulares: n })
+        return
+      }
       toast.error('Não foi possível salvar o nº de empregados irregulares', {
         description: getErrorMessage(error),
       })
@@ -322,22 +448,33 @@ export default function VistoriaDetalhe() {
   }
 
   const handleObservacaoBlur = async (item: ItemChecklist, observacao: string) => {
+    if (travada) return
+    const atual = respostasVisiveis[item.id]
+    if (!atual || (atual.observacao || '') === observacao) return
     const existing = respostas[item.id]
-    if (!existing || existing.observacao === observacao) return
+    if (!existing || deveGuardarNoAparelho(item)) {
+      await guardarNoAparelho(item, { observacao })
+      return
+    }
     try {
       const updated = await updateResposta(existing.id, { observacao })
       setRespostas((prev) => ({ ...prev, [item.id]: updated }))
     } catch (error) {
+      if (isErroDeConexao(error)) {
+        await guardarNoAparelho(item, { observacao })
+        return
+      }
       toast.error('Não foi possível salvar a observação', { description: getErrorMessage(error) })
     }
   }
 
   const handleFotoChange = async (item: ItemChecklist, fileList: FileList | null) => {
-    if (!vistoria || !fileList || fileList.length === 0) return
+    if (!vistoria || travada || !fileList || fileList.length === 0) return
     const arquivosOriginais = Array.from(fileList)
     setUploadingItemId(item.id)
+    let fotos: File[] = []
+    let localizacao: GeoLocalizacao | undefined
     try {
-      let localizacao: GeoLocalizacao | undefined
       if (vistoria.fotos_georreferenciadas) {
         try {
           localizacao = await obterLocalizacaoAtual()
@@ -349,7 +486,7 @@ export default function VistoriaDetalhe() {
       }
 
       const agora = new Date()
-      const fotos = await Promise.all(
+      fotos = await Promise.all(
         arquivosOriginais.map((arquivo) =>
           aplicarMarcaDagua(arquivo, {
             dataHora: agora,
@@ -360,6 +497,10 @@ export default function VistoriaDetalhe() {
       )
 
       const existing = respostas[item.id]
+      if (deveGuardarNoAparelho(item)) {
+        await guardarNoAparelho(item, { fotos, localizacao })
+        return
+      }
       const updated = existing
         ? await updateResposta(existing.id, { fotos, localizacao })
         : await createResposta({
@@ -370,10 +511,176 @@ export default function VistoriaDetalhe() {
             localizacao,
           })
       setRespostas((prev) => ({ ...prev, [item.id]: updated }))
+      renovarTokenArquivos()
     } catch (error) {
+      if (isErroDeConexao(error) && fotos.length > 0) {
+        await guardarNoAparelho(item, { fotos, localizacao })
+        return
+      }
       toast.error('Não foi possível salvar a foto', { description: getErrorMessage(error) })
     } finally {
       setUploadingItemId(null)
+    }
+  }
+
+  // Envia o que ficou guardado no aparelho. Para no primeiro erro de conexão
+  // (tenta de novo depois); erros de outro tipo ficam marcados no item.
+  // forcar = true (botão "Enviar agora") tenta também os itens que já deram
+  // erro; nas tentativas automáticas eles ficam de fora.
+  const sincronizar = useCallback(
+    async (forcar = false) => {
+      if (!vistoria || sincronizandoRef.current) return
+      const todas = await listarPendencias(vistoria.id)
+      if (todas.length === 0) {
+        setPendencias({})
+        return
+      }
+      const lista = forcar ? todas : todas.filter((p) => !p.erro)
+      if (lista.length === 0 || !navigator.onLine) return
+      sincronizandoRef.current = true
+      setSincronizando(true)
+      let enviados = 0
+      try {
+        for (const p of lista) {
+          try {
+            const existente =
+              respostasRef.current[p.item_checklist_id] ||
+              (await buscarResposta(p.vistoria_id, p.item_checklist_id))
+            const dados = {
+              situacao: p.situacao,
+              observacao: p.observacao,
+              numero_funcionarios_irregulares: p.numero_funcionarios_irregulares,
+              fotos: p.fotos.length > 0 ? p.fotos : undefined,
+              localizacao: p.localizacao,
+            }
+            const salvo = existente
+              ? await updateResposta(existente.id, dados)
+              : await createResposta({
+                  vistoria_id: p.vistoria_id,
+                  item_checklist_id: p.item_checklist_id,
+                  client_uuid: p.client_uuid,
+                  ...dados,
+                })
+            await removerPendencia(p.chave)
+            respostasRef.current = { ...respostasRef.current, [p.item_checklist_id]: salvo }
+            setRespostas((prev) => ({ ...prev, [p.item_checklist_id]: salvo }))
+            setPendencias((prev) => {
+              const novo = { ...prev }
+              delete novo[p.item_checklist_id]
+              return novo
+            })
+            enviados++
+          } catch (error) {
+            if (isErroDeConexao(error)) break
+            const msg = getErrorMessage(error)
+            await marcarErroPendencia(p.chave, msg)
+            setPendencias((prev) => ({ ...prev, [p.item_checklist_id]: { ...p, erro: msg } }))
+          }
+        }
+      } finally {
+        sincronizandoRef.current = false
+        setSincronizando(false)
+      }
+      if (enviados > 0) {
+        toast.success(
+          enviados === 1
+            ? '1 resposta guardada no aparelho foi enviada'
+            : `${enviados} respostas guardadas no aparelho foram enviadas`,
+        )
+        renovarTokenArquivos()
+      }
+    },
+    [vistoria, renovarTokenArquivos],
+  )
+
+  const totalPendencias = Object.keys(pendencias).length
+
+  // Quando a internet volta, envia. Enquanto houver pendência, tenta a cada 20 s.
+  useEffect(() => {
+    const aoVoltar = () => {
+      setOnline(true)
+      sincronizar()
+    }
+    const aoCair = () => setOnline(false)
+    window.addEventListener('online', aoVoltar)
+    window.addEventListener('offline', aoCair)
+    return () => {
+      window.removeEventListener('online', aoVoltar)
+      window.removeEventListener('offline', aoCair)
+    }
+  }, [sincronizar])
+
+  useEffect(() => {
+    if (totalPendencias === 0) return
+    const t = window.setInterval(() => {
+      if (navigator.onLine) sincronizar()
+    }, 20_000)
+    return () => window.clearInterval(t)
+  }, [totalPendencias, sincronizar])
+
+  const temPendencias = totalPendencias > 0
+  useEffect(() => {
+    if (temPendencias && navigator.onLine) sincronizar()
+  }, [temPendencias, sincronizar])
+
+  // Resposta mostrada na tela = servidor + o que está guardado no aparelho.
+  const respostasVisiveis = useMemo(() => {
+    const mapa: Record<string, RespostaVisivel> = { ...respostas }
+    for (const [itemId, p] of Object.entries(pendencias)) {
+      const base = respostas[itemId]
+      const mudouSituacao = p.situacao !== undefined && p.situacao !== base?.situacao
+      mapa[itemId] = {
+        ...(base || {
+          id: '',
+          vistoria_id: p.vistoria_id,
+          item_checklist_id: itemId,
+          client_uuid: p.client_uuid,
+          created: '',
+          updated: '',
+        }),
+        situacao: p.situacao ?? base?.situacao,
+        observacao: p.observacao ?? base?.observacao,
+        numero_funcionarios_irregulares:
+          p.numero_funcionarios_irregulares ?? base?.numero_funcionarios_irregulares,
+        localizacao: p.localizacao ?? base?.localizacao,
+        // A multa é calculada no servidor: se a situação mudou sem internet,
+        // o valor antigo não vale mais.
+        valor_multa_min: mudouSituacao ? undefined : base?.valor_multa_min,
+        valor_multa_max: mudouSituacao ? undefined : base?.valor_multa_max,
+        pendente: true,
+        erroEnvio: p.erro,
+      }
+    }
+    return mapa
+  }, [respostas, pendencias])
+
+  // Miniaturas das fotos que ainda estão só no aparelho.
+  const fotosLocais = useMemo(() => {
+    const mapa: Record<string, string[]> = {}
+    for (const [itemId, p] of Object.entries(pendencias)) {
+      if (p.fotos.length) mapa[itemId] = p.fotos.map((f) => URL.createObjectURL(f))
+    }
+    return mapa
+  }, [pendencias])
+
+  useEffect(
+    () => () => {
+      for (const urls of Object.values(fotosLocais)) urls.forEach((u) => URL.revokeObjectURL(u))
+    },
+    [fotosLocais],
+  )
+
+  // Abre a foto em outra aba com token novo (o da tela pode ter vencido).
+  const abrirFoto = async (resposta: RespostaVistoria, filename: string) => {
+    const aba = window.open('', '_blank')
+    try {
+      const token = await getTokenArquivos()
+      const url = fotoUrl(resposta, filename, token)
+      if (aba) aba.location.href = url
+      else window.open(url, '_blank')
+    } catch (error) {
+      aba?.close()
+      toast.error('Não foi possível abrir a foto', { description: getErrorMessage(error) })
     }
   }
 
@@ -412,14 +719,43 @@ export default function VistoriaDetalhe() {
     return temChecklistPrincipal || temChecklistAdicional || temFormulario
   }, [vistoria])
 
-  const abrirDialogFinalizacao = () => {
-    if (!temChecklistOuFormulario) {
-      toast.error('Não é possível finalizar a vistoria', {
-        description:
-          'É necessário ter ao menos um checklist ou um formulário de campo vinculado para finalizar.',
-      })
-      return
+  // Monta e baixa o PDF da vistoria (na finalização ou depois, em "Baixar PDF").
+  const gerarPdf = async (v: Vistoria, respostasPdf: Record<string, RespostaVistoria>) => {
+    const empresaV = v.expand?.empresa_id
+    const tipoV = v.expand?.tipo_vistoria_id
+    await gerarPdfVistoria({
+      vistoria: v,
+      empresaNome: empresaV?.nome_fantasia || empresaV?.razao_social || 'Empresa',
+      empresaCnpj: empresaV?.cnpj,
+      empresaEndereco: empresaV?.endereco,
+      empresaNumeroEmpregados: empresaV?.numero_funcionarios,
+      tipoNome: tipoV?.nome || '',
+      tipoNrReferencia: tipoV?.nr_referencia,
+      organizacaoNome: nomeOrganizacao,
+      logoUrl: logoMarcaDagua,
+      itens: itensOrdenados,
+      respostas: respostasPdf,
+      resumo,
+      // O laudo precisa saber de qual tabela saiu cada item para não
+      // afirmar "Anexo I" numa vistoria portuária ou rural.
+      regimePorItem: Object.fromEntries(
+        itensOrdenados.map((item) => [item.id, regimeDoItem(item)]),
+      ),
+      valorRuralPorEmpregado,
+    })
+  }
+
+  const baixarPdf = async () => {
+    if (!vistoria) return
+    toast.info('Gerando o PDF...')
+    try {
+      await gerarPdf(vistoria, respostas)
+    } catch (error) {
+      toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
     }
+  }
+
+  const abrirDialogRT = () => {
     const existente = vistoria?.responsavel_tecnico_nome
       ? responsaveis.find((r) => r.nome === vistoria.responsavel_tecnico_nome)
       : undefined
@@ -433,6 +769,121 @@ export default function VistoriaDetalhe() {
     setNovoRTUf('')
     setNovoRTPadrao(responsaveis.length === 0)
     setRtDialogAberto(true)
+  }
+
+  const abrirDialogFinalizacao = () => {
+    if (travada) {
+      baixarPdf()
+      return
+    }
+    if (!temChecklistOuFormulario) {
+      toast.error('Não é possível finalizar a vistoria', {
+        description:
+          'É necessário ter ao menos um checklist ou um formulário de campo vinculado para finalizar.',
+      })
+      return
+    }
+    if (totalPendencias > 0) {
+      toast.error('Ainda há respostas guardadas neste aparelho', {
+        description:
+          'Conecte-se à internet e toque em "Enviar agora" antes de finalizar, para o relatório sair completo.',
+      })
+      return
+    }
+    if (resumo.semResposta > 0) {
+      setPendentesDialogAberto(true)
+      return
+    }
+    abrirDialogRT()
+  }
+
+  const irParaPrimeiroSemResposta = () => {
+    setPendentesDialogAberto(false)
+    const item = itensOrdenados.find((it) => !respostasVisiveis[it.id]?.situacao)
+    if (!item) return
+    window.setTimeout(() => {
+      document
+        .getElementById(`item-${item.id}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 150)
+  }
+
+  const confirmarMarcarNA = async () => {
+    if (!vistoria) return
+    setMarcandoNA(true)
+    try {
+      const r = await marcarPendentesComoNA(vistoria.id)
+      const atualizadas = await getRespostasByVistoria(vistoria.id)
+      const mapa: Record<string, RespostaVistoria> = {}
+      for (const resp of atualizadas) mapa[resp.item_checklist_id] = resp
+      respostasRef.current = mapa
+      setRespostas(mapa)
+      setPendentesDialogAberto(false)
+      toast.success(
+        `${r.criados + r.atualizados} ${r.criados + r.atualizados === 1 ? 'item marcado' : 'itens marcados'} como N/A`,
+      )
+      abrirDialogRT()
+    } catch (error) {
+      toast.error('Não foi possível marcar os itens como N/A', {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setMarcandoNA(false)
+    }
+  }
+
+  const confirmarReabertura = async () => {
+    if (!vistoria) return
+    if (motivoReabertura.trim().length < 5) {
+      toast.error('Escreva o motivo da reabertura')
+      return
+    }
+    setReabrindo(true)
+    try {
+      await reabrirVistoria(vistoria.id, motivoReabertura.trim())
+      setReabrirDialogAberto(false)
+      setMotivoReabertura('')
+      toast.success('Vistoria reaberta', {
+        description: 'Ao finalizar de novo, sai um relatório novo.',
+      })
+      setLoading(true)
+      await loadData()
+    } catch (error) {
+      toast.error('Não foi possível reabrir a vistoria', { description: getErrorMessage(error) })
+    } finally {
+      setReabrindo(false)
+    }
+  }
+
+  // Informa o nº de empregados da empresa ali mesmo e recalcula as multas dos
+  // itens N/C já marcados (o cálculo roda no servidor ao salvar a resposta).
+  const salvarEmpregados = async () => {
+    const empresaV = vistoria?.expand?.empresa_id
+    if (!vistoria || !empresaV) return
+    const n = Math.floor(Number(empregadosInformados))
+    if (!(n > 0)) {
+      toast.error('Informe um número de empregados maior que zero')
+      return
+    }
+    setSalvandoEmpregados(true)
+    try {
+      await updateEmpresa(empresaV.id, { numero_funcionarios: n })
+      const ncs = Object.values(respostas).filter((r) => r.situacao === 'N/C')
+      for (const r of ncs) await updateResposta(r.id, { situacao: 'N/C' })
+      toast.success('Número de empregados salvo', {
+        description: ncs.length
+          ? 'As multas dos itens não conformes foram recalculadas.'
+          : undefined,
+      })
+      setEmpregadosInformados('')
+      await loadData()
+    } catch (error) {
+      toast.error('Não foi possível salvar o número de empregados', {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setSalvandoEmpregados(false)
+    }
   }
 
   const handleStatusSelect = (v: string) => {
@@ -502,28 +953,8 @@ export default function VistoriaDetalhe() {
       setRtDialogAberto(false)
       toast.success('Vistoria finalizada — gerando o PDF...')
 
-      const empresa = vistoria.expand?.empresa_id
-      const tipo = vistoria.expand?.tipo_vistoria_id
       try {
-        await gerarPdfVistoria({
-          vistoria: vistoriaFinalizada,
-          empresaNome: empresa?.nome_fantasia || empresa?.razao_social || 'Empresa',
-          empresaCnpj: empresa?.cnpj,
-          empresaEndereco: empresa?.endereco,
-          tipoNome: tipo?.nome || '',
-          tipoNrReferencia: tipo?.nr_referencia,
-          organizacaoNome: nomeOrganizacao,
-          logoUrl: logoMarcaDagua,
-          itens: itensOrdenados,
-          respostas,
-          resumo,
-          // O laudo precisa saber de qual tabela saiu cada item para não
-          // afirmar "Anexo I" numa vistoria portuária ou rural.
-          regimePorItem: Object.fromEntries(
-            itensOrdenados.map((item) => [item.id, regimeDoItem(item)]),
-          ),
-          valorRuralPorEmpregado,
-        })
+        await gerarPdf(vistoriaFinalizada, respostas)
       } catch (pdfError) {
         toast.error('Vistoria finalizada, mas o PDF não pôde ser gerado', {
           description: getErrorMessage(pdfError),
@@ -563,7 +994,7 @@ export default function VistoriaDetalhe() {
     let multaMin = 0
     let multaMax = 0
     for (const item of itensOrdenados) {
-      const r = respostas[item.id]
+      const r = respostasVisiveis[item.id]
       if (!r?.situacao) {
         semResposta++
         continue
@@ -577,7 +1008,7 @@ export default function VistoriaDetalhe() {
       }
     }
     return { conforme, naoConforme, naoAplica, semResposta, multaMin, multaMax }
-  }, [itensOrdenados, respostas])
+  }, [itensOrdenados, respostasVisiveis])
 
   // Regime de cada checklist vinculado à vistoria (principal + adicionais).
   const regimePorChecklist = useMemo(() => {
@@ -689,8 +1120,11 @@ export default function VistoriaDetalhe() {
         (vistoria.checklists?.length || vistoria.formularios?.length
           ? 'Vistoria personalizada'
           : 'Sem checklist vinculado')
-  const rotuloBotaoFinalizar =
-    vistoria.status === 'concluida' ? 'Gerar PDF novamente' : 'Finalizar vistoria'
+  const rotuloBotaoFinalizar = travada ? 'Baixar PDF' : 'Finalizar vistoria'
+  // Multa pela grade da NR-28 depende do nº de empregados: sem ele, o servidor
+  // usa a menor faixa (1 a 10) e o valor sai subestimado.
+  const empresaSemEmpregados = !empresa?.numero_funcionarios && (temAnexoI || temPortuario)
+  const reaberturas = Array.isArray(vistoria.reaberturas) ? vistoria.reaberturas : []
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -785,13 +1219,13 @@ export default function VistoriaDetalhe() {
             <Switch
               checked={!!vistoria.fotos_georreferenciadas}
               onCheckedChange={handleToggleGeo}
-              disabled={savingGeo}
+              disabled={savingGeo || travada}
             />
           </label>
           <Select
             value={vistoria.status || 'agendada'}
             onValueChange={handleStatusSelect}
-            disabled={savingStatus}
+            disabled={savingStatus || travada}
           >
             <SelectTrigger className="w-[160px]">
               <SelectValue />
@@ -806,6 +1240,126 @@ export default function VistoriaDetalhe() {
           </Select>
         </div>
       </div>
+
+      {/* Vistoria concluída: travada, com opção de baixar o PDF ou reabrir. */}
+      {travada && (
+        <Card className="mb-4 border-emerald-300 bg-emerald-50/60">
+          <CardContent className="flex flex-wrap items-center gap-3 pt-4">
+            <Lock className="h-5 w-5 shrink-0 text-emerald-700" />
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-medium text-emerald-900">Vistoria concluída</div>
+              <div className="text-xs text-emerald-900/80">
+                As respostas estão travadas para o relatório continuar igual ao que foi assinado.
+                {podeReabrir
+                  ? ' Para corrigir algo, reabra a vistoria e finalize de novo.'
+                  : ' Para corrigir algo, peça ao dono ou ao gerente da organização para reabrir.'}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {modulos?.relatorios !== false && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={baixarPdf}>
+                  <FileCheck2 className="h-3.5 w-3.5" />
+                  Baixar PDF
+                </Button>
+              )}
+              {podeReabrir && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setReabrirDialogAberto(true)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reabrir vistoria
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {reaberturas.length > 0 && (
+        <div className="mb-4 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <div className="mb-1 font-medium text-foreground">Histórico de reaberturas</div>
+          <ul className="space-y-1">
+            {reaberturas.map((r, i) => (
+              <li key={i}>
+                {format(new Date(r.em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}, por{' '}
+                {r.por_nome}. Motivo: {r.motivo}
+                {r.rt_anterior ? ` (versão anterior assinada por ${r.rt_anterior})` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Sem internet ou com respostas guardadas no aparelho. */}
+      {(!online || totalPendencias > 0) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <CloudOff className="h-4 w-4 shrink-0" />
+          <div className="min-w-0 flex-1">
+            {!online ? (
+              <>
+                <span className="font-semibold">Sem internet.</span> Pode continuar marcando os
+                itens, escrevendo observações e tirando fotos: tudo fica guardado neste aparelho e é
+                enviado quando a conexão voltar. Não feche nem recarregue esta página até lá.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">
+                  {totalPendencias === 1
+                    ? '1 item guardado neste aparelho'
+                    : `${totalPendencias} itens guardados neste aparelho`}
+                </span>{' '}
+                ainda não {totalPendencias === 1 ? 'foi enviado' : 'foram enviados'}.
+              </>
+            )}
+          </div>
+          {online && totalPendencias > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 border-amber-400 bg-white text-xs"
+              disabled={sincronizando}
+              onClick={() => sincronizar(true)}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${sincronizando ? 'animate-spin' : ''}`} />
+              {sincronizando ? 'Enviando...' : 'Enviar agora'}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Empresa sem nº de empregados: a multa sai pela menor faixa. */}
+      {empresaSemEmpregados && !travada && (
+        <Card className="mb-4 border-amber-300 bg-amber-50">
+          <CardContent className="flex flex-wrap items-center gap-3 pt-4">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+            <div className="min-w-0 flex-1 text-xs text-amber-900">
+              <div className="text-sm font-medium">
+                {empresa?.nome_fantasia || empresa?.razao_social || 'A empresa'} está sem número de
+                empregados no cadastro
+              </div>
+              A multa está sendo estimada pela menor faixa da tabela da NR-28 (1 a 10 empregados), e
+              o valor real pode ser maior. Informe o número para recalcular.
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="Nº de empregados"
+                value={empregadosInformados}
+                onChange={(e) => setEmpregadosInformados(e.target.value)}
+                className="h-9 w-40 bg-white"
+              />
+              <Button size="sm" onClick={salvarEmpregados} disabled={salvandoEmpregados}>
+                {salvandoEmpregados ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Formulário aberto — preenchimento inline dentro da vistoria */}
       {formAberto && modeloAberto && (
@@ -843,6 +1397,12 @@ export default function VistoriaDetalhe() {
           <span>
             {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
             respondidos ({progressoPct}%)
+            {totalPendencias > 0 && (
+              <span className="ml-2 inline-flex items-center gap-1 text-amber-700">
+                <CloudOff className="h-3 w-3" />
+                {totalPendencias} no aparelho
+              </span>
+            )}
           </span>
           {modulos?.relatorios !== false && (
             <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={abrirDialogFinalizacao}>
@@ -923,7 +1483,8 @@ export default function VistoriaDetalhe() {
               <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
-                  className={`rounded-xl border p-3 text-left text-xs leading-relaxed transition-colors ${
+                  disabled={travada}
+                  className={`rounded-xl border p-3 text-left text-xs leading-relaxed transition-colors disabled:cursor-not-allowed ${
                     (vistoria?.nr31_base_legal || 'portaria_392') === 'portaria_392'
                       ? 'border-amber-600 bg-amber-100 text-amber-950'
                       : 'border-amber-300 bg-white/60 text-amber-900 hover:border-amber-500'
@@ -947,7 +1508,8 @@ export default function VistoriaDetalhe() {
                 </button>
                 <button
                   type="button"
-                  className={`rounded-xl border p-3 text-left text-xs leading-relaxed transition-colors ${
+                  disabled={travada}
+                  className={`rounded-xl border p-3 text-left text-xs leading-relaxed transition-colors disabled:cursor-not-allowed ${
                     vistoria?.nr31_base_legal === 'lei_380'
                       ? 'border-amber-600 bg-amber-100 text-amber-950'
                       : 'border-amber-300 bg-white/60 text-amber-900 hover:border-amber-500'
@@ -1010,14 +1572,16 @@ export default function VistoriaDetalhe() {
                   <span className="text-2xl font-extrabold text-amber-900">
                     {nr31Empregados || empresa?.numero_funcionarios || 0}
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 rounded-full text-xs"
-                    onClick={() => setNr31Editando(true)}
-                  >
-                    Alterar
-                  </Button>
+                  {!travada && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-full text-xs"
+                      onClick={() => setNr31Editando(true)}
+                    >
+                      Alterar
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1033,12 +1597,13 @@ export default function VistoriaDetalhe() {
             </h2>
             <div className="space-y-3">
               {itensGrupo.map((item) => {
-                const resposta = respostas[item.id]
+                const resposta = respostasVisiveis[item.id]
                 const borderClass = resposta?.situacao
                   ? STATUS_BORDER[resposta.situacao]
                   : 'border-l-4 border-l-transparent'
+                const fotosNoAparelho = fotosLocais[item.id] || []
                 return (
-                  <Card key={item.id} className={borderClass}>
+                  <Card key={item.id} id={`item-${item.id}`} className={borderClass}>
                     <CardHeader className="pb-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -1067,6 +1632,24 @@ export default function VistoriaDetalhe() {
                                 Ementa revogada
                               </Badge>
                             )}
+                            {resposta?.pendente && !resposta.erroEnvio && (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 border-amber-400 text-xs text-amber-700"
+                              >
+                                <CloudOff className="h-3 w-3" />
+                                Guardado no aparelho
+                              </Badge>
+                            )}
+                            {resposta?.erroEnvio && (
+                              <Badge
+                                variant="destructive"
+                                className="text-xs"
+                                title={resposta.erroEnvio}
+                              >
+                                Não enviado: {resposta.erroEnvio}
+                              </Badge>
+                            )}
                           </div>
                           <CardTitle className="text-sm font-medium leading-snug">
                             <TextoNorma texto={item.descricao} />
@@ -1084,6 +1667,7 @@ export default function VistoriaDetalhe() {
                           type="single"
                           value={resposta?.situacao}
                           onValueChange={(v) => v && handleSituacaoChange(item, v as Situacao)}
+                          disabled={travada}
                           className="shrink-0"
                         >
                           <ToggleGroupItem
@@ -1124,6 +1708,7 @@ export default function VistoriaDetalhe() {
                                     min={0}
                                     defaultValue={resposta.numero_funcionarios_irregulares}
                                     onBlur={(e) => handleIrregularesBlur(item, e.target.value)}
+                                    disabled={travada}
                                     className="h-8 w-28"
                                   />
                                 </>
@@ -1137,6 +1722,7 @@ export default function VistoriaDetalhe() {
                                     size="sm"
                                     variant="outline"
                                     className="h-7 rounded-full text-xs"
+                                    disabled={travada}
                                     onClick={() => {
                                       const el = document.getElementById(
                                         `irreg-${item.id}`,
@@ -1172,7 +1758,9 @@ export default function VistoriaDetalhe() {
                                 </span>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
-                                  Multa calculada ao salvar o nº
+                                  {resposta.pendente
+                                    ? 'Multa calculada quando a resposta for enviada'
+                                    : 'Multa calculada ao salvar o nº'}
                                 </span>
                               )}
                             </div>
@@ -1180,43 +1768,52 @@ export default function VistoriaDetalhe() {
                         )}
                         {resposta.situacao === 'N/C' &&
                           !isItemRural(item) &&
-                          (resposta.valor_multa_min || resposta.valor_multa_max) && (
+                          (resposta.valor_multa_min || resposta.valor_multa_max ? (
                             <div className="mb-2 text-sm font-medium text-destructive">
                               Multa estimada: {currency.format(resposta.valor_multa_min || 0)} a{' '}
                               {currency.format(resposta.valor_multa_max || 0)}
                             </div>
-                          )}
+                          ) : resposta.pendente ? (
+                            <div className="mb-2 text-xs text-muted-foreground">
+                              Multa calculada quando a resposta for enviada.
+                            </div>
+                          ) : null)}
                         <Textarea
                           placeholder={OBSERVACAO_PLACEHOLDER[resposta.situacao]}
                           defaultValue={resposta.observacao}
                           onBlur={(e) => handleObservacaoBlur(item, e.target.value)}
+                          readOnly={travada}
                           className="mb-2 text-sm"
                         />
 
                         <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            multiple
-                            id={`foto-${item.id}`}
-                            className="hidden"
-                            onChange={(e) => {
-                              handleFotoChange(item, e.target.files)
-                              e.target.value = ''
-                            }}
-                          />
-                          <label
-                            htmlFor={`foto-${item.id}`}
-                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
-                          >
-                            <Camera className="h-3.5 w-3.5" />
-                            {uploadingItemId === item.id
-                              ? 'Enviando...'
-                              : resposta.foto?.length
-                                ? 'Adicionar mais fotos'
-                                : 'Adicionar foto'}
-                          </label>
+                          {!travada && (
+                            <>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                multiple
+                                id={`foto-${item.id}`}
+                                className="hidden"
+                                onChange={(e) => {
+                                  handleFotoChange(item, e.target.files)
+                                  e.target.value = ''
+                                }}
+                              />
+                              <label
+                                htmlFor={`foto-${item.id}`}
+                                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
+                              >
+                                <Camera className="h-3.5 w-3.5" />
+                                {uploadingItemId === item.id
+                                  ? 'Salvando...'
+                                  : resposta.foto?.length || fotosNoAparelho.length
+                                    ? 'Adicionar mais fotos'
+                                    : 'Adicionar foto'}
+                              </label>
+                            </>
+                          )}
                           {temLocalizacaoValida(resposta.localizacao) && (
                             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                               <MapPin className="h-3 w-3" />
@@ -1226,21 +1823,34 @@ export default function VistoriaDetalhe() {
                           )}
                         </div>
 
-                        {resposta.foto && resposta.foto.length > 0 && (
+                        {((resposta.foto && resposta.foto.length > 0) ||
+                          fotosNoAparelho.length > 0) && (
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {resposta.foto.map((filename) => (
-                              <a
-                                key={filename}
-                                href={fotoUrl(resposta, filename)}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
+                            {tokenArquivos &&
+                              resposta.id &&
+                              (resposta.foto || []).map((filename) => (
+                                <button
+                                  key={filename}
+                                  type="button"
+                                  title="Abrir a foto"
+                                  onClick={() => abrirFoto(resposta, filename)}
+                                >
+                                  <img
+                                    src={fotoUrl(resposta, filename, tokenArquivos)}
+                                    alt="Foto da vistoria"
+                                    className="h-16 w-16 rounded-md border object-cover"
+                                  />
+                                </button>
+                              ))}
+                            {fotosNoAparelho.map((url) => (
+                              <div key={url} className="relative" title="Guardada no aparelho">
                                 <img
-                                  src={fotoUrl(resposta, filename)}
-                                  alt="Foto da vistoria"
-                                  className="h-16 w-16 rounded-md border object-cover"
+                                  src={url}
+                                  alt="Foto guardada no aparelho"
+                                  className="h-16 w-16 rounded-md border border-dashed border-amber-400 object-cover opacity-90"
                                 />
-                              </a>
+                                <CloudOff className="absolute right-1 top-1 h-3.5 w-3.5 rounded bg-white/90 p-0.5 text-amber-700" />
+                              </div>
                             ))}
                           </div>
                         )}
@@ -1260,6 +1870,71 @@ export default function VistoriaDetalhe() {
           {rotuloBotaoFinalizar}
         </Button>
       </div>
+
+      <Dialog open={pendentesDialogAberto} onOpenChange={setPendentesDialogAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {resumo.semResposta === 1
+                ? 'Falta 1 item sem resposta'
+                : `Faltam ${resumo.semResposta} itens sem resposta`}
+            </DialogTitle>
+            <DialogDescription>
+              Um relatório com itens em branco fica incompleto. Volte e responda, ou, se os itens
+              que faltam não se aplicam a este estabelecimento, marque todos como N/A (não se
+              aplica) e siga para a finalização.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={irParaPrimeiroSemResposta} disabled={marcandoNA}>
+              Voltar e responder
+            </Button>
+            <Button onClick={confirmarMarcarNA} disabled={marcandoNA}>
+              {marcandoNA
+                ? 'Marcando...'
+                : resumo.semResposta === 1
+                  ? 'Marcar como N/A e continuar'
+                  : `Marcar os ${resumo.semResposta} como N/A e continuar`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reabrirDialogAberto} onOpenChange={setReabrirDialogAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reabrir vistoria concluída</DialogTitle>
+            <DialogDescription>
+              A vistoria volta para "em andamento" e as respostas podem ser corrigidas. Fica
+              registrado quem reabriu, quando e por quê. Ao finalizar de novo, sai um relatório
+              novo, que substitui o anterior.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="motivo-reabertura" className="text-xs">
+              Motivo da reabertura
+            </Label>
+            <Textarea
+              id="motivo-reabertura"
+              value={motivoReabertura}
+              onChange={(e) => setMotivoReabertura(e.target.value)}
+              placeholder="Ex.: corrigir a situação do item 12.6.1, marcado errado em campo"
+              rows={3}
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setReabrirDialogAberto(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarReabertura}
+              disabled={reabrindo || motivoReabertura.trim().length < 5}
+            >
+              {reabrindo ? 'Reabrindo...' : 'Reabrir vistoria'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={rtDialogAberto} onOpenChange={setRtDialogAberto}>
         <DialogContent>

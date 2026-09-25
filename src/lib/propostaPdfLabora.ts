@@ -27,6 +27,7 @@ import {
   type DadosInstitucionais,
   type ModeloProposta,
 } from '@/services/modelosProposta'
+import { formatarDataCalendario } from '@/lib/date'
 
 type RGB = [number, number, number]
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
@@ -78,14 +79,9 @@ const clarear = (cor: RGB, fator = 0.88): RGB => [
 
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const formatarData = (iso?: string) => {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleDateString('pt-BR')
-  } catch {
-    return ''
-  }
-}
+// Datas da proposta são dias de calendário (00:00 UTC): sem esse cuidado o
+// PDF mostrava a véspera no fuso do Brasil.
+const formatarData = (iso?: string) => formatarDataCalendario(iso)
 
 async function carregarImagem(
   url: string | null,

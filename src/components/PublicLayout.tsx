@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
 import { Button } from '@/components/ui/button'
+import { abrirPreferenciasCookies } from '@/lib/analytics'
 
 const NAV = [
   { to: '/', label: 'Início', exact: true },
@@ -85,7 +86,7 @@ export default function PublicLayout() {
             <span className="font-bold text-foreground">LABORA vistorias</span>
             <span>Gestão de vistorias e inspeções de SST</span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <Link to="/calculadora" className="hover:text-foreground">
               Calculadora
             </Link>
@@ -101,6 +102,16 @@ export default function PublicLayout() {
             <Link to="/privacidade" className="hover:text-foreground">
               Privacidade
             </Link>
+            <button
+              type="button"
+              className="hover:text-foreground"
+              onClick={abrirPreferenciasCookies}
+            >
+              Cookies
+            </button>
+            <a href="mailto:eng.amaury.sousa@gmail.com" className="hover:text-foreground">
+              Contato
+            </a>
           </div>
           <div>© {new Date().getFullYear()} Labora Engenharia e SST</div>
         </div>

@@ -42,14 +42,14 @@ routerAdd(
     if (user) {
       const jaMembro = user.getString('organizacao_id') === orgId
       if (jaMembro) return e.json(409, { error: 'este e-mail já faz parte da sua equipe' })
-      if (papelAuth === 'gerente') {
-        return e.json(403, { error: 'apenas o dono pode vincular um usuário existente' })
-      }
-      // Dono vincula usuário existente (ex.: conta antiga) à organização.
-      user.set('organizacao_id', orgId)
-      if (!user.getString('papel')) user.set('papel', papel)
-      $app.save(user)
-      return e.json(200, { ok: true, vinculado: true })
+      // Conta já existente nunca é movida de organização por convite: isso
+      // permitiria a qualquer dono "puxar" a conta de outra pessoa (e os
+      // acessos dela) só digitando o e-mail. Se a pessoa precisar mudar de
+      // organização, a administração da plataforma faz a troca pelo console.
+      return e.json(409, {
+        error:
+          'este e-mail já tem uma conta no Labora Vistorias e não pode ser adicionado por convite. Peça para a pessoa entrar em contato com o suporte, ou use outro e-mail.',
+      })
     }
 
     // Cria o usuário novo.

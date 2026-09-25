@@ -68,6 +68,29 @@ export function formatBrazilianDate(dateStr: string | Date | null | undefined): 
   return `${day}/${month}/${year}`
 }
 
+// Data "de calendário" gravada pelo PocketBase: só o dia, ou o dia às 00:00 UTC.
+const SO_DIA = /^\d{4}-\d{2}-\d{2}([ T]00:00:00(\.0+)?Z?)?$/
+
+/**
+ * Converte o valor em Date local tratando os dois casos que o app grava:
+ * - campo de data (dia de calendário, 00:00 UTC) → aquele dia, sem voltar um dia;
+ * - carimbo de data e hora real (ex.: new Date().toISOString()) → a hora local.
+ */
+export function dataCalendario(valor: string | Date | null | undefined): Date | null {
+  if (!valor) return null
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor
+  const texto = valor.trim()
+  if (SO_DIA.test(texto)) return parseLocalDate(texto)
+  const d = new Date(texto)
+  return isNaN(d.getTime()) ? parseLocalDate(texto) : d
+}
+
+/** "dd/MM/yyyy" para campos de data ou carimbos de data e hora, sem erro de fuso. */
+export function formatarDataCalendario(valor: string | Date | null | undefined): string {
+  const d = dataCalendario(valor)
+  return d ? formatBrazilianDate(d) : ''
+}
+
 /**
  * Prepara uma string "YYYY-MM-DD" para envio ao PocketBase garantindo que seja
  * tratada como o início daquele dia em UTC ("YYYY-MM-DDT00:00:00.000Z") ou "YYYY-MM-DD 00:00:00.000Z",

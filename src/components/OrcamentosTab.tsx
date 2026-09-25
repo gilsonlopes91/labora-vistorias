@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { formatarDataCalendario, formatLocalDate } from '@/lib/date'
 import { getMinhaOrganizacao, urlLogoOrganizacao } from '@/services/organizacoes'
 import { getModelosProposta, type ModeloProposta } from '@/services/modelosProposta'
 import { criarRecebimento } from '@/services/recebimentos'
@@ -246,7 +247,7 @@ export function OrcamentosTab({
       await criarRecebimento({
         orcamento_id: paraReceber.id,
         valor,
-        data_recebimento: dataRecebimento || new Date().toISOString().slice(0, 10),
+        data_recebimento: dataRecebimento || formatLocalDate(new Date()),
         forma_pagamento: formaRecebimento,
         situacao: 'recebido',
         descricao: 'Recebimento lançado pela listagem',
@@ -272,14 +273,9 @@ export function OrcamentosTab({
     }
   }
 
-  const formatarData = (iso?: string) => {
-    if (!iso) return '—'
-    try {
-      return new Date(iso).toLocaleDateString('pt-BR')
-    } catch {
-      return '—'
-    }
-  }
+  // Datas do orçamento são dias de calendário (gravados como 00:00 UTC):
+  // converter para o fuso local jogava a data um dia para trás.
+  const formatarData = (iso?: string) => formatarDataCalendario(iso) || '—'
 
   return (
     <div className="space-y-6">
@@ -479,7 +475,7 @@ export function OrcamentosTab({
                       onClick={() => {
                         setParaReceber(orcamento)
                         setValorRecebimento(String(pendente || ''))
-                        setDataRecebimento(new Date().toISOString().slice(0, 10))
+                        setDataRecebimento(formatLocalDate(new Date()))
                       }}
                     >
                       <Wallet className="h-4 w-4" />

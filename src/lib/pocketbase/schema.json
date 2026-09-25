@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T05:17:42.022Z",
+  "generatedAt": "2026-09-25T06:00:53.555Z",
   "collections": [
     {
       "name": "users",
@@ -740,6 +740,12 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "reaberturas",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1454,11 +1460,11 @@
       "name": "artigos",
       "type": "base",
       "apiRules": {
-        "list": "status = 'publicado' || @request.auth.id != ''",
-        "view": "status = 'publicado' || @request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "status = 'publicado' || (@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))",
+        "view": "status = 'publicado' || (@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))",
+        "create": "(@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))",
+        "update": "(@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))",
+        "delete": "(@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))"
       },
       "fields": [
         {
@@ -2465,9 +2471,9 @@
       "apiRules": {
         "list": "",
         "view": "",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "(@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))",
+        "update": "(@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))",
+        "delete": "(@request.auth.papel = 'admin_plataforma' || (@request.auth.papel = 'staff_labora' && @request.auth.acesso_console = true))"
       },
       "fields": [
         {

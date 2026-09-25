@@ -5,17 +5,18 @@
    Ao alterar o texto, atualize a versão e a data abaixo: o aceite gravado no
    cadastro guarda a versão aceita. */
 
-export const VERSAO_TERMOS = '1.0'
-export const VIGENCIA_TERMOS = '23 de setembro de 2026'
+export const VERSAO_TERMOS = '1.0.1'
+export const VIGENCIA_TERMOS = '25 de setembro de 2026'
 
 export const CONTROLADOR = {
   razao: 'Labora Engenharia e SST Ltda',
   cnpj: '54.106.204/0001-30',
 }
 
-// Enquanto não houver e-mail próprio de atendimento, os textos remetem ao canal
-// divulgado no aplicativo.
-const CANAL = 'pelo canal de atendimento divulgado no aplicativo'
+// Canal de atendimento e do encarregado de dados (LGPD, art. 41). Também
+// aparece no rodapé do site (link "Contato").
+export const EMAIL_ATENDIMENTO = 'eng.amaury.sousa@gmail.com'
+const CANAL = `pelo e-mail ${EMAIL_ATENDIMENTO}`
 
 export interface SecaoLegal {
   titulo: string
@@ -153,6 +154,7 @@ export const POLITICA_PRIVACIDADE: SecaoLegal[] = [
     paragrafos: [
       'A Labora não vende nem aluga dados pessoais.',
       'Os dados são compartilhados apenas com fornecedores necessários para o funcionamento do serviço: a plataforma de hospedagem, banco de dados e armazenamento de arquivos em nuvem; o provedor do modelo de inteligência artificial usado pelo assistente, quando o recurso estiver ativo; e o serviço de envio de e-mails. Esses fornecedores tratam os dados em nome da Labora e só para essas finalidades.',
+      'No site público, e só se o visitante aceitar no aviso de cookies, o Google recebe dados de navegação (páginas visitadas, tipo de aparelho, região aproximada) pelo Google Analytics, para gerar estatísticas de visita. Base legal: consentimento (art. 7º, I).',
       'Os dados também podem ser fornecidos a autoridades públicas quando houver obrigação legal ou ordem judicial.',
     ],
   },
@@ -181,7 +183,8 @@ export const POLITICA_PRIVACIDADE: SecaoLegal[] = [
   {
     titulo: '9. Cookies e armazenamento no navegador',
     paragrafos: [
-      'O aplicativo guarda no seu navegador apenas o necessário para manter você conectado (o token de sessão) e algumas preferências de uso. No momento, o Labora Vistorias não usa cookies de publicidade nem de rastreamento de terceiros. Se isso mudar, esta política será atualizada antes.',
+      'O aplicativo guarda no seu navegador o necessário para manter você conectado (o token de sessão), algumas preferências de uso e, quando falta internet durante uma vistoria, as respostas e fotos ainda não enviadas. Esses dados ficam só no seu aparelho e são apagados dele assim que chegam ao servidor.',
+      'No site público (página inicial, calculadora, blog e páginas de acesso), usamos cookies do Google Analytics para contar visitas e saber quais conteúdos são mais úteis. Eles só são gravados se você clicar em "Aceitar" no aviso de cookies. Se recusar, nada é gravado. Você pode mudar a escolha a qualquer momento pelo link "Cookies" no rodapé do site. O Google Analytics não é usado na área logada do aplicativo. O Labora Vistorias não usa cookies de publicidade.',
     ],
   },
   {
@@ -195,7 +198,7 @@ export const POLITICA_PRIVACIDADE: SecaoLegal[] = [
   {
     titulo: '11. Canal de atendimento ao titular',
     paragrafos: [
-      `Pedidos sobre dados pessoais, dúvidas sobre esta política e comunicações da ANPD podem ser enviados ${CANAL}.`,
+      `Pedidos sobre dados pessoais, dúvidas sobre esta política e comunicações da ANPD podem ser enviados ${CANAL}, que é também o canal do encarregado pelo tratamento de dados pessoais (art. 41 da LGPD).`,
     ],
   },
   {

@@ -38,6 +38,7 @@ import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
 import { trackPublicPageView } from '@/lib/analytics'
+import AvisoCookies from '@/components/AvisoCookies'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
@@ -76,6 +77,7 @@ function PublicAnalyticsTracker() {
 const App = () => (
   <BrowserRouter>
     <PublicAnalyticsTracker />
+    <AvisoCookies />
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
@@ -200,7 +202,7 @@ const App = () => (
             <Route
               path="/artigos"
               element={
-                <ProtectedRoute gestorOnly>
+                <ProtectedRoute adminOnly>
                   <AdminArtigos />
                 </ProtectedRoute>
               }

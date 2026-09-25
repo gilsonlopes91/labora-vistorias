@@ -83,7 +83,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     ],
   },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
-  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, gestor: true },
+  // Blog é da Labora: só a administração da plataforma publica.
+  { to: '/artigos', label: 'Blog / Artigos', icon: Newspaper, adminOnly: true },
   { to: '/equipe', label: 'Equipe', icon: Users, gestor: true },
   // Aberto a todos: o dono da conta sempre edita a identidade visual; o resto
   // da página é controlado por perfil dentro dela.
