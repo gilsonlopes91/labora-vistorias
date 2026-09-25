@@ -8,10 +8,10 @@ import { useLocation } from 'react-router-dom'
 const MARCA = 'Labora Vistorias'
 
 const DESCRICAO_PADRAO =
-  'Calculadora gratuita de multas da NR-28 e app de vistorias de segurança do trabalho: checklist das NRs, fotos, multa estimada e relatório em PDF.'
+  'App de vistorias de segurança do trabalho: checklists das NRs, fotos com GPS, multa estimada pela NR-28 e relatório em PDF com plano de ação. Calculadora de multas grátis.'
 
 const TITULOS: [RegExp, string][] = [
-  [/^\/$/, 'Calculadora de multas NR-28 e vistorias de SST'],
+  [/^\/$/, 'App de vistorias de SST e calculadora de multas NR-28'],
   [/^\/calculadora/, 'Calculadora de multas NR-28'],
   [/^\/blog\/?$/, 'Blog de segurança do trabalho'],
   [/^\/em-breve/, 'Em breve'],

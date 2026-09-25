@@ -1,7 +1,7 @@
 /* Telas do app desenhadas para a home pública. São componentes (não
    capturas de tela), com dados inventados, para não expor dados de clientes
    e continuar nítidas em qualquer tamanho. Seguem o visual real do app. */
-import { Camera, CheckCircle2, ChevronRight, Clock, MapPin } from 'lucide-react'
+import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock } from 'lucide-react'
 
 function Moldura({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
@@ -49,13 +49,12 @@ export function TelaVistoria() {
         <p className="text-muted-foreground">Observação</p>
         <p className="mt-0.5">Prensa excêntrica sem proteção na zona de prensagem.</p>
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <Camera className="h-3.5 w-3.5" /> 2 fotos · com GPS
-        </span>
-        <span className="text-right font-semibold">
-          Multa estimada (60 empregados): R$ 4.125,52 a R$ 4.701,19
-        </span>
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Camera className="h-3.5 w-3.5" /> 2 fotos com GPS
+      </p>
+      <div className="mt-2 flex items-baseline justify-between gap-3 border-t pt-2 text-xs">
+        <span className="text-muted-foreground">Multa estimada · 60 empregados</span>
+        <span className="font-semibold">R$ 4.125,52 a R$ 4.701,19</span>
       </div>
     </Moldura>
   )
@@ -110,7 +109,7 @@ export function TelaAgenda() {
         ))}
       </div>
       <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-        <MapPin className="h-3 w-3" /> Também no Google Agenda e no Outlook
+        <CalendarDays className="h-3 w-3" /> Também no Google Agenda e no Outlook
       </p>
     </Moldura>
   )
