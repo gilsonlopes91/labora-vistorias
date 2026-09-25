@@ -1,13 +1,14 @@
 /* Página Equipe — gerencia membros da organização (dono/gerente). */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Mail, ShieldCheck, UserPlus, Users } from 'lucide-react'
+import { Mail, ShieldCheck, UserMinus, UserPlus, Users } from 'lucide-react'
 
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   convidarMembro,
   enviarLinkDeAcesso,
+  removerMembro,
   getEquipe,
   getPapelUsuarioLogado,
   type MembroEquipe,
@@ -34,6 +35,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const PAPEL_LABEL: Record<string, string> = {
   dono: 'Dono',
@@ -49,6 +60,7 @@ export default function Equipe() {
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ nome: '', email: '', papel: 'executor' })
   const [reenviando, setReenviando] = useState<string | null>(null)
+  const [paraRemover, setParaRemover] = useState<MembroEquipe | null>(null)
   const meuPapel = getPapelUsuarioLogado()
   const meuId = pb.authStore.record?.id
 
@@ -108,6 +120,24 @@ export default function Equipe() {
       setReenviando(null)
     }
   }
+
+  const confirmarRemocao = async () => {
+    if (!paraRemover) return
+    try {
+      await removerMembro(paraRemover.id)
+      toast.success(`${paraRemover.name} saiu da equipe`)
+      setParaRemover(null)
+      loadData()
+    } catch (error) {
+      toast.error('Não foi possível remover', { description: getErrorMessage(error) })
+    }
+  }
+
+  // Dono remove qualquer um (menos ele mesmo); gerente remove executores.
+  const podeRemover = (m: MembroEquipe) =>
+    m.id !== meuId &&
+    m.papel !== 'dono' &&
+    (meuPapel === 'dono' || (meuPapel === 'gerente' && m.papel === 'executor'))
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
 
@@ -234,11 +264,39 @@ export default function Equipe() {
                       <ShieldCheck className="mr-1 h-3 w-3" />
                       {PAPEL_LABEL[m.papel] || m.papel}
                     </Badge>
+                    {podeRemover(m) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setParaRemover(m)}
+                        title="Remover da equipe"
+                        aria-label={`Remover ${m.name} da equipe`}
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!paraRemover} onOpenChange={(v) => !v && setParaRemover(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover {paraRemover?.name} da equipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A pessoa perde o acesso na hora. As vistorias e os orçamentos que ela fez continuam,
+              com o nome dela. Se precisar voltar, é só convidar o mesmo e-mail de novo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarRemocao}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

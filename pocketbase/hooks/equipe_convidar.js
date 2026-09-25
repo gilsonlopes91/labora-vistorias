@@ -49,6 +49,38 @@ routerAdd(
     if (user) {
       const jaMembro = user.getString('organizacao_id') === orgId
       if (jaMembro) return e.json(409, { error: 'este e-mail já faz parte da sua equipe' })
+      // Conta sem organização e sem papel: é alguém que foi removido de uma
+      // equipe (equipe_remover.js). Não tem dados próprios a perder, então pode
+      // voltar por convite.
+      if (!user.getString('organizacao_id') && !user.getString('papel')) {
+        user.set('organizacao_id', orgId)
+        user.set('papel', papel)
+        if (nome) user.set('name', nome)
+        $app.save(user)
+        if (papel === 'executor') {
+          let temRt = false
+          try {
+            $app.findFirstRecordByFilter(
+              'responsaveis_tecnicos',
+              'organizacao_id = {:o} && usuario_id = {:u}',
+              { o: orgId, u: user.id },
+            )
+            temRt = true
+          } catch (_) {
+            temRt = false
+          }
+          if (!temRt) {
+            const rt = new Record($app.findCollectionByNameOrId('responsaveis_tecnicos'))
+            rt.set('organizacao_id', orgId)
+            rt.set('nome', nome || user.getString('name'))
+            rt.set('tipo_registro', 'Outro')
+            rt.set('numero_registro', '—')
+            rt.set('usuario_id', user.id)
+            $app.save(rt)
+          }
+        }
+        return e.json(200, { ok: true, id: user.id, reativado: true })
+      }
       // Conta já existente nunca é movida de organização por convite: isso
       // permitiria a qualquer dono "puxar" a conta de outra pessoa (e os
       // acessos dela) só digitando o e-mail. Se a pessoa precisar mudar de

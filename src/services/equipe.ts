@@ -66,6 +66,13 @@ export const convidarMembro = (data: ConviteInput) =>
     body: JSON.stringify(data),
   })
 
+/** Tira a pessoa da equipe: perde o acesso na hora (a conta não é apagada). */
+export const removerMembro = (id: string) =>
+  pb.send<{ ok: boolean }>('/backend/v1/equipe/remover', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
+
 /** Manda para a pessoa o e-mail com o link para criar (ou trocar) a senha.
  *  É o mesmo e-mail do "Esqueci minha senha". */
 export const enviarLinkDeAcesso = (email: string) =>

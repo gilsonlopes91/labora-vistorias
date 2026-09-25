@@ -108,6 +108,10 @@ function juntarLetras(letras: string[]): string {
 export function rotuloItemRef(ref?: string): string {
   const s = (ref || '').trim()
   if (!s) return ''
+  // Anexo I da NR-12: a letra maiúscula é a parte do anexo (A, B, C), não
+  // uma alínea. "1.1, alínea B" vira "1.1 da parte B".
+  const parte = /^(\d+(?:\.\d+)*)\s*,\s*al[íi]nea\s*["“]?([A-Z])["”]?$/.exec(s)
+  if (parte) return `${parte[1]} da parte ${parte[2]}`
   const re = /(\d{1,2}(?:\.\d{1,3})+)\s*,?\s*al[íi]nea\s*["“]?([a-z])["”]?/gi
   const partes: { num: string; letra: string }[] = []
   let m: RegExpExecArray | null
