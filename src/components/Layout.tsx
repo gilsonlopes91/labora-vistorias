@@ -5,7 +5,6 @@ import { getModulos, type Modulos } from '@/services/modulos'
 import { LogOut, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
-import AssistantWidget from '@/components/AssistantWidget'
 import { isGestor } from '@/services/equipe'
 import { NAV_ITEMS, type NavItemConfig, type NavSubItemConfig } from '@/config/navigation'
 import {
@@ -374,7 +373,6 @@ export default function Layout() {
         <div className="flex-1">
           <Outlet />
         </div>
-        <AssistantWidget />
       </SidebarInset>
     </SidebarProvider>
   )
