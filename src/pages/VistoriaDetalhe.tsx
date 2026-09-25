@@ -15,9 +15,12 @@ import {
   RotateCcw,
   CloudOff,
   RefreshCw,
+  Search,
+  ImagePlus,
 } from 'lucide-react'
 
 import { formatBrazilianDate, toPocketBaseDate } from '@/lib/date'
+import { rotuloCurtoNorma, rotuloItemRef } from '@/lib/normas'
 import { getErrorMessage, isErroDeConexao } from '@/lib/pocketbase/errors'
 import {
   listarPendencias,
@@ -173,7 +176,17 @@ export default function VistoriaDetalhe() {
 
   const [vistoria, setVistoria] = useState<Vistoria | null>(null)
   const [itens, setItens] = useState<ItemChecklist[]>([])
-  const [nomesChecklist, setNomesChecklist] = useState<string[]>([])
+  // Checklists da vistoria, na ordem: principal e adicionais. O rótulo curto
+  // ("NR-12 · Anexo VIII") identifica cada item quando há mais de um.
+  const [checklistsInfo, setChecklistsInfo] = useState<
+    { id: string; rotulo: string; nome: string }[]
+  >([])
+  // Busca e filtro dos itens (checklists grandes, com centenas de itens).
+  const [busca, setBusca] = useState('')
+  const [filtroItens, setFiltroItens] = useState<'todos' | 'pendentes' | 'nc'>('todos')
+  // "Marcar seção como N/A": seção escolhida aguardando confirmação.
+  const [secaoParaNA, setSecaoParaNA] = useState<{ titulo: string; ids: string[] } | null>(null)
+  const [marcandoSecao, setMarcandoSecao] = useState(false)
   const [registrosForm, setRegistrosForm] = useState<Record<string, Formulario>>({})
   const [formAberto, setFormAberto] = useState<string | null>(null)
   const [modeloAberto, setModeloAberto] = useState<Awaited<
@@ -291,14 +304,17 @@ export default function VistoriaDetalhe() {
       } else {
         setItens(visiveis)
       }
-      setNomesChecklist(
+      setChecklistsInfo(
         idsChecklists.map((cid) => {
-          if (cid === v.tipo_vistoria_id) {
-            const t = v.expand?.tipo_vistoria_id
-            return t?.nr_referencia || t?.nome || 'Checklist principal'
+          const t =
+            cid === v.tipo_vistoria_id
+              ? v.expand?.tipo_vistoria_id
+              : v.expand?.checklists?.find((c) => c.id === cid)
+          return {
+            id: cid,
+            rotulo: t ? rotuloCurtoNorma(t) : 'Checklist',
+            nome: t?.nome || 'Checklist',
           }
-          const extra = v.expand?.checklists?.find((c) => c.id === cid)
-          return extra?.nr_referencia || extra?.nome || 'Checklist'
         }),
       )
       try {
@@ -735,6 +751,7 @@ export default function VistoriaDetalhe() {
       empresaNumeroEmpregados: empresaV?.numero_funcionarios,
       tipoNome: tipoV?.nome || '',
       tipoNrReferencia: tipoV?.nr_referencia,
+      checklists: checklistsInfo,
       organizacaoNome: nomeOrganizacao,
       logoUrl: logoMarcaDagua,
       itens: itensOrdenados,
@@ -803,6 +820,9 @@ export default function VistoriaDetalhe() {
 
   const irParaPrimeiroSemResposta = () => {
     setPendentesDialogAberto(false)
+    // Sem busca nem filtro, para o item aparecer na tela.
+    setBusca('')
+    setFiltroItens('todos')
     const item = itensOrdenados.find((it) => !respostasVisiveis[it.id]?.situacao)
     if (!item) return
     window.setTimeout(() => {
@@ -833,6 +853,45 @@ export default function VistoriaDetalhe() {
       })
     } finally {
       setMarcandoNA(false)
+    }
+  }
+
+  // Marca como N/A os itens ainda sem resposta de uma seção inteira (ex.: a
+  // seção de caldeiras num estabelecimento sem caldeira).
+  const pedirSecaoComoNA = (titulo: string, pendentesSecao: ItemChecklist[]) => {
+    if (travada || pendentesSecao.length === 0) return
+    if (totalPendencias > 0 || !navigator.onLine) {
+      toast.error('Sem conexão para marcar a seção inteira', {
+        description:
+          'Com internet e sem respostas guardadas no aparelho, a seção é marcada de uma vez. Enquanto isso, marque item a item.',
+      })
+      return
+    }
+    setSecaoParaNA({ titulo, ids: pendentesSecao.map((it) => it.id) })
+  }
+
+  const confirmarSecaoComoNA = async () => {
+    if (!vistoria || !secaoParaNA) return
+    setMarcandoSecao(true)
+    try {
+      const r = await marcarPendentesComoNA(vistoria.id, secaoParaNA.ids)
+      const atualizadas = await getRespostasByVistoria(vistoria.id)
+      const mapa: Record<string, RespostaVistoria> = {}
+      for (const resp of atualizadas) mapa[resp.item_checklist_id] = resp
+      respostasRef.current = mapa
+      setRespostas(mapa)
+      setVistoria((prev) =>
+        prev && prev.status === 'agendada' ? { ...prev, status: 'em_andamento' } : prev,
+      )
+      const n = r.criados + r.atualizados
+      toast.success(`${n} ${n === 1 ? 'item marcado' : 'itens marcados'} como N/A`)
+      setSecaoParaNA(null)
+    } catch (error) {
+      toast.error('Não foi possível marcar a seção como N/A', {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setMarcandoSecao(false)
     }
   }
 
@@ -992,7 +1051,16 @@ export default function VistoriaDetalhe() {
     }
   }
 
-  const itensOrdenados = useMemo(() => [...itens].sort(compararItemRef), [itens])
+  // Ordem: checklist (principal, depois os adicionais) e, dentro dele, o
+  // número do item. Assim os itens de um anexo não se misturam com os do corpo.
+  const itensOrdenados = useMemo(() => {
+    const ordem = new Map(checklistsInfo.map((c, i) => [c.id, i]))
+    return [...itens].sort(
+      (a, b) =>
+        (ordem.get(a.tipo_vistoria_id) ?? 99) - (ordem.get(b.tipo_vistoria_id) ?? 99) ||
+        compararItemRef(a, b),
+    )
+  }, [itens, checklistsInfo])
 
   const resumo = useMemo(() => {
     let conforme = 0
@@ -1066,42 +1134,50 @@ export default function VistoriaDetalhe() {
     : 0
 
   const grupos = useMemo(() => {
-    // Multi-NR: agrupa primeiro por checklist (NR) e depois por seção interna.
-    // Com 1 checklist só, o visual continua igual ao de antes.
-    const multi = nomesChecklist.length > 1
-    const porChecklist = new Map<string, ItemChecklist[]>()
-    const ordemChecklists: string[] = []
+    // Mais de um checklist: o título da seção diz de qual norma ou anexo ela é
+    // ("NR-12 · Anexo VIII · Prensas"). Com um só, fica só a seção.
+    const multi = checklistsInfo.length > 1
+    const rotuloPorId = new Map(checklistsInfo.map((c) => [c.id, c.rotulo]))
+    const map = new Map<string, ItemChecklist[]>()
     for (const item of itensOrdenados) {
-      if (!porChecklist.has(item.tipo_vistoria_id)) porChecklist.set(item.tipo_vistoria_id, [])
-      porChecklist.get(item.tipo_vistoria_id)!.push(item)
-      if (!ordemChecklists.includes(item.tipo_vistoria_id))
-        ordemChecklists.push(item.tipo_vistoria_id)
+      const secao = item.secao || 'Disposições gerais'
+      const chave = multi
+        ? `${rotuloPorId.get(item.tipo_vistoria_id) || 'Checklist'} · ${secao}`
+        : secao
+      if (!map.has(chave)) map.set(chave, [])
+      map.get(chave)!.push(item)
     }
-    if (!multi) {
-      const map = new Map<string, ItemChecklist[]>()
-      for (const item of itensOrdenados) {
-        const key = item.secao || 'Disposições gerais'
-        if (!map.has(key)) map.set(key, [])
-        map.get(key)!.push(item)
-      }
-      return Array.from(map.entries())
-    }
-    // multi: pares [titulo, itens] com titulo = "NR-XX · Seção"
-    const saida: [string, ItemChecklist[]][] = []
-    ordemChecklists.forEach((cid, idx) => {
-      const nome = nomesChecklist[idx] || 'Checklist'
-      const secoes = new Map<string, ItemChecklist[]>()
-      for (const item of porChecklist.get(cid) || []) {
-        const s = item.secao || 'Disposições gerais'
-        if (!secoes.has(s)) secoes.set(s, [])
-        secoes.get(s)!.push(item)
-      }
-      for (const [secao, itensSecao] of secoes.entries()) {
-        saida.push([`${nome} · ${secao}`, itensSecao])
-      }
-    })
-    return saida
-  }, [itensOrdenados, nomesChecklist])
+    return Array.from(map.entries())
+  }, [itensOrdenados, checklistsInfo])
+
+  // Seções como aparecem na tela, depois da busca e do filtro.
+  const gruposVisiveis = useMemo(() => {
+    const q = busca.trim().toLowerCase()
+    return grupos
+      .map(([titulo, itensGrupo], indice) => ({
+        titulo,
+        indice,
+        itens: itensGrupo.filter((item) => {
+          const situacao = respostasVisiveis[item.id]?.situacao
+          if (filtroItens === 'pendentes' && situacao) return false
+          if (filtroItens === 'nc' && situacao !== 'N/C') return false
+          if (!q) return true
+          return (
+            (item.item_ref || '').toLowerCase().includes(q) ||
+            (item.codigo || '').toLowerCase().includes(q) ||
+            (item.descricao || '').toLowerCase().includes(q)
+          )
+        }),
+        pendentes: itensGrupo.filter((item) => !respostasVisiveis[item.id]?.situacao),
+      }))
+      .filter((g) => g.itens.length > 0)
+  }, [grupos, busca, filtroItens, respostasVisiveis])
+
+  const irParaSecao = (indice: string) => {
+    document
+      .getElementById(`secao-${indice}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   if (loading) {
     return (
@@ -1135,7 +1211,9 @@ export default function VistoriaDetalhe() {
   const reaberturas = Array.isArray(vistoria.reaberturas) ? vistoria.reaberturas : []
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    // pb-28: espaço no fim da página para o selo fixo no canto não cobrir o
+    // último item nem o botão de finalizar.
+    <div className="container mx-auto max-w-4xl px-4 pb-28 pt-8">
       <Link
         to="/vistorias"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -1172,8 +1250,8 @@ export default function VistoriaDetalhe() {
                 Checklists NR adicionais:
               </span>
               {vistoria.expand.checklists.map((c) => (
-                <Badge key={c.id} variant="outline" className="text-xs">
-                  {c.nr_referencia || c.nome}
+                <Badge key={c.id} variant="outline" className="text-xs" title={c.nome}>
+                  {rotuloCurtoNorma(c)}
                 </Badge>
               ))}
             </div>
@@ -1602,12 +1680,82 @@ export default function VistoriaDetalhe() {
         </Card>
       )}
 
+      {/* Busca, filtro e índice das seções */}
+      <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar item, código ou trecho do texto"
+            className="pl-9"
+            aria-label="Buscar item"
+          />
+        </div>
+        <Select
+          value={filtroItens}
+          onValueChange={(v) => setFiltroItens(v as 'todos' | 'pendentes' | 'nc')}
+        >
+          <SelectTrigger className="sm:w-[190px]" aria-label="Filtrar itens">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os itens</SelectItem>
+            <SelectItem value="pendentes">Só sem resposta ({resumo.semResposta})</SelectItem>
+            <SelectItem value="nc">Só não conformes ({resumo.naoConforme})</SelectItem>
+          </SelectContent>
+        </Select>
+        {grupos.length > 1 && (
+          <Select value="" onValueChange={irParaSecao}>
+            <SelectTrigger className="sm:w-[190px]" aria-label="Ir para a seção">
+              <SelectValue placeholder="Ir para a seção..." />
+            </SelectTrigger>
+            <SelectContent>
+              {gruposVisiveis.map((g) => (
+                <SelectItem key={g.titulo} value={String(g.indice)}>
+                  {g.titulo}
+                  {g.pendentes.length > 0 ? ` (${g.pendentes.length} sem resposta)` : ' (completa)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {gruposVisiveis.length === 0 && (
+        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          {busca.trim()
+            ? `Nenhum item encontrado para "${busca.trim()}".`
+            : filtroItens === 'pendentes'
+              ? 'Todos os itens já têm resposta.'
+              : filtroItens === 'nc'
+                ? 'Nenhum item marcado como não conforme.'
+                : 'Nenhum item neste checklist.'}
+        </div>
+      )}
+
       <div className="space-y-8">
-        {grupos.map(([secao, itensGrupo]) => (
-          <div key={secao}>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {secao}
-            </h2>
+        {gruposVisiveis.map(({ titulo: secao, indice, itens: itensGrupo, pendentes }) => (
+          <div key={secao} id={`secao-${indice}`} className="scroll-mt-24">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {secao}
+              </h2>
+              {!travada && pendentes.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-muted-foreground"
+                  onClick={() => pedirSecaoComoNA(secao, pendentes)}
+                >
+                  Marcar{' '}
+                  {pendentes.length === 1
+                    ? 'o item sem resposta'
+                    : `os ${pendentes.length} sem resposta`}{' '}
+                  como N/A
+                </Button>
+              )}
+            </div>
             <div className="space-y-3">
               {itensGrupo.map((item) => {
                 const resposta = respostasVisiveis[item.id]
@@ -1618,14 +1766,14 @@ export default function VistoriaDetalhe() {
                 return (
                   <Card key={item.id} id={`item-${item.id}`} className={borderClass}>
                     <CardHeader className="pb-3">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex flex-wrap items-center gap-2">
                             <Badge
                               variant="outline"
                               className="border-primary/40 font-mono text-xs text-primary"
                             >
-                              Item {item.item_ref}
+                              Item {rotuloItemRef(item.item_ref)}
                             </Badge>
                             {item.grau && (
                               <Badge variant="outline" className="text-xs">
@@ -1681,21 +1829,27 @@ export default function VistoriaDetalhe() {
                           value={resposta?.situacao}
                           onValueChange={(v) => v && handleSituacaoChange(item, v as Situacao)}
                           disabled={travada}
-                          className="shrink-0"
+                          className="grid w-full shrink-0 grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-1"
                         >
                           <ToggleGroupItem
                             value="C"
-                            className="data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700"
+                            aria-label="Conforme"
+                            className="h-12 border text-base font-semibold data-[state=on]:border-emerald-500 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 sm:h-10 sm:text-sm"
                           >
                             C
                           </ToggleGroupItem>
                           <ToggleGroupItem
                             value="N/C"
-                            className="data-[state=on]:bg-red-100 data-[state=on]:text-red-700"
+                            aria-label="Não conforme"
+                            className="h-12 border text-base font-semibold data-[state=on]:border-red-500 data-[state=on]:bg-red-100 data-[state=on]:text-red-700 sm:h-10 sm:text-sm"
                           >
                             N/C
                           </ToggleGroupItem>
-                          <ToggleGroupItem value="N/A" className="data-[state=on]:bg-muted">
+                          <ToggleGroupItem
+                            value="N/A"
+                            aria-label="Não se aplica"
+                            className="h-12 border text-base font-semibold data-[state=on]:border-muted-foreground/60 data-[state=on]:bg-muted sm:h-10 sm:text-sm"
+                          >
                             N/A
                           </ToggleGroupItem>
                         </ToggleGroup>
@@ -1802,11 +1956,13 @@ export default function VistoriaDetalhe() {
                         <div className="flex flex-wrap items-center gap-2">
                           {!travada && (
                             <>
+                              {/* Câmera abre direto a câmera traseira; galeria
+                                  deixa escolher fotos já tiradas (no Android o
+                                  capture impede a galeria). */}
                               <input
                                 type="file"
                                 accept="image/*"
                                 capture="environment"
-                                multiple
                                 id={`foto-${item.id}`}
                                 className="hidden"
                                 onChange={(e) => {
@@ -1814,17 +1970,42 @@ export default function VistoriaDetalhe() {
                                   e.target.value = ''
                                 }}
                               />
-                              <label
-                                htmlFor={`foto-${item.id}`}
-                                className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
-                              >
-                                <Camera className="h-3.5 w-3.5" />
-                                {uploadingItemId === item.id
-                                  ? 'Salvando...'
-                                  : resposta.foto?.length || fotosNoAparelho.length
-                                    ? 'Adicionar mais fotos'
-                                    : 'Adicionar foto'}
-                              </label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                id={`galeria-${item.id}`}
+                                className="hidden"
+                                onChange={(e) => {
+                                  handleFotoChange(item, e.target.files)
+                                  e.target.value = ''
+                                }}
+                              />
+                              {uploadingItemId === item.id ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                  <Camera className="h-3.5 w-3.5" />
+                                  Salvando foto...
+                                </span>
+                              ) : (
+                                <>
+                                  <label
+                                    htmlFor={`foto-${item.id}`}
+                                    className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                                  >
+                                    <Camera className="h-3.5 w-3.5" />
+                                    {resposta.foto?.length || fotosNoAparelho.length
+                                      ? 'Tirar outra foto'
+                                      : 'Tirar foto'}
+                                  </label>
+                                  <label
+                                    htmlFor={`galeria-${item.id}`}
+                                    className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                                  >
+                                    <ImagePlus className="h-3.5 w-3.5" />
+                                    Da galeria
+                                  </label>
+                                </>
+                              )}
                             </>
                           )}
                           {temLocalizacaoValida(resposta.localizacao) && (
@@ -1883,6 +2064,30 @@ export default function VistoriaDetalhe() {
           {rotuloBotaoFinalizar}
         </Button>
       </div>
+
+      <Dialog open={!!secaoParaNA} onOpenChange={(aberto) => !aberto && setSecaoParaNA(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {secaoParaNA?.ids.length === 1
+                ? 'Marcar 1 item como N/A?'
+                : `Marcar ${secaoParaNA?.ids.length || 0} itens como N/A?`}
+            </DialogTitle>
+            <DialogDescription>
+              Seção {secaoParaNA?.titulo}. Só os itens ainda sem resposta são marcados como "não se
+              aplica"; os que já foram respondidos não mudam. Depois dá para trocar item a item.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSecaoParaNA(null)} disabled={marcandoSecao}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarSecaoComoNA} disabled={marcandoSecao}>
+              {marcandoSecao ? 'Marcando...' : 'Marcar como N/A'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={pendentesDialogAberto} onOpenChange={setPendentesDialogAberto}>
         <DialogContent>

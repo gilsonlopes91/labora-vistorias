@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf'
 import autoTablePlugin, { applyPlugin as autoTableApplyPlugin } from 'jspdf-autotable'
 
 import { formatBrazilianDate } from '@/lib/date'
+import { rotuloItemRef } from '@/lib/normas'
 import type { Vistoria } from '@/services/vistorias'
 import type { ItemChecklist } from '@/services/itensChecklist'
 import {
@@ -78,6 +79,9 @@ export interface DadosRelatorioVistoria {
   empresaNumeroEmpregados?: number
   tipoNome: string
   tipoNrReferencia?: string
+  /** Checklists da vistoria, na ordem (principal e adicionais). Com mais de um,
+   *  o relatório lista todos e cada seção diz de qual norma ou anexo é. */
+  checklists?: { id: string; rotulo: string; nome: string }[]
   organizacaoNome: string
   logoUrl: string
   itens: ItemChecklist[]
@@ -108,11 +112,26 @@ interface ImagemCarregada {
 
 // Limite para embutir imagens no PDF — imagens maiores que isso são
 // redimensionadas antes. Sem isso, um PNG de alta resolução (ex.: logo
-// 4167px) entra inteiro no PDF e o laudo sai com dezenas de MB. 600px é
-// ~3x a maior exibição no laudo (foto ~210pt), suficiente para nitidez.
+// 4167px) entra inteiro no PDF e o relatório sai com dezenas de MB. 600px é
+// ~3x a maior exibição no relatório (foto ~210pt), suficiente para nitidez.
 const MAX_DIMENSAO_IMAGEM_PDF = 600
+// A logo aparece com 38pt de altura; 300px sobra.
+const MAX_DIMENSAO_LOGO_PDF = 300
+// Fotos sempre regravadas em JPEG com esta qualidade: com 40 ou 50 fotos o
+// arquivo precisa caber num WhatsApp ou e-mail.
+const QUALIDADE_FOTO_PDF = 0.72
 
-async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada | null> {
+interface OpcoesImagem {
+  maxDimensao?: number
+  /** Regrava toda foto em JPEG, mesmo as pequenas. */
+  sempreJpeg?: boolean
+}
+
+async function carregarImagemComoDataUrl(
+  url: string,
+  opcoes: OpcoesImagem = {},
+): Promise<ImagemCarregada | null> {
+  const limite = opcoes.maxDimensao || MAX_DIMENSAO_IMAGEM_PDF
   try {
     const resposta = await fetch(url)
     if (!resposta.ok) return null
@@ -134,7 +153,7 @@ async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada |
     // embutir no PDF — evita laudos com dezenas de MB. PNG continua PNG
     // (preserva transparência da logo); os demais viram JPEG.
     const maiorDimensao = Math.max(dimensoes.largura, dimensoes.altura)
-    if (maiorDimensao > MAX_DIMENSAO_IMAGEM_PDF) {
+    if (maiorDimensao > limite || opcoes.sempreJpeg) {
       try {
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
           const imagem = new Image()
@@ -142,17 +161,23 @@ async function carregarImagemComoDataUrl(url: string): Promise<ImagemCarregada |
           imagem.onerror = () => reject(new Error('Falha ao decodificar imagem'))
           imagem.src = dataUrl
         })
-        const escala = MAX_DIMENSAO_IMAGEM_PDF / maiorDimensao
+        const escala = Math.min(1, limite / maiorDimensao)
         const canvas = document.createElement('canvas')
         canvas.width = Math.round(dimensoes.largura * escala)
         canvas.height = Math.round(dimensoes.altura * escala)
         const ctx = canvas.getContext('2d')
         if (ctx) {
+          const tipoSaida =
+            blob.type === 'image/png' && !opcoes.sempreJpeg ? 'image/png' : 'image/jpeg'
+          if (tipoSaida === 'image/jpeg') {
+            // fundo branco: JPEG não tem transparência
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+          }
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-          const tipoSaida = blob.type === 'image/png' ? 'image/png' : 'image/jpeg'
           const redimensionado = canvas.toDataURL(
             tipoSaida,
-            tipoSaida === 'image/jpeg' ? 0.85 : undefined,
+            tipoSaida === 'image/jpeg' ? QUALIDADE_FOTO_PDF : undefined,
           )
           return { dataUrl: redimensionado, largura: canvas.width, altura: canvas.height }
         }
@@ -188,7 +213,8 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   )
   const faixaSecao = clarear(primaria, 0.85)
 
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  // compress: texto e imagens PNG comprimidos no arquivo.
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 40
@@ -205,11 +231,14 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.rect(0, 0, pageWidth, 8, 'F')
 
   // Cabeçalho: logo da organização + nome + título do documento
-  const logo = await carregarImagemComoDataUrl(dados.logoUrl || identidade?.logoUrl || '')
+  const logo = await carregarImagemComoDataUrl(dados.logoUrl || identidade?.logoUrl || '', {
+    maxDimensao: MAX_DIMENSAO_LOGO_PDF,
+  })
   if (logo) {
     const alturaLogo = 38
     const larguraLogo = alturaLogo * (logo.largura / logo.altura)
-    doc.addImage(logo.dataUrl, 'PNG', margin, y, larguraLogo, alturaLogo)
+    const formatoLogo = logo.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+    doc.addImage(logo.dataUrl, formatoLogo, margin, y, larguraLogo, alturaLogo, 'logo', 'FAST')
   }
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
@@ -235,8 +264,10 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   const nomeTipoJaTemReferencia =
     !!dados.tipoNrReferencia &&
     dados.tipoNome.trim().toLowerCase().startsWith(dados.tipoNrReferencia.trim().toLowerCase())
-  const titulo =
-    dados.tipoNrReferencia && !nomeTipoJaTemReferencia
+  const variosChecklists = (dados.checklists?.length || 0) > 1
+  const titulo = variosChecklists
+    ? `Vistoria com ${dados.checklists!.length} checklists`
+    : dados.tipoNrReferencia && !nomeTipoJaTemReferencia
       ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
       : dados.tipoNome || 'Relatório de Vistoria SST'
   const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
@@ -263,6 +294,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         dados.empresaNumeroEmpregados ? String(dados.empresaNumeroEmpregados) : 'não informado',
       ],
       ['Data da vistoria', dataVistoria],
+      ...(variosChecklists
+        ? [['Checklists', dados.checklists!.map((c) => c.nome).join('\n')]]
+        : []),
     ],
     margin: { left: margin, right: margin },
   })
@@ -358,10 +392,16 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     return tokenArquivos
   }
 
-  // Itens do checklist, agrupados por seção — só os itens respondidos entram no laudo
+  // Itens do checklist, agrupados por seção — só os itens respondidos entram no
+  // relatório. Com mais de um checklist, a seção diz de qual norma ou anexo é
+  // ("NR-12 · Anexo VIII · ..."), na ordem em que os checklists foram escolhidos.
+  const rotuloChecklist = new Map((dados.checklists || []).map((c) => [c.id, c.rotulo]))
   const grupos = new Map<string, ItemChecklist[]>()
   for (const item of dados.itens) {
-    const chave = item.secao || 'Disposições gerais'
+    const secao = item.secao || 'Disposições gerais'
+    const chave = variosChecklists
+      ? `${rotuloChecklist.get(item.tipo_vistoria_id) || 'Checklist'} · ${secao}`
+      : secao
     if (!grupos.has(chave)) grupos.set(chave, [])
     grupos.get(chave)!.push(item)
   }
@@ -374,14 +414,15 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       doc.addPage()
       y = margin
     }
-    doc.setFillColor(faixaSecao[0], faixaSecao[1], faixaSecao[2])
-    doc.rect(margin, y - 12, larguraUtil, 18, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
+    const linhasSecao: string[] = doc.splitTextToSize(secao.toUpperCase(), larguraUtil - 12)
+    doc.setFillColor(faixaSecao[0], faixaSecao[1], faixaSecao[2])
+    doc.rect(margin, y - 12, larguraUtil, 6 + linhasSecao.length * 13, 'F')
     doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
-    doc.text(secao.toUpperCase(), margin + 6, y)
+    doc.text(linhasSecao, margin + 6, y)
     doc.setTextColor(0, 0, 0)
-    y += 24
+    y += 11 + linhasSecao.length * 13
 
     for (const item of itensRespondidos) {
       const resposta = dados.respostas[item.id]
@@ -428,7 +469,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
       // Coluna esquerda: identificação do item + descrição + observação
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(9)
-      doc.text(`Item ${item.item_ref}`, margin, y)
+      doc.text(`Item ${rotuloItemRef(item.item_ref)}`, margin, y)
       y += 12
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
@@ -499,6 +540,7 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
         for (const filename of resposta.foto) {
           const imagem = await carregarImagemComoDataUrl(
             fotoUrl(resposta, filename, await tokenAtual()),
+            { sempreJpeg: true },
           )
           if (!imagem) continue
           const largura = Math.min(larguraMaxFoto, alturaFoto * (imagem.largura / imagem.altura))

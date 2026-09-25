@@ -4,7 +4,8 @@ import { toast } from 'sonner'
 import { CalendarClock, Pause, Play, Plus, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { toPocketBaseDate } from '@/lib/date'
+import { formatarDataCalendario, toPocketBaseDate } from '@/lib/date'
+import { ehTabelaDeMultas, nomeNormaCompleto } from '@/lib/normas'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getEmpresas, type Empresa } from '@/services/empresas'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
@@ -70,7 +71,7 @@ export default function RotinasPanel() {
       ])
       setRotinas(rotinasData)
       setEmpresas(empresasData)
-      setTipos(tiposData)
+      setTipos(tiposData.filter((t) => !ehTabelaDeMultas(t)))
     } catch (error) {
       toast.error('Não foi possível carregar as rotinas', { description: getErrorMessage(error) })
     }
@@ -142,7 +143,7 @@ export default function RotinasPanel() {
             <DialogHeader>
               <DialogTitle>Nova rotina recorrente</DialogTitle>
               <DialogDescription>
-                Escolha a empresa, o tipo de vistoria, a frequência e a data da próxima visita.
+                Escolha a empresa, o checklist, a frequência e a data da próxima visita.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -169,22 +170,18 @@ export default function RotinasPanel() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Tipo de vistoria</Label>
+                <Label>Checklist</Label>
                 <Select
                   value={form.tipo_vistoria_id || undefined}
                   onValueChange={(v) => setForm((f) => ({ ...f, tipo_vistoria_id: v }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
+                    <SelectValue placeholder="Selecione o checklist" />
                   </SelectTrigger>
                   <SelectContent>
                     {tipos.map((tipo) => (
                       <SelectItem key={tipo.id} value={tipo.id}>
-                        {tipo.nr_referencia && tipo.nome.startsWith(tipo.nr_referencia)
-                          ? tipo.nome
-                          : tipo.nr_referencia
-                            ? `${tipo.nr_referencia} — ${tipo.nome}`
-                            : tipo.nome}
+                        {nomeNormaCompleto(tipo)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -262,9 +259,7 @@ export default function RotinasPanel() {
                       : ''}
                     {rotina.expand?.tipo_vistoria_id?.nome || '—'} ·{' '}
                     {FREQUENCIA_LABEL[rotina.frequencia]} · próxima:{' '}
-                    {rotina.proxima_data
-                      ? new Date(rotina.proxima_data).toLocaleDateString('pt-BR')
-                      : '—'}
+                    {rotina.proxima_data ? formatarDataCalendario(rotina.proxima_data) : '—'}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

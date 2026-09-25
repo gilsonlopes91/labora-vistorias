@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ArrowRight, Calculator, ChevronRight, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { rotuloItemRef } from '@/lib/normas'
 import TabelaAnexoI from '@/components/TabelaAnexoI'
 import TextoNorma from '@/components/TextoNorma'
 
@@ -212,7 +213,7 @@ export default function CalculadoraPublica() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-bold text-primary">
-                        {it.item_ref}
+                        {rotuloItemRef(it.item_ref)}
                       </span>
                       {it.grau ? <Badge variant="secondary">I{it.grau}</Badge> : null}
                     </div>
@@ -266,7 +267,7 @@ export default function CalculadoraPublica() {
           ) : (
             <Card className="rounded-2xl border-none p-6 shadow-subtle">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">{resultado.item.item_ref}</span>
+                <span className="text-lg font-bold">{rotuloItemRef(resultado.item.item_ref)}</span>
                 {resultado.item.grau ? (
                   <Badge variant="destructive">Infração I{resultado.item.grau}</Badge>
                 ) : null}

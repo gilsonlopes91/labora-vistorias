@@ -2,6 +2,8 @@
 // vistoria. Usado ao finalizar, quando o técnico confirma que os itens que
 // sobraram não se aplicam àquele estabelecimento. Roda no servidor numa única
 // transação, em vez de centenas de chamadas do celular.
+// Com { itens: [ids] } no corpo, marca só esses itens (botão "marcar seção
+// como N/A"); itens que já têm resposta não são alterados.
 // Mesmas permissões de responder o checklist: organização da vistoria (ou
 // staff vinculado / admin) e, para executor, só a vistoria atribuída a ele.
 routerAdd(
@@ -61,6 +63,12 @@ routerAdd(
       if (tipos.indexOf(extras[i]) < 0) tipos.push(extras[i])
     }
 
+    const corpo = e.requestInfo().body || {}
+    const soItens =
+      Array.isArray(corpo.itens) && corpo.itens.length > 0
+        ? corpo.itens.map((x) => String(x))
+        : null
+
     let criados = 0
     let atualizados = 0
     $app.runInTransaction((txApp) => {
@@ -86,6 +94,7 @@ routerAdd(
           { t: tid },
         )
         for (const it of itens) {
+          if (soItens && soItens.indexOf(it.id) < 0) continue
           const r = porItem[it.id]
           if (r) {
             if (!r.getString('situacao')) {

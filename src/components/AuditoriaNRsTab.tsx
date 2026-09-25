@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { ListChecks, Lock, Search, Shapes } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { ehTabelaDeMultas, numeroNr, rotuloItemRef } from '@/lib/normas'
 import { getTiposVistoria, type TipoVistoria } from '@/services/tiposVistoria'
 import { getItensChecklistVigentes, type ItemChecklist } from '@/services/itensChecklist'
 import TextoNorma from '@/components/TextoNorma'
@@ -35,6 +36,8 @@ const compararItemRef = (a: ItemChecklist, b: ItemChecklist) =>
 
 export function AuditoriaNRsTab() {
   const [tipos, setTipos] = useState<TipoVistoria[]>([])
+  // Quantas NRs vigentes o catálogo cobre (inclui a NR-28, que não vira checklist).
+  const [qtdNrs, setQtdNrs] = useState(0)
   const [loading, setLoading] = useState(true)
   const [itensPorTipo, setItensPorTipo] = useState<Record<string, ItemChecklist[]>>({})
   const [carregandoItens, setCarregandoItens] = useState<Record<string, boolean>>({})
@@ -45,13 +48,10 @@ export function AuditoriaNRsTab() {
   const carregarTipos = () =>
     getTiposVistoria()
       .then((todos) => {
+        // Já vem na ordem das normas (corpo primeiro, anexos em ordem numérica).
         const globais = todos.filter((t) => !t.organizacao_id)
-        globais.sort((a, b) => {
-          const refA = a.nr_referencia || a.nome || ''
-          const refB = b.nr_referencia || b.nome || ''
-          return refA.localeCompare(refB, undefined, { numeric: true })
-        })
-        setTipos(globais)
+        setQtdNrs(new Set(globais.map(numeroNr).filter((n) => n !== 999)).size)
+        setTipos(globais.filter((t) => !ehTabelaDeMultas(t)))
       })
       .catch((error) =>
         toast.error('Não foi possível carregar os checklists', {
@@ -116,7 +116,7 @@ export function AuditoriaNRsTab() {
   }, [buscando, buscaNormalizada, tipos, itensPorTipo])
 
   const separarItemRef = (item: ItemChecklist) => {
-    const ref = item.item_ref || ''
+    const ref = rotuloItemRef(item.item_ref)
     const m = ref.match(/^(.*?\d)(\s*,.*|\s+alínea.*|\s+e\s+.*)$/)
     return {
       num: m ? m[1] : ref,
@@ -125,15 +125,6 @@ export function AuditoriaNRsTab() {
   }
 
   const valorAccordion = buscando ? tiposComMatch || [] : abertosManual
-
-  // Conta as NRs distintas do catálogo (a NR-02 e a NR-27 foram revogadas, então
-  // o maior número, 38, não é a quantidade de normas).
-  const qtdNrs = new Set(
-    tipos
-      .map((t) => (t.nr_referencia || t.nome || '').match(/NR-(\d+)/i)?.[1])
-      .filter((n): n is string => !!n)
-      .map((n) => Number(n)),
-  ).size
 
   return (
     <div className="space-y-4">
@@ -150,6 +141,10 @@ export function AuditoriaNRsTab() {
             Catálogo com todas as Normas Regulamentadoras brasileiras vigentes, mantido pela Labora.
             Para criar seus próprios checklists e fichas de campo, use a aba{' '}
             <span className="font-medium">Formulários</span>.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A NR-28 não aparece como checklist: ela é a norma da fiscalização e das multas, e a
+            tabela dela é usada no cálculo de cada item.
           </p>
         </div>
         {usuarioAdmin && <ImportarChecklistCsvDialog tipos={tipos} onImportado={handleImportado} />}

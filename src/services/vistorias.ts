@@ -107,9 +107,10 @@ export const reabrirVistoria = (id: string, motivo: string) =>
     { method: 'POST', body: JSON.stringify({ motivo }) },
   )
 
-/** Marca como N/A todos os itens ainda sem resposta da vistoria. */
-export const marcarPendentesComoNA = (id: string) =>
+/** Marca como N/A os itens ainda sem resposta da vistoria (todos, ou só os
+ *  itens informados, no caso de "marcar seção como N/A"). */
+export const marcarPendentesComoNA = (id: string, itens?: string[]) =>
   pb.send<{ ok: boolean; criados: number; atualizados: number }>(
     `/backend/v1/vistorias/${id}/marcar-na`,
-    { method: 'POST' },
+    { method: 'POST', body: JSON.stringify(itens && itens.length ? { itens } : {}) },
   )

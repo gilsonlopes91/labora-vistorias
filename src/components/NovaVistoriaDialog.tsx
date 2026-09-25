@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { ChevronDown, Plus, Sparkles, X } from 'lucide-react'
 
 import { toPocketBaseDate } from '@/lib/date'
+import { ehTabelaDeMultas, nomeNormaCompleto, rotuloCurtoNorma } from '@/lib/normas'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getEmpresas, type Empresa } from '@/services/empresas'
@@ -148,15 +149,8 @@ export default function NovaVistoriaDialog({
         }),
       )
     getTiposVistoria()
-      .then((items) => {
-        // Ordena por número de NR (ex.: NR-01, NR-02, ..., NR-38)
-        const ordenados = [...items].sort((a, b) => {
-          const refA = a.nr_referencia || a.nome || ''
-          const refB = b.nr_referencia || b.nome || ''
-          return refA.localeCompare(refB, undefined, { numeric: true })
-        })
-        setTipos(ordenados)
-      })
+      // Já vem na ordem das normas; a NR-28 (tabela de multas) não é checklist.
+      .then((items) => setTipos(items.filter((t) => !ehTabelaDeMultas(t))))
       .catch((error) =>
         toast.error('Não foi possível carregar os tipos de vistoria', {
           description: getErrorMessage(error),
@@ -346,7 +340,7 @@ export default function NovaVistoriaDialog({
                     const t = tipos.find((x) => x.id === id)
                     return (
                       <Badge key={id} variant="secondary" className="gap-1 pr-1">
-                        {t?.nr_referencia || t?.nome || id}
+                        {t ? rotuloCurtoNorma(t) : id}
                         {contagens[id] !== undefined && (
                           <span className="font-normal text-muted-foreground">
                             · {contagens[id]} itens
@@ -356,7 +350,7 @@ export default function NovaVistoriaDialog({
                           type="button"
                           onClick={() => toggleNr(id)}
                           className="ml-1 rounded-full p-0.5 hover:bg-accent"
-                          aria-label={`Remover ${t?.nr_referencia || id}`}
+                          aria-label={`Remover ${t ? rotuloCurtoNorma(t) : id}`}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -374,11 +368,7 @@ export default function NovaVistoriaDialog({
                     .filter((t) => !checklistsSel.includes(t.id))
                     .map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.nr_referencia && t.nome.startsWith(t.nr_referencia)
-                          ? t.nome
-                          : t.nr_referencia
-                            ? `${t.nr_referencia} — ${t.nome}`
-                            : t.nome}
+                        {nomeNormaCompleto(t)}
                       </SelectItem>
                     ))}
                 </SelectContent>
