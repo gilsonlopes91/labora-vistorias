@@ -4,16 +4,18 @@
    sempre mostra PDF dentro da página. Se o pdf.js não carregar, usa o
    visualizador do próprio navegador. */
 import { useEffect, useRef, useState } from 'react'
-import { Download } from 'lucide-react'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { Download, X } from 'lucide-react'
 
 import { carregarPdfJs } from '@/lib/leitorPdf'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
 } from '@/components/ui/dialog'
 
@@ -103,46 +105,54 @@ export default function VisualizadorPdf({
 
   return (
     <Dialog open={!!pdf} onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent className="flex h-[92vh] max-w-4xl flex-col gap-3 p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
-          <DialogDescription>
-            {descricao ||
-              (total
-                ? `${total} ${total === 1 ? 'página' : 'páginas'}`
-                : 'Montando a visualização...')}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-md bg-muted/50 p-2 sm:p-4">
-          {estado === 'carregando' && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Montando a visualização...
-            </p>
-          )}
-          {estado === 'reserva' && urlReserva && (
-            <iframe
-              title={titulo}
-              src={urlReserva}
-              className="h-full min-h-[60vh] w-full rounded-md"
+      {/* Camada acima das outras janelas: a prévia pode abrir por cima da
+          edição do modelo. */}
+      <DialogPortal>
+        <DialogOverlay className="z-[60]" />
+        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[60] flex h-[92vh] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border bg-background p-4 shadow-lg sm:p-6">
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Fechar</span>
+          </DialogPrimitive.Close>
+          <DialogHeader>
+            <DialogTitle>{titulo}</DialogTitle>
+            <DialogDescription>
+              {[descricao, total ? `${total} ${total === 1 ? 'página' : 'páginas'}.` : '']
+                .filter(Boolean)
+                .join(' ') || 'Montando a visualização...'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-md bg-muted/50 p-2 sm:p-4">
+            {estado === 'carregando' && (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Montando a visualização...
+              </p>
+            )}
+            {estado === 'reserva' && urlReserva && (
+              <iframe
+                title={titulo}
+                src={urlReserva}
+                className="h-full min-h-[60vh] w-full rounded-md"
+              />
+            )}
+            <div
+              ref={paginasRef}
+              className={estado === 'reserva' ? 'hidden' : 'mx-auto max-w-3xl space-y-3'}
             />
-          )}
-          <div
-            ref={paginasRef}
-            className={estado === 'reserva' ? 'hidden' : 'mx-auto max-w-3xl space-y-3'}
-          />
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={onFechar}>
-            Fechar
-          </Button>
-          {pdf && (
-            <Button onClick={() => baixarPdf(pdf)}>
-              <Download className="mr-2 h-4 w-4" />
-              Baixar PDF
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={onFechar}>
+              Fechar
             </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
+            {pdf && (
+              <Button onClick={() => baixarPdf(pdf)}>
+                <Download className="mr-2 h-4 w-4" />
+                Baixar PDF
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogPrimitive.Content>
+      </DialogPortal>
     </Dialog>
   )
 }
