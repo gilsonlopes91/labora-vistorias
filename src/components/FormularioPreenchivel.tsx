@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { Camera, Check, PenTool, Plus, Save, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { calcularTecnico, type ResultadoTecnico } from '@/lib/higieneOcupacional'
+import ResultadoTecnicoView, { resumoCalculosTecnicos } from '@/components/ResultadoTecnico'
 import type { CampoFormulario, ModeloFormulario } from '@/services/formularios'
 import {
   createFormulario,
@@ -151,12 +151,7 @@ export default function FormularioPreenchivel({
     try {
       // Resultado dos cálculos técnicos (calor, ruído) vai junto, em texto,
       // para aparecer em qualquer lugar que leia o registro.
-      const dadosFinal: Record<string, unknown> = { ...dados }
-      for (const campo of campos) {
-        if (campo.tipo !== 'calculo_tecnico') continue
-        const r = calcularTecnico(campo, dados)
-        dadosFinal[campo.id] = r && !r.faltando.length ? r.resumo : ''
-      }
+      const dadosFinal = resumoCalculosTecnicos(campos, dados)
       let registro: Formulario
       if (registroExistente) {
         registro = await updateFormulario(registroExistente.id, { dados: dadosFinal, status })
@@ -424,13 +419,7 @@ export default function FormularioPreenchivel({
           </div>
         )
       case 'calculo_tecnico':
-        return (
-          <ResultadoTecnicoView
-            key={campo.id}
-            nome={campo.nome}
-            resultado={calcularTecnico(campo, dados)}
-          />
-        )
+        return <ResultadoTecnicoView key={campo.id} campo={campo} dados={dados} />
       case 'repetivel': {
         const instancias = normalizarInstancias(valor)
         const total = repetiveis[campo.id] ?? instancias.length ?? 0
@@ -582,57 +571,6 @@ export default function FormularioPreenchivel({
       <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
         {campos.map(renderCampo)}
       </Card>
-    </div>
-  )
-}
-
-// Resultado de cálculo técnico (calor, ruído): tabela de valores, conclusão
-// e observações. Recalcula a cada mudança dos campos de origem.
-function ResultadoTecnicoView({
-  nome,
-  resultado,
-}: {
-  nome: string
-  resultado: ResultadoTecnico | null
-}) {
-  return (
-    <div className="space-y-2 rounded-xl border p-4">
-      <p className="text-sm font-semibold">{nome} (automático)</p>
-      {!resultado ? (
-        <p className="text-sm text-muted-foreground">Cálculo não configurado.</p>
-      ) : resultado.faltando.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Para calcular, falta: {resultado.faltando.join('; ')}.
-        </p>
-      ) : (
-        <>
-          <dl className="divide-y text-sm">
-            {resultado.linhas.map(([rotulo, v]) => (
-              <div key={rotulo} className="flex justify-between gap-4 py-1.5">
-                <dt className="text-muted-foreground">{rotulo}</dt>
-                <dd className="text-right font-medium">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="space-y-1 pt-1">
-            {resultado.conclusoes.map((c) => (
-              <p
-                key={c.texto}
-                className={
-                  c.acima ? 'text-sm font-semibold text-destructive' : 'text-sm font-medium'
-                }
-              >
-                {c.texto}
-              </p>
-            ))}
-          </div>
-          {resultado.avisos.map((a) => (
-            <p key={a} className="text-xs text-muted-foreground">
-              Observação: {a}
-            </p>
-          ))}
-        </>
-      )}
     </div>
   )
 }

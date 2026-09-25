@@ -17,6 +17,7 @@ import {
   type ModeloFormulario,
 } from '@/services/formularios'
 import { createFormulario, updateFormulario, enviarAnexos } from '@/services/registrosFormulario'
+import ResultadoTecnicoView, { resumoCalculosTecnicos } from '@/components/ResultadoTecnico'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -272,7 +273,8 @@ export default function PreencherFormulario() {
         organizacao_id: org.id,
         modelo_formulario_id: modelo.id,
         empresa_id: empresaId || undefined,
-        dados,
+        // resultado dos cálculos técnicos (calor, ruído) vai junto, em texto
+        dados: resumoCalculosTecnicos(modelo.campos, dados),
         status,
         data_campo: new Date().toISOString(),
         client_uuid: crypto.randomUUID(),
@@ -555,6 +557,9 @@ export default function PreencherFormulario() {
             </div>
           </div>
         )
+
+      case 'calculo_tecnico':
+        return <ResultadoTecnicoView key={campo.id} campo={campo} dados={dados} />
 
       case 'repetivel': {
         const instancias = normalizarInstancias(valor)
