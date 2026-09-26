@@ -1,6 +1,7 @@
 /* Perfil da empresa: tudo que foi feito nela em um lugar só.
    Cabeçalho com os dados cadastrais, um resumo com os números daquela empresa,
-   e as abas de vistorias e orçamentos já filtradas. */
+   e as abas de vistorias, orçamentos e SST (documentação: estrutura, inventário
+   de riscos e plano de ação) já filtradas. */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -28,6 +29,9 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { getVistorias, type Vistoria } from '@/services/vistorias'
 import { calcularIndicadores, getOrcamentos, type Orcamento } from '@/services/orcamentos'
 import { OrcamentosTab } from '@/components/OrcamentosTab'
+import { EstruturaSstTab } from '@/components/EstruturaSstTab'
+import { InventarioRiscosTab } from '@/components/InventarioRiscosTab'
+import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -251,6 +255,9 @@ export default function EmpresaDetalhe() {
         <TabsList>
           <TabsTrigger value="vistorias">Vistorias ({vistorias.length})</TabsTrigger>
           <TabsTrigger value="orcamentos">Orçamentos ({orcamentos.length})</TabsTrigger>
+          <TabsTrigger value="estrutura-sst">Estrutura SST</TabsTrigger>
+          <TabsTrigger value="inventario-riscos">Inventário de riscos</TabsTrigger>
+          <TabsTrigger value="plano-acao">Plano de ação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vistorias" className="mt-0 focus-visible:outline-none">
@@ -311,6 +318,18 @@ export default function EmpresaDetalhe() {
             titulo="Orçamentos desta empresa"
             descricao="Propostas emitidas para este cliente, com os números restritos a ele."
           />
+        </TabsContent>
+
+        <TabsContent value="estrutura-sst" className="mt-0 focus-visible:outline-none">
+          {id && <EstruturaSstTab empresaId={id} />}
+        </TabsContent>
+
+        <TabsContent value="inventario-riscos" className="mt-0 focus-visible:outline-none">
+          {id && <InventarioRiscosTab empresaId={id} />}
+        </TabsContent>
+
+        <TabsContent value="plano-acao" className="mt-0 focus-visible:outline-none">
+          {id && <PlanoAcaoTab empresaId={id} />}
         </TabsContent>
       </Tabs>
     </div>
