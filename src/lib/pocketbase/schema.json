@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T20:08:08.682Z",
+  "generatedAt": "2026-09-26T13:56:08.149Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "papel",
@@ -124,14 +129,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -165,14 +175,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "logo",
@@ -192,7 +207,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["ativa", "trial", "bloqueada"]
+          "selectValues": [
+            "ativa",
+            "trial",
+            "bloqueada"
+          ]
         },
         {
           "name": "modulos",
@@ -219,7 +238,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_organizacoes_dono ON organizacoes (dono_id)"]
+      "indexes": [
+        "CREATE INDEX idx_organizacoes_dono ON organizacoes (dono_id)"
+      ]
     },
     {
       "name": "empresas",
@@ -262,7 +283,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["MEI", "ME", "EPP", "Demais / Não se enquadra"]
+          "selectValues": [
+            "MEI",
+            "ME",
+            "EPP",
+            "Demais / Não se enquadra"
+          ]
         },
         {
           "name": "grau_risco",
@@ -305,14 +331,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "cnae",
@@ -369,7 +400,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_empresas_organizacao ON empresas (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_empresas_organizacao ON empresas (organizacao_id)"
+      ]
     },
     {
       "name": "tipos_vistoria",
@@ -418,21 +451,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "regime_multa",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["anexo_i", "anexo_ia_portuario", "rural_art18"]
+          "selectValues": [
+            "anexo_i",
+            "anexo_ia_portuario",
+            "rural_art18"
+          ]
         },
         {
           "name": "secao_oficial",
@@ -459,7 +501,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_tipos_vistoria_organizacao ON tipos_vistoria (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_tipos_vistoria_organizacao ON tipos_vistoria (organizacao_id)"
+      ]
     },
     {
       "name": "itens_checklist",
@@ -514,7 +558,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["S", "M"]
+          "selectValues": [
+            "S",
+            "M"
+          ]
         },
         {
           "name": "descricao",
@@ -533,14 +580,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "revogado",
@@ -615,7 +667,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["agendada", "em_andamento", "concluida", "cancelada"]
+          "selectValues": [
+            "agendada",
+            "em_andamento",
+            "concluida",
+            "cancelada"
+          ]
         },
         {
           "name": "observacoes_gerais",
@@ -634,14 +691,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "fotos_georreferenciadas",
@@ -687,7 +749,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["lei_380", "portaria_392"]
+          "selectValues": [
+            "lei_380",
+            "portaria_392"
+          ]
         },
         {
           "name": "hora_inicio",
@@ -818,7 +883,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["C", "N/C", "N/A"]
+          "selectValues": [
+            "C",
+            "N/C",
+            "N/A"
+          ]
         },
         {
           "name": "observacao",
@@ -861,14 +930,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "localizacao",
@@ -981,7 +1055,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["S", "M"]
+          "selectValues": [
+            "S",
+            "M"
+          ]
         },
         {
           "name": "valor_min_ufir",
@@ -1000,14 +1077,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1048,17 +1130,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_parametros_chave ON parametros_sistema (chave)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_parametros_chave ON parametros_sistema (chave)"
+      ]
     },
     {
       "name": "responsaveis_tecnicos",
@@ -1089,7 +1178,16 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["CREA", "CRM", "CRQ", "CRBio", "CRP", "COREN", "MTE", "Outro"]
+          "selectValues": [
+            "CREA",
+            "CRM",
+            "CRQ",
+            "CRBio",
+            "CRP",
+            "COREN",
+            "MTE",
+            "Outro"
+          ]
         },
         {
           "name": "numero_registro",
@@ -1114,14 +1212,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "usuario_id",
@@ -1178,7 +1281,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["semanal", "mensal", "bimestral", "trimestral", "semestral", "anual"]
+          "selectValues": [
+            "semanal",
+            "mensal",
+            "bimestral",
+            "trimestral",
+            "semestral",
+            "anual"
+          ]
         },
         {
           "name": "ativo",
@@ -1204,14 +1314,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "checklists",
@@ -1311,17 +1426,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_modelos_formulario_org ON modelos_formulario (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_modelos_formulario_org ON modelos_formulario (organizacao_id)"
+      ]
     },
     {
       "name": "formularios",
@@ -1372,7 +1494,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["rascunho", "concluido"]
+          "selectValues": [
+            "rascunho",
+            "concluido"
+          ]
         },
         {
           "name": "data_campo",
@@ -1398,14 +1523,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "vistoria_id",
@@ -1456,17 +1586,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_conteudo_chave ON conteudo_site (chave)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_conteudo_chave ON conteudo_site (chave)"
+      ]
     },
     {
       "name": "artigos",
@@ -1514,7 +1651,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["rascunho", "publicado"]
+          "selectValues": [
+            "rascunho",
+            "publicado"
+          ]
         },
         {
           "name": "autor_id",
@@ -1528,14 +1668,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "autor_blog_id",
@@ -1545,7 +1690,9 @@
           "collectionRef": "blog_autores"
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_artigos_slug ON artigos (slug)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_artigos_slug ON artigos (slug)"
+      ]
     },
     {
       "name": "tabela_multas_portuario",
@@ -1591,7 +1738,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["S", "M"]
+          "selectValues": [
+            "S",
+            "M"
+          ]
         },
         {
           "name": "valor_min_reais",
@@ -1610,14 +1760,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1660,7 +1815,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["servico", "treinamento"]
+          "selectValues": [
+            "servico",
+            "treinamento"
+          ]
         },
         {
           "name": "titulo",
@@ -1788,14 +1946,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "status_financeiro",
@@ -2007,7 +2170,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["previsto", "recebido", "atrasado", "cancelado"]
+          "selectValues": [
+            "previsto",
+            "recebido",
+            "atrasado",
+            "cancelado"
+          ]
         },
         {
           "name": "comprovante",
@@ -2020,14 +2188,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2063,7 +2236,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["classico", "moderno", "minimalista", "labora"]
+          "selectValues": [
+            "classico",
+            "moderno",
+            "minimalista",
+            "labora"
+          ]
         },
         {
           "name": "cor_primaria",
@@ -2124,14 +2302,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "itens_inclusos_padrao",
@@ -2182,7 +2365,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_modelos_proposta_org ON modelos_proposta (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_modelos_proposta_org ON modelos_proposta (organizacao_id)"
+      ]
     },
     {
       "name": "normas_referencia",
@@ -2219,17 +2404,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_normas_referencia_org ON normas_referencia (organizacao_id)"]
+      "indexes": [
+        "CREATE INDEX idx_normas_referencia_org ON normas_referencia (organizacao_id)"
+      ]
     },
     {
       "name": "lista_espera",
@@ -2265,14 +2457,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "termos_versao",
@@ -2287,7 +2484,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_lista_espera_email ON lista_espera (email)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_lista_espera_email ON lista_espera (email)"
+      ]
     },
     {
       "name": "manual_imagens",
@@ -2317,14 +2516,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -2387,7 +2591,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["em_dia", "mudou", "erro"]
+          "selectValues": [
+            "em_dia",
+            "mudou",
+            "erro"
+          ]
         },
         {
           "name": "mudancas",
@@ -2424,17 +2632,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_normas_monitor_nr ON normas_monitor (nr)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_normas_monitor_nr ON normas_monitor (nr)"
+      ]
     },
     {
       "name": "blog_autores",
@@ -2470,17 +2685,1740 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_blog_autores_nome ON blog_autores (nome)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_blog_autores_nome ON blog_autores (nome)"
+      ]
+    },
+    {
+      "name": "setores",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao_processo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "local",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Próprio (dependências do empregador)",
+            "Terceiros"
+          ]
+        },
+        {
+          "name": "area_m2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pe_direito_m",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cobertura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "piso",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "paredes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "iluminacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ventilacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_setores_organizacao ON setores (organizacao_id)",
+        "CREATE INDEX idx_setores_empresa ON setores (empresa_id)"
+      ]
+    },
+    {
+      "name": "ghes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "setor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "setores"
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao_atividades",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criterio_agrupamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "jornada_trabalho",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "turno",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_expostos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ghes_organizacao ON ghes (organizacao_id)",
+        "CREATE INDEX idx_ghes_empresa ON ghes (empresa_id)"
+      ]
+    },
+    {
+      "name": "funcoes_sst",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "ghe_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "ghes"
+        },
+        {
+          "name": "setor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "setores"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cbo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao_atividades",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_empregados",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_funcoes_sst_organizacao ON funcoes_sst (organizacao_id)",
+        "CREATE INDEX idx_funcoes_sst_empresa ON funcoes_sst (empresa_id)",
+        "CREATE INDEX idx_funcoes_sst_ghe ON funcoes_sst (ghe_id)"
+      ]
+    },
+    {
+      "name": "agentes_catalogo",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Físico",
+            "Químico",
+            "Biológico",
+            "Ergonômico",
+            "Acidente",
+            "Psicossocial"
+          ]
+        },
+        {
+          "name": "cas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sinonimos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "codigo_esocial",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "codigo_anexo_iv",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anos_aposentadoria_especial",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "15",
+            "20",
+            "25"
+          ]
+        },
+        {
+          "name": "grupo_linach",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_nr15",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_avaliacao_nr15",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Quantitativa",
+            "Qualitativa",
+            "Não se aplica"
+          ]
+        },
+        {
+          "name": "grau_insalubridade_nr15",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Não caracteriza",
+            "Mínimo (10%)",
+            "Médio (20%)",
+            "Máximo (40%)"
+          ]
+        },
+        {
+          "name": "limite_tolerancia_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "limite_tolerancia_unidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_teto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fator_desvio",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "via_absorcao_pele",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nivel_acao_formula",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tlv_acgih_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tlv_acgih_unidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tlv_acgih_ano",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_nr16",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "item_nr16",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fonte_geradora_tipica",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "meio_propagacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "danos_saude_tipicos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "efeito_saude_aiha",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        {
+          "name": "medidas_controle_tipicas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_agentes_catalogo_organizacao ON agentes_catalogo (organizacao_id)",
+        "CREATE INDEX idx_agentes_catalogo_tipo ON agentes_catalogo (tipo)",
+        "CREATE INDEX idx_agentes_catalogo_esocial ON agentes_catalogo (codigo_esocial)"
+      ]
+    },
+    {
+      "name": "matrizes_risco",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "metodologia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dimensao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "3",
+            "5"
+          ]
+        },
+        {
+          "name": "criterios_probabilidade",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "criterios_severidade",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "categorias",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "celulas",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "somente_leitura",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_matrizes_risco_organizacao ON matrizes_risco (organizacao_id)"
+      ]
+    },
+    {
+      "name": "avaliacoes_risco",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "ghe_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "ghes"
+        },
+        {
+          "name": "agente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "agentes_catalogo"
+        },
+        {
+          "name": "perigo_descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fonte_geradora",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atividades_relacionadas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "meio_propagacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "via_absorcao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frequencia_exposicao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Habitual e permanente",
+            "Habitual e intermitente",
+            "Eventual/ocasional",
+            "Não se aplica"
+          ]
+        },
+        {
+          "name": "tempo_exposicao_min_jornada",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_expostos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "danos_possiveis",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "efeito_saude_aiha",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        {
+          "name": "trilha_probabilidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Quantitativa (medição)",
+            "Qualitativa (controle)",
+            "Acidente/mecânico",
+            "Ergonômica (AEP/AET)",
+            "Psicossocial"
+          ]
+        },
+        {
+          "name": "controle_descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "controle_nivel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Excelente / melhor prática",
+            "Conforme, com manutenção garantida",
+            "Adequado, com pequenas deficiências",
+            "Deficiente ou incompleto",
+            "Inexistente ou inadequado"
+          ]
+        },
+        {
+          "name": "resultado_aep_aet",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Baixo",
+            "Médio",
+            "Alto",
+            "Não avaliado"
+          ]
+        },
+        {
+          "name": "observacoes_aep_aet",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria_aiha_exposicao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        {
+          "name": "incerteza",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        {
+          "name": "epc_lista",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epc_eficaz",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epc_plano_manutencao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "medidas_administrativas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epis_utilizados",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epi_condicao_funcionamento",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epi_uso_ininterrupto",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epi_validade_ca_ok",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epi_periodicidade_troca_ok",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "epi_higienizacao_ok",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "probabilidade_sugerida",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "probabilidade_final",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "severidade_sugerida",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "severidade_final",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa_ajuste",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "insalubridade_sugerida",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Não caracteriza",
+            "Mínimo (10%)",
+            "Médio (20%)",
+            "Máximo (40%)"
+          ]
+        },
+        {
+          "name": "insalubridade_final",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Não caracteriza",
+            "Mínimo (10%)",
+            "Médio (20%)",
+            "Máximo (40%)"
+          ]
+        },
+        {
+          "name": "insalubridade_justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periculosidade_sugerida",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periculosidade_final",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periculosidade_anexo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periculosidade_justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ltcat_enquadra_sugerido",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Não",
+            "Sim - 15 anos",
+            "Sim - 20 anos",
+            "Sim - 25 anos"
+          ]
+        },
+        {
+          "name": "ltcat_enquadra_final",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Não",
+            "Sim - 15 anos",
+            "Sim - 20 anos",
+            "Sim - 25 anos"
+          ]
+        },
+        {
+          "name": "ltcat_justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Manual",
+            "Formulário de campo",
+            "Item N/C de vistoria"
+          ]
+        },
+        {
+          "name": "formulario_origem_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "formularios"
+        },
+        {
+          "name": "resposta_vistoria_origem_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "respostas_vistoria"
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_avaliacoes_risco_organizacao ON avaliacoes_risco (organizacao_id)",
+        "CREATE INDEX idx_avaliacoes_risco_ghe ON avaliacoes_risco (ghe_id)",
+        "CREATE INDEX idx_avaliacoes_risco_agente ON avaliacoes_risco (agente_id)"
+      ]
+    },
+    {
+      "name": "medicoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "avaliacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "avaliacoes_risco"
+        },
+        {
+          "name": "formulario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "formularios"
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "trabalhador_ou_ponto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "funcao_avaliada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metodologia",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "NHO 01 (ruído)",
+            "NHO 02 (vapores orgânicos)",
+            "NHO 03 (gravimetria)",
+            "NHO 04 (fibras)",
+            "NHO 06 (calor)",
+            "NHO 08 (coleta de particulado)",
+            "NHO 09 (vibração corpo inteiro)",
+            "NHO 10 (vibração mãos e braços)",
+            "NR-15 (critério trabalhista)",
+            "Outra"
+          ]
+        },
+        {
+          "name": "equipamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_serie",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "certificado_calibracao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "calibracao_validade",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "calibracao_leitura_inicial",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "calibracao_leitura_final",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tempo_amostragem_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "jornada_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado_valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado_unidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ruido_dose_nr15_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ruido_nen_nr15_dba",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ruido_nen_nho01_dba",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "laudo_laboratorio",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_medicoes_organizacao ON medicoes (organizacao_id)",
+        "CREATE INDEX idx_medicoes_avaliacao ON medicoes (avaliacao_id)"
+      ]
+    },
+    {
+      "name": "acoes_plano",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "avaliacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "avaliacoes_risco"
+        },
+        {
+          "name": "resposta_vistoria_origem_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "respostas_vistoria"
+        },
+        {
+          "name": "medida",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nivel_hierarquia",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Eliminação",
+            "Substituição",
+            "Engenharia",
+            "Administrativa",
+            "EPI"
+          ]
+        },
+        {
+          "name": "responsavel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "forma_acompanhamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "forma_afericao_resultado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Pendente",
+            "Em andamento",
+            "Concluída",
+            "Cancelada"
+          ]
+        },
+        {
+          "name": "prioridade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Trivial",
+            "Tolerável",
+            "Moderado",
+            "Substancial",
+            "Intolerável"
+          ]
+        },
+        {
+          "name": "numero_expostos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Sugerida",
+            "Manual",
+            "Vistoria"
+          ]
+        },
+        {
+          "name": "data_conclusao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidencia",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_estimado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_acoes_plano_organizacao ON acoes_plano (organizacao_id)",
+        "CREATE INDEX idx_acoes_plano_empresa ON acoes_plano (empresa_id)",
+        "CREATE INDEX idx_acoes_plano_avaliacao ON acoes_plano (avaliacao_id)"
+      ]
+    },
+    {
+      "name": "blocos_texto",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && (organizacao_id = '' || organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) && @request.auth.papel != 'executor') || @request.auth.papel = 'admin_plataforma')"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "tipo_documento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "pgr",
+            "insalubridade",
+            "periculosidade",
+            "ltcat",
+            "geral"
+          ]
+        },
+        {
+          "name": "secao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "objetivo",
+            "base_legal",
+            "metodologia",
+            "agente",
+            "conclusao",
+            "recomendacoes",
+            "outro"
+          ]
+        },
+        {
+          "name": "agente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "agentes_catalogo"
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "norma_referencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_blocos_texto_organizacao ON blocos_texto (organizacao_id)",
+        "CREATE INDEX idx_blocos_texto_tipo ON blocos_texto (tipo_documento)",
+        "CREATE INDEX idx_blocos_texto_agente ON blocos_texto (agente_id)"
+      ]
+    },
+    {
+      "name": "documentos_sst",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "pgr",
+            "ltcat",
+            "insalubridade",
+            "periculosidade"
+          ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "em_revisao",
+            "emitido",
+            "substituido"
+          ]
+        },
+        {
+          "name": "motivo_revisao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "matriz_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "matrizes_risco"
+        },
+        {
+          "name": "matriz_snapshot",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsaveis_tecnicos_ids",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "responsaveis_tecnicos"
+        },
+        {
+          "name": "elaboradores",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_avaliacao_campo",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_emissao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vigencia_ate",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proxima_revisao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "secoes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "abrangencia_ghe_ids",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pdf",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pdf_hash_sha256",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_emissao",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "emitido_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "link_publico_chave",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_publico_ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "documento_anterior_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "documentos_sst"
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_documentos_sst_organizacao ON documentos_sst (organizacao_id)",
+        "CREATE INDEX idx_documentos_sst_empresa ON documentos_sst (empresa_id)",
+        "CREATE INDEX idx_documentos_sst_tipo ON documentos_sst (tipo)",
+        "CREATE UNIQUE INDEX idx_documentos_sst_link_publico ON documentos_sst (link_publico_chave)"
+      ]
     }
   ]
 }

@@ -64,7 +64,7 @@ migrate(
           maxSelect: 1,
         },
         { name: 'limite_tolerancia_valor', type: 'number' },
-        { name: 'limite_tolerancia_unidade', type: 'text', max: 30 },
+        { name: 'limite_tolerancia_unidade', type: 'text', max: 120 },
         { name: 'valor_teto', type: 'number' },
         { name: 'fator_desvio', type: 'number' },
         { name: 'via_absorcao_pele', type: 'bool' },
