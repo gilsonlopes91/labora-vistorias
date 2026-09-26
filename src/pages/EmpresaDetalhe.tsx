@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   DollarSign,
+  FileBadge,
   Mail,
   MapPin,
   Pencil,
@@ -29,9 +30,6 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { getVistorias, type Vistoria } from '@/services/vistorias'
 import { calcularIndicadores, getOrcamentos, type Orcamento } from '@/services/orcamentos'
 import { OrcamentosTab } from '@/components/OrcamentosTab'
-import { EstruturaSstTab } from '@/components/EstruturaSstTab'
-import { InventarioRiscosTab } from '@/components/InventarioRiscosTab'
-import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -154,7 +152,6 @@ export default function EmpresaDetalhe() {
         <ArrowLeft className="h-4 w-4" />
         Voltar para empresas
       </Link>
-
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">{empresa.razao_social}</h1>
@@ -195,9 +192,15 @@ export default function EmpresaDetalhe() {
               Agendar vistoria
             </Link>
           </Button>
+          <Button asChild>
+            <Link to={`/documentacao?aba=levantamento&empresa=${empresa.id}`}>
+              <FileBadge className="mr-2 h-4 w-4" />
+              Documentação SST
+            </Link>
+          </Button>
         </div>
       </div>
-
+      =======
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         <Numero
           rotulo="Vistorias"
@@ -250,14 +253,10 @@ export default function EmpresaDetalhe() {
           cor="bg-emerald-500"
         />
       </div>
-
       <Tabs defaultValue="vistorias" className="space-y-6">
         <TabsList>
           <TabsTrigger value="vistorias">Vistorias ({vistorias.length})</TabsTrigger>
           <TabsTrigger value="orcamentos">Orçamentos ({orcamentos.length})</TabsTrigger>
-          <TabsTrigger value="estrutura-sst">Estrutura SST</TabsTrigger>
-          <TabsTrigger value="inventario-riscos">Inventário de riscos</TabsTrigger>
-          <TabsTrigger value="plano-acao">Plano de ação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vistorias" className="mt-0 focus-visible:outline-none">
@@ -318,18 +317,6 @@ export default function EmpresaDetalhe() {
             titulo="Orçamentos desta empresa"
             descricao="Propostas emitidas para este cliente, com os números restritos a ele."
           />
-        </TabsContent>
-
-        <TabsContent value="estrutura-sst" className="mt-0 focus-visible:outline-none">
-          {id && <EstruturaSstTab empresaId={id} />}
-        </TabsContent>
-
-        <TabsContent value="inventario-riscos" className="mt-0 focus-visible:outline-none">
-          {id && <InventarioRiscosTab empresaId={id} />}
-        </TabsContent>
-
-        <TabsContent value="plano-acao" className="mt-0 focus-visible:outline-none">
-          {id && <PlanoAcaoTab empresaId={id} />}
         </TabsContent>
       </Tabs>
     </div>
