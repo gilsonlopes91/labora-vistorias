@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { AlertTriangle, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
 import { getGhes, type Ghe } from '@/services/ghes'
 import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
@@ -22,12 +23,21 @@ import {
   type TrilhaProbabilidade,
 } from '@/services/avaliacoesRisco'
 import {
+  createMedicao,
+  deleteMedicao,
+  getMedicoesPorAvaliacao,
+  updateMedicao,
+  type Medicao,
+  type MedicaoInput,
+} from '@/services/medicoes'
+import {
   avisosComplementares,
   resolverCelula,
   sugerirProbabilidade,
   sugerirSeveridade,
   type Dimensao,
 } from '@/lib/matrizRisco'
+import { sugerirCategoriaAihaPorMedicoes } from '@/lib/estatisticaLognormal'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -91,6 +101,18 @@ const EFEITO_AIHA_LABEL: Record<string, string> = {
   '3': '3 — grave, irreversível',
   '4': '4 — incapacitante ou fatal',
 }
+const METODOLOGIAS_MEDICAO = [
+  'NHO 01 (ruído)',
+  'NHO 02 (vapores orgânicos)',
+  'NHO 03 (gravimetria)',
+  'NHO 04 (fibras)',
+  'NHO 06 (calor)',
+  'NHO 08 (coleta de particulado)',
+  'NHO 09 (vibração corpo inteiro)',
+  'NHO 10 (vibração mãos e braços)',
+  'NR-15 (critério trabalhista)',
+  'Outra',
+]
 const CATEGORIA_AIHA_LABEL: Record<string, string> = {
   '0': '0 — < 10% do LEO',
   '1': '1 — 10 a 50% do LEO',
@@ -147,6 +169,22 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   const [paraExcluir, setParaExcluir] = useState<AvaliacaoRisco | null>(null)
   const [f, setF] = useState<Partial<AvaliacaoRiscoInput>>({})
 
+  // ---- Medições (só existem para uma avaliação já salva) ----
+  const [medicoes, setMedicoes] = useState<Medicao[]>([])
+  const [medicaoDialog, setMedicaoDialog] = useState(false)
+  const [medicaoEdit, setMedicaoEdit] = useState<Medicao | null>(null)
+  const [medicaoExcluir, setMedicaoExcluir] = useState<Medicao | null>(null)
+  const [fMedicao, setFMedicao] = useState<Partial<MedicaoInput>>({})
+
+  const carregarMedicoes = (avaliacaoId: string) =>
+    getMedicoesPorAvaliacao(avaliacaoId)
+      .then(setMedicoes)
+      .catch((error) =>
+        toast.error('Não foi possível carregar as medições', {
+          description: getErrorMessage(error),
+        }),
+      )
+
   const abrir = (a: AvaliacaoRisco | null) => {
     setEmEdicao(a)
     setF(
@@ -154,8 +192,54 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
         ? { ...a }
         : { ghe_id: ghes[0]?.id, trilha_probabilidade: 'Qualitativa (controle)', ativo: true },
     )
+    setMedicoes([])
+    if (a) carregarMedicoes(a.id)
     setDialogAberto(true)
   }
+
+  const abrirMedicao = (m: Medicao | null) => {
+    setMedicaoEdit(m)
+    setFMedicao(m ? { ...m } : { data: new Date().toISOString().slice(0, 10) })
+    setMedicaoDialog(true)
+  }
+  const salvarMedicao = async () => {
+    if (!emEdicao) return
+    if (!fMedicao.data) return toast.error('Informe a data da medição')
+    try {
+      if (medicaoEdit) await updateMedicao(medicaoEdit.id, fMedicao)
+      else
+        await createMedicao({
+          ...fMedicao,
+          organizacao_id: organizacaoId,
+          avaliacao_id: emEdicao.id,
+        } as MedicaoInput)
+      toast.success('Medição salva')
+      setMedicaoDialog(false)
+      carregarMedicoes(emEdicao.id)
+    } catch (error) {
+      toast.error('Não foi possível salvar a medição', { description: getErrorMessage(error) })
+    }
+  }
+  const excluirMedicao = async () => {
+    if (!medicaoExcluir || !emEdicao) return
+    try {
+      await deleteMedicao(medicaoExcluir.id)
+      toast.success('Medição removida')
+      setMedicaoExcluir(null)
+      carregarMedicoes(emEdicao.id)
+    } catch (error) {
+      toast.error('Não foi possível remover', { description: getErrorMessage(error) })
+    }
+  }
+
+  // Estatística lognormal do conjunto de medições x limite do agente escolhido.
+  const estatisticaMedicoes = useMemo(() => {
+    const agente = agentes.find((ag) => ag.id === f.agente_id)
+    if (!agente?.limite_tolerancia_valor) return null
+    const valores = medicoes.map((m) => m.resultado_valor).filter((v): v is number => v != null)
+    if (valores.length === 0) return null
+    return sugerirCategoriaAihaPorMedicoes(valores, agente.limite_tolerancia_valor)
+  }, [medicoes, f.agente_id, agentes])
 
   const escolherAgente = (agenteId: string) => {
     const agente = agentes.find((a) => a.id === agenteId)
@@ -425,31 +509,133 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               </Select>
 
               {f.trilha_probabilidade === 'Quantitativa (medição)' && (
-                <div className="mt-3">
-                  <Label>Categoria de exposição AIHA (0-4)</Label>
-                  <Select
-                    value={f.categoria_aiha_exposicao || ''}
-                    onValueChange={(v) =>
-                      setF((s) => ({
-                        ...s,
-                        categoria_aiha_exposicao: v as '0' | '1' | '2' | '3' | '4',
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(CATEGORIA_AIHA_LABEL).map(([v, l]) => (
-                        <SelectItem key={v} value={v}>
-                          {l}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Calculada a partir das medições (Fase 3). Por ora, informe manualmente.
-                  </p>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <Label>Categoria de exposição AIHA (0-4)</Label>
+                    <Select
+                      value={f.categoria_aiha_exposicao || ''}
+                      onValueChange={(v) =>
+                        setF((s) => ({
+                          ...s,
+                          categoria_aiha_exposicao: v as '0' | '1' | '2' | '3' | '4',
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(CATEGORIA_AIHA_LABEL).map(([v, l]) => (
+                          <SelectItem key={v} value={v}>
+                            {l}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {!emEdicao ? (
+                    <p className="text-xs text-muted-foreground">
+                      Salve a avaliação para poder lançar medições de campo.
+                    </p>
+                  ) : (
+                    <div className="rounded-lg border p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <Label className="text-sm font-semibold">
+                          Medições ({medicoes.length})
+                        </Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => abrirMedicao(null)}
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          Lançar medição
+                        </Button>
+                      </div>
+                      {medicoes.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          Nenhuma medição lançada ainda.
+                        </p>
+                      ) : (
+                        <div className="divide-y text-sm">
+                          {medicoes.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between gap-2 py-1.5"
+                            >
+                              <div className="min-w-0">
+                                <span className="tabular-nums">{formatBrazilianDate(m.data)}</span>
+                                {' · '}
+                                {m.resultado_valor != null
+                                  ? `${m.resultado_valor} ${m.resultado_unidade || ''}`
+                                  : 'sem resultado'}
+                                {m.metodologia && ` · ${m.metodologia}`}
+                              </div>
+                              <div className="flex shrink-0 gap-0.5">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => abrirMedicao(m)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => setMedicaoExcluir(m)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!f.agente_id && medicoes.length > 0 && (
+                        <p className="mt-2 text-xs text-amber-700">
+                          Selecione o agente do catálogo para comparar as medições com o limite de
+                          tolerância.
+                        </p>
+                      )}
+                      {estatisticaMedicoes && (
+                        <div className="mt-2 rounded-md bg-muted/50 p-2 text-xs">
+                          <div>
+                            n = {estatisticaMedicoes.estatistica.n}
+                            {estatisticaMedicoes.estatistica.suficiente
+                              ? ` · UCL95 do P95 = ${estatisticaMedicoes.estatistica.limiteSuperior95.toFixed(2)}`
+                              : ' · menos de 6 amostras: usando o maior valor medido, incerteza alta'}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span>
+                              Categoria calculada:{' '}
+                              <strong>{CATEGORIA_AIHA_LABEL[estatisticaMedicoes.categoria]}</strong>
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs"
+                              onClick={() =>
+                                setF((v) => ({
+                                  ...v,
+                                  categoria_aiha_exposicao: estatisticaMedicoes.categoria,
+                                  incerteza: estatisticaMedicoes.estatistica.suficiente
+                                    ? v.incerteza
+                                    : '2',
+                                }))
+                              }
+                            >
+                              Usar esta categoria
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -772,6 +958,199 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={excluir}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo: medição */}
+      <Dialog open={medicaoDialog} onOpenChange={setMedicaoDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{medicaoEdit ? 'Editar medição' : 'Nova medição'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Data</Label>
+                <Input
+                  className="mt-1.5"
+                  type="date"
+                  value={fMedicao.data ? fMedicao.data.slice(0, 10) : ''}
+                  onChange={(e) => setFMedicao((v) => ({ ...v, data: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Metodologia</Label>
+                <Select
+                  value={fMedicao.metodologia || '__vazio'}
+                  onValueChange={(v) =>
+                    setFMedicao((s) => ({
+                      ...s,
+                      metodologia: v === '__vazio' ? undefined : (v as Medicao['metodologia']),
+                    }))
+                  }
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__vazio">—</SelectItem>
+                    {METODOLOGIAS_MEDICAO.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Trabalhador ou ponto</Label>
+                <Input
+                  className="mt-1.5"
+                  value={fMedicao.trabalhador_ou_ponto || ''}
+                  onChange={(e) =>
+                    setFMedicao((v) => ({ ...v, trabalhador_ou_ponto: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <Label>Função avaliada</Label>
+                <Input
+                  className="mt-1.5"
+                  value={fMedicao.funcao_avaliada || ''}
+                  onChange={(e) => setFMedicao((v) => ({ ...v, funcao_avaliada: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Resultado</Label>
+                <Input
+                  className="mt-1.5"
+                  type="number"
+                  value={fMedicao.resultado_valor ?? ''}
+                  onChange={(e) =>
+                    setFMedicao((v) => ({
+                      ...v,
+                      resultado_valor: Number(e.target.value) || undefined,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Label>Unidade</Label>
+                <Input
+                  className="mt-1.5"
+                  placeholder="ppm, mg/m³, dB(A)..."
+                  value={fMedicao.resultado_unidade || ''}
+                  onChange={(e) =>
+                    setFMedicao((v) => ({ ...v, resultado_unidade: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Equipamento</Label>
+                <Input
+                  className="mt-1.5"
+                  value={fMedicao.equipamento || ''}
+                  onChange={(e) => setFMedicao((v) => ({ ...v, equipamento: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Tempo de amostragem (min)</Label>
+                <Input
+                  className="mt-1.5"
+                  type="number"
+                  value={fMedicao.tempo_amostragem_min ?? ''}
+                  onChange={(e) =>
+                    setFMedicao((v) => ({
+                      ...v,
+                      tempo_amostragem_min: Number(e.target.value) || undefined,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            {fMedicao.metodologia === 'NHO 01 (ruído)' ||
+            fMedicao.metodologia === 'NR-15 (critério trabalhista)' ? (
+              <div className="grid grid-cols-3 gap-3 rounded-lg border p-3">
+                <div>
+                  <Label className="text-xs">Dose NR-15 (%)</Label>
+                  <Input
+                    className="mt-1.5"
+                    type="number"
+                    value={fMedicao.ruido_dose_nr15_pct ?? ''}
+                    onChange={(e) =>
+                      setFMedicao((v) => ({
+                        ...v,
+                        ruido_dose_nr15_pct: Number(e.target.value) || undefined,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">NEN NR-15 (dB(A))</Label>
+                  <Input
+                    className="mt-1.5"
+                    type="number"
+                    value={fMedicao.ruido_nen_nr15_dba ?? ''}
+                    onChange={(e) =>
+                      setFMedicao((v) => ({
+                        ...v,
+                        ruido_nen_nr15_dba: Number(e.target.value) || undefined,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">NEN NHO 01 (dB(A))</Label>
+                  <Input
+                    className="mt-1.5"
+                    type="number"
+                    value={fMedicao.ruido_nen_nho01_dba ?? ''}
+                    onChange={(e) =>
+                      setFMedicao((v) => ({
+                        ...v,
+                        ruido_nen_nho01_dba: Number(e.target.value) || undefined,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            ) : null}
+            <div>
+              <Label>Observações</Label>
+              <Textarea
+                className="mt-1.5"
+                value={fMedicao.observacoes || ''}
+                onChange={(e) => setFMedicao((v) => ({ ...v, observacoes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMedicaoDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarMedicao}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!medicaoExcluir} onOpenChange={(o) => !o && setMedicaoExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir medição</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta medição será removida definitivamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={excluirMedicao}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
