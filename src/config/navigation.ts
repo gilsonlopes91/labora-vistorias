@@ -13,6 +13,11 @@ import {
   BookOpenCheck,
   Palette,
   KeyRound,
+  FileBadge,
+  HelpCircle,
+  Layers,
+  FlaskConical,
+  Grid3x3,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -21,7 +26,7 @@ export interface NavSubItemConfig {
   icon?: LucideIcon
   gestor?: boolean
   /** Módulo opcional necessário da organização (ex.: 'auditoria' ou 'formularios') */
-  moduloKey?: 'auditoria' | 'formularios'
+  moduloKey?: 'auditoria' | 'formularios' | 'documentos'
 }
 
 export interface NavItemConfig {
@@ -80,6 +85,39 @@ export const NAV_ITEMS: NavItemConfig[] = [
         label: 'Formulários',
         icon: FileText,
         moduloKey: 'formularios',
+      },
+    ],
+  },
+  // Documentação SST (PGR, LTCAT, laudos): módulo separado, controlado pelo
+  // pacote "documentos" da organização.
+  {
+    to: '/documentacao',
+    label: 'Documentação SST',
+    icon: FileBadge,
+    children: [
+      {
+        to: '/documentacao?aba=como-funciona',
+        label: 'Como funciona',
+        icon: HelpCircle,
+        moduloKey: 'documentos',
+      },
+      {
+        to: '/documentacao?aba=levantamento',
+        label: 'Levantamento',
+        icon: Layers,
+        moduloKey: 'documentos',
+      },
+      {
+        to: '/documentacao?aba=catalogo',
+        label: 'Catálogo de agentes',
+        icon: FlaskConical,
+        moduloKey: 'documentos',
+      },
+      {
+        to: '/documentacao?aba=matrizes',
+        label: 'Matrizes de risco',
+        icon: Grid3x3,
+        moduloKey: 'documentos',
       },
     ],
   },

@@ -72,7 +72,7 @@ routerAdd(
       } catch (_) {
         atuais = {}
       }
-      const CHAVES = ['auditoria', 'relatorios', 'formularios', 'ia', 'orcamentos']
+      const CHAVES = ['auditoria', 'relatorios', 'formularios', 'ia', 'orcamentos', 'documentos']
       for (const chave of CHAVES) {
         if (Object.prototype.hasOwnProperty.call(m, chave)) atuais[chave] = !!m[chave]
       }

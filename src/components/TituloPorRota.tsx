@@ -28,6 +28,7 @@ const TITULOS: [RegExp, string][] = [
   [/^\/auditoria-formularios/, 'Auditoria de NRs e formulários'],
   [/^\/formularios/, 'Formulários'],
   [/^\/modelos/, 'Checklists'],
+  [/^\/documentacao/, 'Documentação SST'],
   [/^\/agenda/, 'Agenda'],
   [/^\/orcamentos\/modelos/, 'Modelos de proposta'],
   [/^\/orcamentos/, 'Orçamentos'],

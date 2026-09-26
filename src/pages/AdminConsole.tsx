@@ -66,6 +66,7 @@ interface Modulos {
   relatorios: boolean
   formularios: boolean
   ia: boolean
+  documentos: boolean
 }
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -95,6 +96,7 @@ export default function AdminConsole() {
     relatorios: true,
     formularios: true,
     ia: true,
+    documentos: true,
   })
   const [salvandoPacote, setSalvandoPacote] = useState(false)
 
@@ -275,9 +277,16 @@ export default function AdminConsole() {
         relatorios: m.relatorios !== false,
         formularios: m.formularios !== false,
         ia: m.ia !== false,
+        documentos: m.documentos !== false,
       })
     } catch (_) {
-      setPacoteModulos({ auditoria: true, relatorios: true, formularios: true, ia: true })
+      setPacoteModulos({
+        auditoria: true,
+        relatorios: true,
+        formularios: true,
+        ia: true,
+        documentos: true,
+      })
     }
   }
 
@@ -707,6 +716,11 @@ export default function AdminConsole() {
                 desc: 'Modelos e registros de campo (ruído, calor, vibração, químicos)',
               },
               { key: 'ia', label: 'Assistente IA', desc: 'Perguntas ao assistente dentro do app' },
+              {
+                key: 'documentos',
+                label: 'Documentação SST',
+                desc: 'PGR, LTCAT e laudos de insalubridade e periculosidade',
+              },
             ].map((m) => (
               <div key={m.key} className="flex items-start justify-between gap-4">
                 <div>

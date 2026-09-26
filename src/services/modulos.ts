@@ -9,6 +9,8 @@ export interface Modulos {
   formularios: boolean
   ia: boolean
   orcamentos: boolean
+  /** Documentação SST: PGR, LTCAT, laudos de insalubridade e periculosidade. */
+  documentos: boolean
 }
 
 export const MODULOS_DEFAULT: Modulos = {
@@ -17,6 +19,7 @@ export const MODULOS_DEFAULT: Modulos = {
   formularios: true,
   ia: true,
   orcamentos: true,
+  documentos: true,
 }
 
 export const getModulos = async (): Promise<Modulos> => {

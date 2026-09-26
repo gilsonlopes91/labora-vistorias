@@ -101,6 +101,10 @@ function isGroupActive(item: NavItemConfig, pathname: string, search: string): b
     )
   }
 
+  if (item.to === '/documentacao') {
+    return pathname.startsWith('/documentacao')
+  }
+
   if (item.children && item.children.length > 0) {
     return item.children.some((child) => isSubItemActive(child.to, pathname, search))
   }
@@ -268,6 +272,7 @@ export default function Layout() {
 
   const moduloDe: Record<string, (m: Modulos) => boolean> = {
     '/auditoria-formularios': (m) => m.auditoria || m.formularios,
+    '/documentacao': (m) => m.documentos,
   }
 
   const handleSignOut = () => {
