@@ -325,12 +325,42 @@ export function DocumentacaoComoFunciona() {
         </p>
       </Secao>
 
-      <Secao titulo="10. O que já está pronto e o que vem">
+      <Secao titulo="10. O catálogo de agentes e a Tabela 24 do eSocial">
         <p>
-          <strong>Pronto:</strong> estrutura da empresa (setores, GHE, funções), catálogo inicial de
-          agentes, as duas matrizes AIHA, o inventário de riscos com as cinco trilhas e a sugestão
-          de P e S, as medições com a estatística lognormal, e o plano de ação com geração de
-          sugestões.
+          Cada agente do catálogo (aba{' '}
+          <Link to="/documentacao?aba=catalogo" className="underline">
+            Catálogo de agentes
+          </Link>
+          ) tem nome, tipo (Físico, Químico, Biológico, Ergonômico ou Acidente), o código eSocial
+          quando existe, e três campos de exemplo — fonte geradora, possíveis danos à saúde e
+          medidas de controle padrão — que servem de ponto de partida para o inventário de riscos e
+          podem ser editados.
+        </p>
+        <p>
+          O catálogo oficial da plataforma é somente leitura; para ajustar os exemplos de um agente
+          oficial às práticas da sua organização, use "Duplicar para editar" — isso cria uma cópia
+          editável na sua organização, sem afetar o catálogo oficial nem as avaliações já feitas.
+          Também dá para cadastrar agentes totalmente novos.
+        </p>
+        <p>
+          <strong>Sobre o código eSocial (Tabela 24).</strong> Essa tabela cobre só os agentes
+          ligados à aposentadoria especial — grupos Físico, Químico e Biológico, mais o código
+          09.01.001 para "sem agente nocivo". Ergonômico e Acidente/mecânico não têm código próprio
+          na Tabela 24: isso não é uma lacuna do catálogo, é assim que o eSocial funciona (esses
+          riscos entram no PGR, mas não no enquadramento de aposentadoria especial do LTCAT). Nos
+          agentes Físico/Químico/Biológico onde o código ainda aparece vazio, é porque as fontes
+          públicas consultadas divergem entre si na numeração exata — preencher errado é pior do que
+          deixar em branco, já que o eSocial valida o código. Confira contra a tabela oficial antes
+          de usar em produção.
+        </p>
+      </Secao>
+
+      <Secao titulo="11. O que já está pronto e o que vem">
+        <p>
+          <strong>Pronto:</strong> estrutura da empresa (setores, GHE, funções), catálogo de agentes
+          editável (com exemplos de fonte geradora, danos à saúde e medidas de controle), as duas
+          matrizes AIHA, o inventário de riscos com as cinco trilhas e a sugestão de P e S, as
+          medições com a estatística lognormal, e o plano de ação com geração de sugestões.
         </p>
         <p>
           <strong>Próximas etapas:</strong> vínculo das fichas de campo de calor e ruído com as
@@ -338,10 +368,6 @@ export function DocumentacaoComoFunciona() {
           documentos por seções com biblioteca de textos e emissão do PGR em PDF; motores e
           documentos dos laudos de insalubridade e periculosidade; LTCAT com o checklist do art.
           276; alertas de revisão, link de disponibilização e envio do PDF assinado.
-        </p>
-        <p className="text-muted-foreground">
-          Os códigos da Tabela 24 do eSocial e do Anexo IV só entram no catálogo depois de
-          conferidos na fonte oficial; por isso vários agentes ainda aparecem sem código.
         </p>
       </Secao>
     </div>

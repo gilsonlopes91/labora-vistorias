@@ -50,3 +50,31 @@ export const getAgentesCatalogo = () =>
     filter: 'ativo = true',
     sort: 'tipo,nome',
   })
+
+export type AgenteCatalogoInput = Partial<Omit<AgenteCatalogo, 'id' | 'created' | 'updated'>> & {
+  nome: string
+  tipo: TipoAgente
+}
+
+/** Só cria/edita agentes da própria organização — o catálogo oficial (organizacao_id vazio) é somente leitura para quem não é admin_plataforma (regra já garantida no backend). */
+export const createAgenteCatalogo = (data: AgenteCatalogoInput) =>
+  pb.collection('agentes_catalogo').create<AgenteCatalogo>({ ativo: true, ...data })
+
+export const updateAgenteCatalogo = (id: string, data: Partial<AgenteCatalogoInput>) =>
+  pb.collection('agentes_catalogo').update<AgenteCatalogo>(id, data)
+
+export const deleteAgenteCatalogo = (id: string) => pb.collection('agentes_catalogo').delete(id)
+
+/** Cria, na organização, uma cópia editável de um agente oficial — é assim que o usuário "altera" um item do catálogo global sem poder editá-lo diretamente. */
+export const duplicarAgenteParaOrganizacao = (agente: AgenteCatalogo, organizacaoId: string) => {
+  const { id, created, updated, organizacao_id, ...resto } = agente
+  void id
+  void created
+  void updated
+  void organizacao_id
+  return pb.collection('agentes_catalogo').create<AgenteCatalogo>({
+    ...resto,
+    organizacao_id: organizacaoId,
+    ativo: true,
+  })
+}
