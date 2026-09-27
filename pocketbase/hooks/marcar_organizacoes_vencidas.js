@@ -15,4 +15,7 @@ cronAdd('marcar_organizacoes_vencidas', '0 3 * * *', () => {
     org.set('status', 'vencida')
     $app.save(org)
   }
+  // Log simples para confirmar, via skip_cloud_list_logs, que o cron de
+  // fato roda diariamente (não havia nenhum registro até 27/09/2026).
+  $app.logger().info('marcar_organizacoes_vencidas', 'marcadas', vencidas.length)
 })

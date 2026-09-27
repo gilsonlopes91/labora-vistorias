@@ -99,28 +99,13 @@ export async function fetchComCache(
   const semRede = typeof navigator !== 'undefined' && navigator.onLine === false
 
   if (!semRede) {
-    // Sinal fraco: se o servidor demorar e houver cópia, usa a cópia.
-    const guardadaAntes = lerLeitura(chave)
-    try {
-      const rede = fetch(url, config)
-      const resposta = await Promise.race([
-        rede,
-        new Promise<'demorou'>((ok) => setTimeout(() => ok('demorou'), ESPERA_MS)),
-      ]).then(async (r) => {
-        if (r !== 'demorou') return r
-        const copia = await guardadaAntes
-        if (!copia) return rede
-        rede.catch(() => {})
-        return null
-      })
-      if (resposta === null) {
-        const copia = (await guardadaAntes) as Leitura
-        avisarCopiaLocal()
-        return respostaDaCopia(copia)
-      }
+    // Guarda (ou, se der 404, apaga) a cópia local a partir de uma resposta
+    // real do servidor — usado tanto no caminho normal quanto no que ainda
+    // chega depois do sinal fraco ter caído para a cópia.
+    const atualizarCopia = (resposta: Response) => {
       if (resposta.ok) {
-        const copia = resposta.clone()
-        copia
+        resposta
+          .clone()
           .text()
           .then((corpo) =>
             executar('readwrite', (s) =>
@@ -128,6 +113,34 @@ export async function fetchComCache(
             ),
           )
           .catch(() => {})
+      } else if (resposta.status === 404) {
+        // O servidor não tem mais isso (ex.: vistoria apagada): a cópia
+        // velha não deve continuar sendo servida numa próxima tentativa.
+        executar('readwrite', (s) => s.delete(chave)).catch(() => {})
+      }
+    }
+
+    // Sinal fraco: se o servidor demorar e houver cópia, usa a cópia — mas
+    // sem desistir da requisição real, para que a cópia seja substituída
+    // assim que a resposta chegar (senão a cópia nunca se atualiza e o app
+    // volta a mostrar dados apagados/velhos mesmo online).
+    const guardadaAntes = lerLeitura(chave)
+    try {
+      const rede = fetch(url, config)
+      rede.then(atualizarCopia).catch(() => {})
+      const resposta = await Promise.race([
+        rede,
+        new Promise<'demorou'>((ok) => setTimeout(() => ok('demorou'), ESPERA_MS)),
+      ]).then(async (r) => {
+        if (r !== 'demorou') return r
+        const copia = await guardadaAntes
+        if (!copia) return rede
+        return null
+      })
+      if (resposta === null) {
+        const copia = (await guardadaAntes) as Leitura
+        avisarCopiaLocal()
+        return respostaDaCopia(copia)
       }
       return resposta
     } catch (erro) {

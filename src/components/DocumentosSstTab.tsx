@@ -78,7 +78,11 @@ const AUTOSAVE_DEBOUNCE_MS = 1500
 
 export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const { user } = useAuth()
-  const organizacaoId = (user?.organizacao_id as string) || ''
+  // A organização do documento é sempre a da empresa, não a do usuário
+  // logado: admin_plataforma e staff (via staff_ids) não têm organizacao_id
+  // próprio, e usar o do usuário fazia o create() falhar com 400 (campo
+  // obrigatório vazio) toda vez que um deles criava um PGR/LTCAT.
+  const [organizacaoId, setOrganizacaoId] = useState('')
 
   const [tipo, setTipo] = useState<TipoDocumentoSst>('pgr')
   const [documentos, setDocumentos] = useState<DocumentoSst[]>([])
@@ -96,6 +100,22 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const [dialogSenhaAberto, setDialogSenhaAberto] = useState(false)
   const [senha, setSenha] = useState('')
   const [erroSenha, setErroSenha] = useState('')
+
+  useEffect(() => {
+    let cancelado = false
+    getEmpresa(empresaId)
+      .then((empresa) => {
+        if (!cancelado) setOrganizacaoId(empresa.organizacao_id || '')
+      })
+      .catch(() => {
+        // Sem permissão de ler a empresa (raro): cai para a organização do
+        // usuário, que ao menos funciona para dono/gerente/gestor.
+        if (!cancelado) setOrganizacaoId((user?.organizacao_id as string) || '')
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [empresaId, user?.organizacao_id])
 
   const carregar = () => {
     setCarregando(true)
@@ -302,6 +322,10 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   }
 
   const novoDocumento = async () => {
+    if (!organizacaoId) {
+      toast.error('Ainda carregando os dados da empresa, tente de novo em instantes')
+      return
+    }
     try {
       const criado = await createDocumentoSst({
         organizacao_id: organizacaoId,
