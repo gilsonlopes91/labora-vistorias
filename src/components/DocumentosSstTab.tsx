@@ -9,11 +9,22 @@ import { FileText, Plus, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { carregarIdentidade } from '@/lib/identidadeVisual'
+import { resolverCelula } from '@/lib/matrizRisco'
+import { gerarPdfPgr, nomeArquivoPgr, hashSha256 } from '@/lib/gerarPdfPgr'
+import { getEmpresa } from '@/services/empresas'
+import { getGhes } from '@/services/ghes'
+import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
+import { getAcoesPlano } from '@/services/acoesPlano'
+import { getMatrizOficial } from '@/services/matrizesRisco'
 import {
   getDocumentosSst,
   createDocumentoSst,
   updateDocumentoSst,
   revisarDocumentoSst,
+  emitirDocumentoSst,
+  getTokenArquivos,
+  pdfUrlDocumentoSst,
   secoesPadraoPgr,
   type DocumentoSst,
   type SecaoDocumento,
@@ -60,6 +71,8 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const [salvando, setSalvando] = useState(false)
   const [dialogRevisao, setDialogRevisao] = useState(false)
   const [motivoRevisao, setMotivoRevisao] = useState('')
+  const [emitindo, setEmitindo] = useState(false)
+  const [urlPdf, setUrlPdf] = useState<string | null>(null)
 
   const carregar = () => {
     setCarregando(true)
@@ -87,6 +100,111 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
 
   const selecionado = documentos.find((d) => d.id === selecionadoId)
   const travado = selecionado?.status === 'emitido' || selecionado?.status === 'substituido'
+
+  useEffect(() => {
+    setUrlPdf(null)
+    if (selecionado?.pdf) {
+      getTokenArquivos()
+        .then((token) => setUrlPdf(pdfUrlDocumentoSst(selecionado, token)))
+        .catch(() => setUrlPdf(pdfUrlDocumentoSst(selecionado)))
+    }
+  }, [selecionado?.id, selecionado?.pdf])
+
+  const emitirPdf = async () => {
+    if (!selecionado) return
+    setEmitindo(true)
+    try {
+      const empresa = await getEmpresa(empresaId)
+      const nomeEmpresa = empresa.nome_fantasia || empresa.razao_social
+      const ghes = await getGhes(empresaId)
+      const avaliacoes = await getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id))
+      const acoes = await getAcoesPlano(empresaId)
+      const dimensao = (Number(empresa.pgr_matriz_padrao_dimensao) || 5) as 3 | 5
+      const metodologia = empresa.pgr_matriz_padrao_metodologia || 'AIHA'
+      const matriz = await getMatrizOficial(dimensao, metodologia)
+      const identidade = await carregarIdentidade()
+
+      const inventario = avaliacoes.map((a) => {
+        const s = a.severidade_final ?? a.severidade_sugerida
+        const p = a.probabilidade_final ?? a.probabilidade_sugerida
+        const celula = matriz && s != null && p != null ? resolverCelula(matriz, p, s) : null
+        return {
+          unidade: a.expand?.ghe_id?.nome || '—',
+          agente: a.expand?.agente_id?.nome || a.perigo_descricao || '—',
+          trilha: a.trilha_probabilidade,
+          severidade: s ?? '—',
+          probabilidade: p ?? '—',
+          categoria: celula?.categoria || '—',
+        }
+      })
+      const planoAcao = acoes.map((a) => ({
+        medida: a.medida,
+        responsavel: a.responsavel || '—',
+        prazo: a.prazo ? new Date(a.prazo).toLocaleDateString('pt-BR') : '—',
+        status: a.status,
+        prioridade: a.prioridade || '—',
+      }))
+
+      const proximaVersao = (selecionado.versao || 0) + 1
+      const pdf = await gerarPdfPgr({
+        organizacaoNome: identidade.nome,
+        logoUrl: identidade.logoUrl,
+        empresaNome: nomeEmpresa,
+        empresaCnpj: empresa.cnpj,
+        titulo: f.titulo || 'PGR',
+        versao: proximaVersao,
+        dataEmissao: new Date(),
+        elaboradores: f.elaboradores,
+        secoes: f.secoes || [],
+        unidadesAvaliacao: ghes.map((g) => g.nome),
+        inventario,
+        planoAcao,
+      })
+      const blob = pdf.output('blob')
+      const nomeArquivo = nomeArquivoPgr(nomeEmpresa, proximaVersao)
+      const hash = await hashSha256(blob)
+
+      const emitido = await emitirDocumentoSst(
+        selecionado,
+        {
+          matriz_id: matriz?.id,
+          matriz_snapshot: matriz
+            ? {
+                nome: matriz.nome,
+                metodologia: matriz.metodologia,
+                dimensao: matriz.dimensao,
+                categorias: matriz.categorias,
+                celulas: matriz.celulas,
+              }
+            : undefined,
+          dados_emissao: {
+            unidades_avaliacao: ghes.length,
+            avaliacoes_risco: avaliacoes.length,
+            acoes_plano: acoes.length,
+          },
+          emitido_por: user?.id || '',
+        },
+        blob,
+        nomeArquivo,
+        hash,
+      )
+      setDocumentos((v) =>
+        v.map((d) => {
+          if (d.id === emitido.id) return emitido
+          if (selecionado.documento_anterior_id && d.id === selecionado.documento_anterior_id) {
+            return { ...d, status: 'substituido' }
+          }
+          return d
+        }),
+      )
+      setSelecionadoId(emitido.id)
+      toast.success('PGR emitido em PDF')
+    } catch (error) {
+      toast.error('Não foi possível emitir o PDF', { description: getErrorMessage(error) })
+    } finally {
+      setEmitindo(false)
+    }
+  }
 
   const novoDocumento = async () => {
     try {
@@ -330,6 +448,16 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                 )}
               </div>
 
+              {selecionado.status === 'emitido' && urlPdf && (
+                <a
+                  href={urlPdf}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-primary underline"
+                >
+                  Baixar PDF emitido (versão {selecionado.versao})
+                </a>
+              )}
               <div className="flex justify-end gap-2">
                 {selecionado.status === 'emitido' && (
                   <Button variant="outline" onClick={() => setDialogRevisao(true)}>
@@ -337,15 +465,21 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                   </Button>
                 )}
                 {!travado && (
-                  <Button onClick={salvar} disabled={salvando}>
-                    Salvar rascunho
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
+                      Salvar rascunho
+                    </Button>
+                    <Button onClick={emitirPdf} disabled={salvando || emitindo}>
+                      {emitindo ? 'Emitindo...' : 'Emitir PDF'}
+                    </Button>
+                  </>
                 )}
               </div>
               {!travado && (
                 <p className="text-xs text-muted-foreground">
-                  A emissão do PDF com trava de versão ainda está em desenvolvimento — por enquanto,
-                  salve o rascunho normalmente.
+                  Emitir gera o PDF a partir das seções e dos dados atuais de estrutura, inventário
+                  e plano de ação, e trava esta versão — para mudar algo depois, será preciso criar
+                  uma nova revisão.
                 </p>
               )}
             </CardContent>
