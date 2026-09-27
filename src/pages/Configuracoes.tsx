@@ -16,6 +16,7 @@ import {
   atualizarLogoOrganizacao,
   atualizarCoresOrganizacao,
   atualizarDadosDocumentos,
+  atualizarChavesOrganizacao,
   urlLogoOrganizacao,
   type DadosDocumentos,
   type Organizacao,
@@ -43,6 +44,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -65,6 +67,8 @@ export default function Configuracoes() {
   // Dados que saem nos documentos (propostas e relatórios).
   const [dadosDoc, setDadosDoc] = useState<DadosDocumentos>({})
   const [salvandoDados, setSalvandoDados] = useState(false)
+  // Chaves do fluxo do técnico (migration 0155).
+  const [salvandoChave, setSalvandoChave] = useState<string | null>(null)
   // Assinatura digitalizada dos RTs: arquivos protegidos, abertos com token.
   const [tokenArquivos, setTokenArquivos] = useState('')
   const [enviandoAssinatura, setEnviandoAssinatura] = useState<string | null>(null)
@@ -231,6 +235,22 @@ export default function Configuracoes() {
       toast.error('Não foi possível salvar os dados', { description: getErrorMessage(error) })
     } finally {
       setSalvandoDados(false)
+    }
+  }
+
+  const handleAlterarChave = async (
+    chave: 'tecnico_ve_todas_vistorias' | 'revisao_obrigatoria_tecnico',
+    valor: boolean,
+  ) => {
+    if (!org) return
+    setSalvandoChave(chave)
+    try {
+      const atualizado = await atualizarChavesOrganizacao(org.id, { [chave]: valor })
+      setOrg(atualizado)
+    } catch (error) {
+      toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
+    } finally {
+      setSalvandoChave(null)
     }
   }
 
@@ -733,6 +753,49 @@ export default function Configuracoes() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {gestor && org && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserCog className="h-4 w-4" />
+              Como o técnico trabalha
+            </CardTitle>
+            <CardDescription>
+              Controla o que o técnico vê e se as vistorias dele precisam da sua aprovação.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
+              <div>
+                <div className="text-sm font-medium">Técnico vê todas as vistorias</div>
+                <div className="text-xs text-muted-foreground">
+                  Desligado, ele só vê e acessa as vistorias em que é o responsável técnico.
+                </div>
+              </div>
+              <Switch
+                checked={org.tecnico_ve_todas_vistorias !== false}
+                disabled={salvandoChave === 'tecnico_ve_todas_vistorias'}
+                onCheckedChange={(v) => handleAlterarChave('tecnico_ve_todas_vistorias', v)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
+              <div>
+                <div className="text-sm font-medium">Revisão obrigatória do gestor</div>
+                <div className="text-xs text-muted-foreground">
+                  Ligado, ao finalizar o técnico não conclui direto — a vistoria fica "aguardando
+                  revisão" até você aprovar ou devolver para corrigir.
+                </div>
+              </div>
+              <Switch
+                checked={!!org.revisao_obrigatoria_tecnico}
+                disabled={salvandoChave === 'revisao_obrigatoria_tecnico'}
+                onCheckedChange={(v) => handleAlterarChave('revisao_obrigatoria_tecnico', v)}
+              />
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {gestor && (

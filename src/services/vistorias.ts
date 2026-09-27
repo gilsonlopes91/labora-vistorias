@@ -5,7 +5,12 @@ import type { TipoVistoria } from '@/services/tiposVistoria'
 import type { ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 import type { ModeloFormulario } from '@/services/formularios'
 
-export type StatusVistoria = 'agendada' | 'em_andamento' | 'concluida' | 'cancelada'
+export type StatusVistoria =
+  | 'agendada'
+  | 'em_andamento'
+  | 'aguardando_revisao'
+  | 'concluida'
+  | 'cancelada'
 
 /** Registro de cada reabertura de vistoria concluída (migration 0124). */
 export interface ReaberturaVistoria {
@@ -14,6 +19,15 @@ export interface ReaberturaVistoria {
   por_nome: string
   motivo: string
   rt_anterior?: string
+}
+
+/** Registro de cada revisão de vistoria enviada pelo técnico (migration 0155). */
+export interface RevisaoVistoria {
+  em: string
+  por_id: string
+  por_nome: string
+  aprovado: boolean
+  motivo: string
 }
 
 export interface Vistoria extends RecordModel {
@@ -42,6 +56,8 @@ export interface Vistoria extends RecordModel {
   equipamentos?: string
   orientacoes_equipe?: string
   reaberturas?: ReaberturaVistoria[] | null
+  /** Histórico de revisões, quando a organização exige revisão do gestor (migration 0155). */
+  revisoes?: RevisaoVistoria[] | null
   /** Quem acompanhou pela empresa, ART e RT que assinou (migration 0130). */
   acompanhante_nome?: string
   acompanhante_cargo?: string
@@ -119,6 +135,14 @@ export const reabrirVistoria = (id: string, motivo: string) =>
   pb.send<{ ok: boolean; reaberturas: ReaberturaVistoria[] }>(
     `/backend/v1/vistorias/${id}/reabrir`,
     { method: 'POST', body: JSON.stringify({ motivo }) },
+  )
+
+/** Aprova ou devolve uma vistoria "aguardando_revisao" (dono/gestor). Aprovar
+ *  conclui a vistoria; devolver volta para "em_andamento" com o motivo. */
+export const revisarVistoria = (id: string, aprovar: boolean, motivo?: string) =>
+  pb.send<{ ok: boolean; status: StatusVistoria; revisoes: RevisaoVistoria[] }>(
+    `/backend/v1/vistorias/${id}/revisar`,
+    { method: 'POST', body: JSON.stringify({ aprovar, motivo: motivo || '' }) },
   )
 
 /** Marca como N/A os itens ainda sem resposta da vistoria (todos, ou só os

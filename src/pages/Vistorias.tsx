@@ -31,6 +31,7 @@ import {
 const STATUS_LABEL: Record<StatusVistoria, string> = {
   agendada: 'Agendada',
   em_andamento: 'Em andamento',
+  aguardando_revisao: 'Aguardando revisão',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
 }
@@ -39,6 +40,7 @@ const STATUS_VARIANT: Record<StatusVistoria, 'secondary' | 'default' | 'outline'
   {
     agendada: 'secondary',
     em_andamento: 'default',
+    aguardando_revisao: 'secondary',
     concluida: 'outline',
     cancelada: 'destructive',
   }

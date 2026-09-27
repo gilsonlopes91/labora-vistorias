@@ -28,6 +28,9 @@ export interface Organizacao {
   cor_primaria?: string
   cor_secundaria?: string
   dados_documentos?: DadosDocumentos | null
+  /** Chaves do fluxo do técnico (migration 0155). */
+  tecnico_ve_todas_vistorias?: boolean
+  revisao_obrigatoria_tecnico?: boolean
   created: string
   updated: string
 }
@@ -62,6 +65,11 @@ export const atualizarCoresOrganizacao = (
 
 export const atualizarDadosDocumentos = (id: string, dados: DadosDocumentos) =>
   pb.collection('organizacoes').update<Organizacao>(id, { dados_documentos: dados })
+
+export const atualizarChavesOrganizacao = (
+  id: string,
+  chaves: { tecnico_ve_todas_vistorias?: boolean; revisao_obrigatoria_tecnico?: boolean },
+) => pb.collection('organizacoes').update<Organizacao>(id, chaves)
 
 export const removerLogoOrganizacao = (id: string) =>
   pb.collection('organizacoes').update<Organizacao>(id, { logo: null })

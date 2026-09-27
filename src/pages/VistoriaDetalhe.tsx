@@ -41,6 +41,7 @@ import {
   getVistoria,
   updateVistoria,
   reabrirVistoria,
+  revisarVistoria,
   marcarPendentesComoNA,
   type Vistoria,
   type StatusVistoria,
@@ -107,6 +108,7 @@ import {
 const STATUS_LABEL: Record<StatusVistoria, string> = {
   agendada: 'Agendada',
   em_andamento: 'Em andamento',
+  aguardando_revisao: 'Aguardando revisão',
   concluida: 'Concluída',
   cancelada: 'Cancelada',
 }
@@ -247,6 +249,12 @@ export default function VistoriaDetalhe() {
     papelUsuario === 'gerente' ||
     papelUsuario === 'gestor' ||
     papelUsuario === 'admin_plataforma'
+
+  // Revisão obrigatória (organizações que exigem): mesmo gestor que reabre
+  // aprova ou devolve a vistoria enviada pelo técnico.
+  const [devolverDialogAberto, setDevolverDialogAberto] = useState(false)
+  const [motivoDevolucao, setMotivoDevolucao] = useState('')
+  const [revisando, setRevisando] = useState(false)
 
   // Empresa sem nº de empregados: informar ali mesmo e recalcular as multas.
   const [empregadosInformados, setEmpregadosInformados] = useState('')
@@ -394,6 +402,9 @@ export default function VistoriaDetalhe() {
 
   // Vistoria concluída: respostas travadas (o servidor também bloqueia).
   const travada = vistoria?.status === 'concluida'
+  // Enviada pelo técnico, aguardando o gestor aprovar (organização com
+  // revisão obrigatória). Não trava no servidor, mas a tela evita edição.
+  const aguardandoRevisao = vistoria?.status === 'aguardando_revisao'
 
   const avisarGuardadoNoAparelho = () => {
     // Um aviso por minuto, para não encher a tela de toasts em campo.
@@ -902,6 +913,7 @@ export default function VistoriaDetalhe() {
       baixarPdf()
       return
     }
+    if (aguardandoRevisao) return
     if (!temChecklistOuFormulario) {
       toast.error('Não é possível finalizar a vistoria', {
         description:
@@ -1023,6 +1035,44 @@ export default function VistoriaDetalhe() {
     }
   }
 
+  const aprovarRevisao = async () => {
+    if (!vistoria) return
+    setRevisando(true)
+    try {
+      await revisarVistoria(vistoria.id, true)
+      toast.success('Vistoria aprovada e concluída')
+      setLoading(true)
+      await loadData()
+    } catch (error) {
+      toast.error('Não foi possível aprovar a vistoria', { description: getErrorMessage(error) })
+    } finally {
+      setRevisando(false)
+    }
+  }
+
+  const confirmarDevolucao = async () => {
+    if (!vistoria) return
+    if (motivoDevolucao.trim().length < 5) {
+      toast.error('Escreva o motivo da devolução')
+      return
+    }
+    setRevisando(true)
+    try {
+      await revisarVistoria(vistoria.id, false, motivoDevolucao.trim())
+      setDevolverDialogAberto(false)
+      setMotivoDevolucao('')
+      toast.success('Vistoria devolvida ao técnico', {
+        description: 'Ela volta para "Em andamento" para ele corrigir e finalizar de novo.',
+      })
+      setLoading(true)
+      await loadData()
+    } catch (error) {
+      toast.error('Não foi possível devolver a vistoria', { description: getErrorMessage(error) })
+    } finally {
+      setRevisando(false)
+    }
+  }
+
   // Informa o nº de empregados da empresa ali mesmo e recalcula as multas dos
   // itens N/C já marcados (o cálculo roda no servidor ao salvar a resposta).
   const salvarEmpregados = async () => {
@@ -1138,14 +1188,20 @@ export default function VistoriaDetalhe() {
       }
       setVistoria(vistoriaFinalizada)
       setRtDialogAberto(false)
-      toast.success('Vistoria finalizada — gerando o PDF...')
 
-      try {
-        await gerarPdf(vistoriaFinalizada, respostas)
-      } catch (pdfError) {
-        toast.error('Vistoria finalizada, mas o PDF não pôde ser gerado', {
-          description: getErrorMessage(pdfError),
+      if (updated.status === 'aguardando_revisao') {
+        toast.success('Vistoria enviada para revisão', {
+          description: 'O gestor da organização vai aprovar antes do relatório sair definitivo.',
         })
+      } else {
+        toast.success('Vistoria finalizada — gerando o PDF...')
+        try {
+          await gerarPdf(vistoriaFinalizada, respostas)
+        } catch (pdfError) {
+          toast.error('Vistoria finalizada, mas o PDF não pôde ser gerado', {
+            description: getErrorMessage(pdfError),
+          })
+        }
       }
     } catch (error) {
       toast.error('Não foi possível finalizar a vistoria', { description: getErrorMessage(error) })
@@ -1324,7 +1380,11 @@ export default function VistoriaDetalhe() {
         (vistoria.checklists?.length || vistoria.formularios?.length
           ? 'Vistoria personalizada'
           : 'Sem checklist vinculado')
-  const rotuloBotaoFinalizar = travada ? 'Baixar PDF' : 'Finalizar vistoria'
+  const rotuloBotaoFinalizar = travada
+    ? 'Baixar PDF'
+    : aguardandoRevisao
+      ? 'Aguardando revisão'
+      : 'Finalizar vistoria'
   // Multa pela grade da NR-28 depende do nº de empregados: sem ele, o servidor
   // usa a menor faixa (1 a 10) e o valor sai subestimado.
   const empresaSemEmpregados = !empresa?.numero_funcionarios && (temAnexoI || temPortuario)
@@ -1436,17 +1496,21 @@ export default function VistoriaDetalhe() {
           <Select
             value={vistoria.status || 'agendada'}
             onValueChange={handleStatusSelect}
-            disabled={savingStatus || travada}
+            disabled={savingStatus || travada || aguardandoRevisao}
           >
             <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(STATUS_LABEL) as StatusVistoria[]).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </SelectItem>
-              ))}
+              {/* "aguardando_revisao" só é alcançado ao finalizar — não é uma
+                  opção que o técnico escolhe manualmente. */}
+              {(Object.keys(STATUS_LABEL) as StatusVistoria[])
+                .filter((s) => s !== 'aguardando_revisao')
+                .map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -1485,6 +1549,41 @@ export default function VistoriaDetalhe() {
                 </Button>
               )}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Enviada pelo técnico, aguardando o gestor aprovar. */}
+      {aguardandoRevisao && (
+        <Card className="mb-4 border-amber-300 bg-amber-50/60">
+          <CardContent className="flex flex-wrap items-center gap-3 pt-4">
+            <Lock className="h-5 w-5 shrink-0 text-amber-700" />
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-medium text-amber-900">Aguardando revisão do gestor</div>
+              <div className="text-xs text-amber-900/80">
+                {podeReabrir
+                  ? 'Confira o relatório e aprove, ou devolva para o técnico corrigir.'
+                  : 'O gestor da organização vai aprovar antes do relatório sair definitivo.'}
+              </div>
+            </div>
+            {podeReabrir && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={revisando}
+                  onClick={() => setDevolverDialogAberto(true)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Devolver ao técnico
+                </Button>
+                <Button size="sm" className="gap-1.5" disabled={revisando} onClick={aprovarRevisao}>
+                  <FileCheck2 className="h-3.5 w-3.5" />
+                  {revisando ? 'Aprovando...' : 'Aprovar e concluir'}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1616,7 +1715,12 @@ export default function VistoriaDetalhe() {
             )}
           </span>
           {modulos?.relatorios !== false && (
-            <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={abrirDialogFinalizacao}>
+            <Button
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              disabled={aguardandoRevisao}
+              onClick={abrirDialogFinalizacao}
+            >
               <FileCheck2 className="h-3.5 w-3.5" />
               {rotuloBotaoFinalizar}
             </Button>
@@ -2241,7 +2345,12 @@ export default function VistoriaDetalhe() {
       </div>
 
       <div className="mt-8 flex justify-center">
-        <Button size="lg" className="gap-2" onClick={abrirDialogFinalizacao}>
+        <Button
+          size="lg"
+          className="gap-2"
+          disabled={aguardandoRevisao}
+          onClick={abrirDialogFinalizacao}
+        >
           <FileCheck2 className="h-4 w-4" />
           {rotuloBotaoFinalizar}
         </Button>
@@ -2331,6 +2440,41 @@ export default function VistoriaDetalhe() {
               disabled={reabrindo || motivoReabertura.trim().length < 5}
             >
               {reabrindo ? 'Reabrindo...' : 'Reabrir vistoria'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={devolverDialogAberto} onOpenChange={setDevolverDialogAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Devolver vistoria ao técnico</DialogTitle>
+            <DialogDescription>
+              A vistoria volta para "em andamento" para o técnico corrigir e finalizar de novo.
+              Escreva o que precisa ser ajustado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="motivo-devolucao" className="text-xs">
+              Motivo da devolução
+            </Label>
+            <Textarea
+              id="motivo-devolucao"
+              value={motivoDevolucao}
+              onChange={(e) => setMotivoDevolucao(e.target.value)}
+              placeholder="Ex.: revisar a situação do item 12.6.1 e anexar foto"
+              rows={3}
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDevolverDialogAberto(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarDevolucao}
+              disabled={revisando || motivoDevolucao.trim().length < 5}
+            >
+              {revisando ? 'Devolvendo...' : 'Devolver ao técnico'}
             </Button>
           </DialogFooter>
         </DialogContent>
