@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T18:13:09.513Z",
+  "generatedAt": "2026-09-27T18:18:16.760Z",
   "collections": [
     {
       "name": "users",
@@ -54,7 +54,8 @@
             "executor",
             "admin_plataforma",
             "staff_labora",
-            "gestor"
+            "gestor",
+            "cliente"
           ]
         },
         {
@@ -258,8 +259,8 @@
       "name": "empresas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')",
-        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')",
+        "list": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')) || (acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && acessos_cliente_via_empresa_id.ativo = true)",
+        "view": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')) || (acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && acessos_cliente_via_empresa_id.ativo = true)",
         "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')",
         "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')",
         "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || @request.auth.papel = 'admin_plataforma')"
@@ -676,8 +677,8 @@
       "name": "vistorias",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id && (@request.auth.papel != 'executor' || organizacao_id.tecnico_ve_todas_vistorias = true || responsavel_tecnico_id.usuario_id = @request.auth.id)) || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
-        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id && (@request.auth.papel != 'executor' || organizacao_id.tecnico_ve_todas_vistorias = true || responsavel_tecnico_id.usuario_id = @request.auth.id)) || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')",
+        "list": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id && (@request.auth.papel != 'executor' || organizacao_id.tecnico_ve_todas_vistorias = true || responsavel_tecnico_id.usuario_id = @request.auth.id)) || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true && status = 'concluida')",
+        "view": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id && (@request.auth.papel != 'executor' || organizacao_id.tecnico_ve_todas_vistorias = true || responsavel_tecnico_id.usuario_id = @request.auth.id)) || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma')) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true && status = 'concluida')",
         "create": "@request.auth.id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') && (@request.auth.papel != 'executor' || responsavel_tecnico_id.usuario_id = @request.auth.id)",
         "update": "@request.auth.id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') && (@request.auth.papel != 'executor' || responsavel_tecnico_id.usuario_id = @request.auth.id)",
         "delete": "@request.auth.id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') && (@request.auth.papel != 'executor' || responsavel_tecnico_id.usuario_id = @request.auth.id)"
@@ -1882,8 +1883,8 @@
       "name": "orcamentos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
-        "view": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
+        "list": "(@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true)",
+        "view": "(@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true)",
         "create": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
         "update": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id",
         "delete": "@request.auth.id != '' && organizacao_id = @request.auth.organizacao_id"
@@ -4114,8 +4115,8 @@
       "name": "acoes_plano",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
-        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "list": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true)",
+        "view": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true)",
         "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
         "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
         "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
@@ -4385,8 +4386,8 @@
       "name": "documentos_sst",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
-        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "list": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true && status = 'emitido')",
+        "view": "(@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')) || (empresa_id.acessos_cliente_via_empresa_id.usuario_id ?= @request.auth.id && empresa_id.acessos_cliente_via_empresa_id.ativo = true && status = 'emitido')",
         "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
         "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
         "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
@@ -4585,6 +4586,70 @@
         "CREATE INDEX idx_documentos_sst_empresa ON documentos_sst (empresa_id)",
         "CREATE INDEX idx_documentos_sst_tipo ON documentos_sst (tipo)",
         "CREATE UNIQUE INDEX idx_documentos_sst_link_publico ON documentos_sst (link_publico_chave)"
+      ]
+    },
+    {
+      "name": "acessos_cliente",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || usuario_id = @request.auth.id)",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') || usuario_id = @request.auth.id)",
+        "create": "@request.auth.id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "update": "@request.auth.id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'",
+        "delete": "@request.auth.id != '' && (organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_acessos_cliente_usuario ON acessos_cliente (usuario_id)",
+        "CREATE INDEX idx_acessos_cliente_empresa ON acessos_cliente (empresa_id)",
+        "CREATE UNIQUE INDEX idx_acessos_cliente_par ON acessos_cliente (usuario_id, empresa_id)"
       ]
     }
   ]
