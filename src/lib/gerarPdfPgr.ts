@@ -69,6 +69,16 @@ export interface LinhaPlanoAcaoPgr {
   prioridade: string
 }
 
+/** Carimbo de assinatura eletrônica nível 1 (reautenticação por senha, sem
+ *  provedor externo) — nome e registro de quem emitiu, quando confirmou a
+ *  senha e o link da página pública de verificação. */
+export interface AssinaturaEletronica {
+  nome: string
+  registro?: string
+  confirmadaEm: Date
+  linkVerificacao: string
+}
+
 export interface DadosRelatorioPgr {
   organizacaoNome: string
   logoUrl?: string | null
@@ -84,6 +94,7 @@ export interface DadosRelatorioPgr {
   unidadesAvaliacao: string[]
   inventario: LinhaInventarioPgr[]
   planoAcao: LinhaPlanoAcaoPgr[]
+  assinatura?: AssinaturaEletronica
 }
 
 const htmlParaTexto = (html: string) =>
@@ -239,6 +250,44 @@ export async function gerarPdfPgr(dados: DadosRelatorioPgr): Promise<jsPDF> {
     headStyles: { fillColor: primaria },
     margin: { left: margin, right: margin },
   })
+
+  if (dados.assinatura) {
+    y = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y
+    y += 30
+    if (y > pageHeight - 90) {
+      doc.addPage()
+      y = margin
+    }
+    doc.setDrawColor(primaria[0], primaria[1], primaria[2])
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 18
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
+    doc.text('Assinatura eletrônica', margin, y)
+    y += 15
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(0, 0, 0)
+    doc.text(
+      `${dados.assinatura.nome}${dados.assinatura.registro ? ` — ${dados.assinatura.registro}` : ''}`,
+      margin,
+      y,
+    )
+    y += 13
+    doc.text(
+      `Identidade confirmada por senha em ${dados.assinatura.confirmadaEm.toLocaleString('pt-BR')}`,
+      margin,
+      y,
+    )
+    y += 13
+    doc.setTextColor(60, 90, 200)
+    doc.textWithLink(`Verificar autenticidade: ${dados.assinatura.linkVerificacao}`, margin, y, {
+      url: dados.assinatura.linkVerificacao,
+    })
+    doc.setTextColor(0, 0, 0)
+    y += 13
+  }
 
   const dadosOrg = identidade?.dados
   const linhaOrganizacao = [

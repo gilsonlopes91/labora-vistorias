@@ -23,6 +23,8 @@ export interface ResponsavelTecnico {
   padrao?: boolean
   /** Imagem da assinatura (arquivo protegido, migration 0130). */
   assinatura?: string
+  /** Usuário do sistema que é este responsável técnico (migration 0033), se houver. */
+  usuario_id?: string
   created: string
   updated: string
 }
@@ -75,6 +77,13 @@ export const definirComoPadrao = async (organizacaoId: string, id: string) => {
       return Promise.resolve(rt)
     }),
   )
+}
+
+/** Responsável técnico ligado ao usuário logado (para o carimbo de assinatura
+ *  eletrônica: nome e registro de quem está emitindo). */
+export const buscarResponsavelDoUsuario = async (organizacaoId: string, usuarioId: string) => {
+  const todos = await getResponsaveisTecnicos(organizacaoId)
+  return todos.find((rt) => rt.usuario_id === usuarioId) || null
 }
 
 export const formatarRegistroRT = (

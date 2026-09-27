@@ -39,6 +39,8 @@ export interface DocumentoSst extends RecordModel {
   pdf_hash_sha256?: string
   dados_emissao?: Record<string, unknown>
   emitido_por?: string
+  /** Confirmada com a senha do emissor no momento de emitir (migration 0156). */
+  assinatura_confirmada_em?: string
   link_publico_chave?: string
   link_publico_ativo?: boolean
   documento_anterior_id?: string
@@ -118,6 +120,10 @@ export const emitirDocumentoSst = async (
     matriz_snapshot?: Record<string, unknown>
     dados_emissao: Record<string, unknown>
     emitido_por: string
+    /** Confirmada por reautenticação de senha, no ato de emitir. */
+    assinatura_confirmada_em: string
+    /** Chave da página pública de verificação (/verificar/<chave>). */
+    link_publico_chave: string
   },
   pdfBlob: Blob,
   nomeArquivo: string,
@@ -133,6 +139,9 @@ export const emitirDocumentoSst = async (
   fd.append('data_emissao', new Date().toISOString())
   fd.append('emitido_por', dados.emitido_por)
   fd.append('pdf_hash_sha256', pdfHashSha256)
+  fd.append('assinatura_confirmada_em', dados.assinatura_confirmada_em)
+  fd.append('link_publico_chave', dados.link_publico_chave)
+  fd.append('link_publico_ativo', 'true')
   fd.append('pdf', new File([pdfBlob], nomeArquivo, { type: 'application/pdf' }))
   const emitido = await pb.collection('documentos_sst').update<DocumentoSst>(documento.id, fd)
   if (documento.documento_anterior_id) {

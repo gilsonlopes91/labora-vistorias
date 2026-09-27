@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { FileText, Plus, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 
 import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { carregarIdentidade } from '@/lib/identidadeVisual'
 import { resolverCelula } from '@/lib/matrizRisco'
@@ -17,6 +18,7 @@ import { getGhes } from '@/services/ghes'
 import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
 import { getAcoesPlano } from '@/services/acoesPlano'
 import { getMatrizOficial } from '@/services/matrizesRisco'
+import { buscarResponsavelDoUsuario, formatarRegistroRT } from '@/services/responsaveisTecnicos'
 import {
   getDocumentosSst,
   createDocumentoSst,
@@ -73,6 +75,10 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const [motivoRevisao, setMotivoRevisao] = useState('')
   const [emitindo, setEmitindo] = useState(false)
   const [urlPdf, setUrlPdf] = useState<string | null>(null)
+  // Assinatura eletrônica: confirma a identidade por senha antes de emitir.
+  const [dialogSenhaAberto, setDialogSenhaAberto] = useState(false)
+  const [senha, setSenha] = useState('')
+  const [erroSenha, setErroSenha] = useState('')
 
   const carregar = () => {
     setCarregando(true)
@@ -110,10 +116,41 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     }
   }, [selecionado?.id, selecionado?.pdf])
 
+  // Abre o diálogo de senha; a emissão em si só roda depois de confirmada.
+  const abrirDialogEmissao = () => {
+    setSenha('')
+    setErroSenha('')
+    setDialogSenhaAberto(true)
+  }
+
+  const confirmarSenhaEEmitir = async () => {
+    if (!senha.trim()) {
+      setErroSenha('Informe sua senha')
+      return
+    }
+    setEmitindo(true)
+    setErroSenha('')
+    try {
+      // Reautentica o próprio usuário: confirma que é ele mesmo, sem trocar de conta.
+      await pb.collection('users').authWithPassword(user?.email || '', senha)
+    } catch (error) {
+      setEmitindo(false)
+      setErroSenha('Senha incorreta')
+      return
+    }
+    setDialogSenhaAberto(false)
+    await emitirPdf()
+  }
+
   const emitirPdf = async () => {
     if (!selecionado) return
     setEmitindo(true)
     try {
+      const confirmadaEm = new Date()
+      const chaveVerificacao = crypto.randomUUID()
+      const rtEmissor = await buscarResponsavelDoUsuario(organizacaoId, user?.id || '').catch(
+        () => null,
+      )
       const empresa = await getEmpresa(empresaId)
       const nomeEmpresa = empresa.nome_fantasia || empresa.razao_social
       const ghes = await getGhes(empresaId)
@@ -159,6 +196,12 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         unidadesAvaliacao: ghes.map((g) => g.nome),
         inventario,
         planoAcao,
+        assinatura: {
+          nome: rtEmissor?.nome || user?.name || 'Responsável',
+          registro: rtEmissor ? formatarRegistroRT(rtEmissor) : undefined,
+          confirmadaEm,
+          linkVerificacao: `${window.location.origin}/verificar/${chaveVerificacao}`,
+        },
       })
       const blob = pdf.output('blob')
       const nomeArquivo = nomeArquivoPgr(nomeEmpresa, proximaVersao)
@@ -183,6 +226,8 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
             acoes_plano: acoes.length,
           },
           emitido_por: user?.id || '',
+          assinatura_confirmada_em: confirmadaEm.toISOString(),
+          link_publico_chave: chaveVerificacao,
         },
         blob,
         nomeArquivo,
@@ -469,7 +514,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                     <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
                       Salvar rascunho
                     </Button>
-                    <Button onClick={emitirPdf} disabled={salvando || emitindo}>
+                    <Button onClick={abrirDialogEmissao} disabled={salvando || emitindo}>
                       {emitindo ? 'Emitindo...' : 'Emitir PDF'}
                     </Button>
                   </>
@@ -504,6 +549,36 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
           <DialogFooter>
             <Button onClick={criarRevisao} disabled={salvando}>
               Criar revisão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogSenhaAberto} onOpenChange={setDialogSenhaAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirme sua senha para emitir</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            A emissão assina eletronicamente o documento em seu nome. Digite sua senha para
+            confirmar que é você.
+          </p>
+          <div>
+            <Label htmlFor="senha-emissao">Senha</Label>
+            <Input
+              id="senha-emissao"
+              type="password"
+              className="mt-1.5"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && confirmarSenhaEEmitir()}
+              autoFocus
+            />
+            {erroSenha && <p className="mt-1.5 text-xs text-destructive">{erroSenha}</p>}
+          </div>
+          <DialogFooter>
+            <Button onClick={confirmarSenhaEEmitir} disabled={emitindo}>
+              {emitindo ? 'Confirmando...' : 'Confirmar e emitir'}
             </Button>
           </DialogFooter>
         </DialogContent>
