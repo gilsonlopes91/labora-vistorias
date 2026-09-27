@@ -5,6 +5,7 @@
    referência para quem revisa o método. */
 import { Link } from 'react-router-dom'
 
+import { DiagramaProcessoPgr } from '@/components/DiagramaProcessoPgr'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -103,6 +104,7 @@ export function DocumentacaoComoFunciona() {
       </Secao>
 
       <Secao titulo="2. O fluxo dentro do app">
+        <DiagramaProcessoPgr />
         <p>O trabalho segue uma ordem, e cada etapa fica em um lugar do módulo:</p>
         <ol className="list-decimal space-y-1.5 pl-5">
           <li>
