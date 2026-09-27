@@ -15,9 +15,14 @@ export const getPapelUsuarioLogado = (): Papel | 'admin_plataforma' | 'staff_lab
   return (papel as Papel | 'admin_plataforma' | 'staff_labora') || 'dono' // usuários antigos sem papel = dono
 }
 
+// Lista explícita (não "tudo que não é executor"): um papel novo (ex.: um
+// futuro perfil de cliente ou administrativo) não deve herdar acesso de
+// gestor só por omissão.
+const PAPEIS_GESTOR = new Set(['dono', 'gerente', 'gestor', 'admin_plataforma', 'staff_labora'])
+
 export const isGestor = () => {
   if (!pb.authStore.isValid || !pb.authStore.record) return false
-  return getPapelUsuarioLogado() !== 'executor'
+  return PAPEIS_GESTOR.has(getPapelUsuarioLogado())
 }
 
 /**

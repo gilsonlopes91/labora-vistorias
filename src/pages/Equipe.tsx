@@ -47,10 +47,10 @@ import {
 } from '@/components/ui/alert-dialog'
 
 const PAPEL_LABEL: Record<string, string> = {
-  dono: 'Dono',
-  gerente: 'Gerente',
+  dono: 'Gestor',
+  gerente: 'Gestor',
   gestor: 'Gestor',
-  executor: 'Executor (técnico)',
+  executor: 'Técnico',
   admin_plataforma: 'Administração da plataforma',
   staff_labora: 'Equipe Labora',
 }
@@ -197,8 +197,8 @@ export default function Equipe() {
                       <SelectValue placeholder="Selecione o papel" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gerente">Gerente — tudo operacional</SelectItem>
-                      <SelectItem value="executor">Executor — técnico de campo</SelectItem>
+                      <SelectItem value="gerente">Gestor — tudo operacional</SelectItem>
+                      <SelectItem value="executor">Técnico — vistorias de campo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -223,8 +223,8 @@ export default function Equipe() {
             Membros ({membros.length})
           </CardTitle>
           <CardDescription>
-            Dono e gerente gerenciam tudo; executor vê todas as empresas, mas só edita as vistorias
-            atribuídas a ele.
+            Gestor gerencia tudo; técnico vê todas as empresas, mas só edita as vistorias atribuídas
+            a ele.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">

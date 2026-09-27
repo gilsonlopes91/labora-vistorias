@@ -249,6 +249,9 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const userGestor = isGestor()
+  const userAdmin =
+    user?.papel === 'admin_plataforma' ||
+    (user?.papel === 'staff_labora' && Boolean(user?.acesso_console))
 
   // Pacotes da organização: módulos desligados saem do menu.
   const [modulos, setModulos] = useState<Modulos | null>(null)
@@ -330,7 +333,7 @@ export default function Layout() {
           <SidebarGroup>
             <SidebarMenu>
               {NAV_ITEMS.filter((item) => !item.gestor || userGestor)
-                .filter((item) => !item.adminOnly || user?.papel === 'admin_plataforma')
+                .filter((item) => !item.adminOnly || userAdmin)
                 .filter((item) => !modulos || !moduloDe[item.to] || moduloDe[item.to](modulos))
                 .map((item) => (
                   <NavItemTree

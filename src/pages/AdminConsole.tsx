@@ -567,7 +567,7 @@ export default function AdminConsole() {
       <div className="mt-10">
         <h2 className="mb-1 text-xl font-bold">Staff Labora</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Equipe Labora que atua dentro das organizações como executor — sem ver cobrança.
+          Equipe Labora que atua dentro das organizações como técnico — sem ver cobrança.{' '}
         </p>
 
         <Card className="mb-4 rounded-2xl border-none p-4 shadow-subtle">

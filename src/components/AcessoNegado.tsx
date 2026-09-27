@@ -11,7 +11,7 @@ interface AcessoNegadoProps {
 
 export default function AcessoNegado({
   titulo = 'Acesso negado',
-  mensagem = 'Seu perfil de acesso (executor/cliente) não possui permissão para visualizar esta página ou recurso. Entre em contato com um gestor ou administrador da sua organização caso precise de acesso.',
+  mensagem = 'Seu perfil de acesso (técnico) não possui permissão para visualizar esta página ou recurso. Entre em contato com um gestor ou administrador da sua organização caso precise de acesso.',
   voltarPara = '/painel',
   rotuloVoltar = 'Voltar ao início',
 }: AcessoNegadoProps) {
