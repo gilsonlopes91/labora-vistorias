@@ -74,9 +74,15 @@ import {
 const TRILHAS: TrilhaProbabilidade[] = [
   'Quantitativa (medição)',
   'Qualitativa (controle)',
+  'Sem dados suficientes',
   'Acidente/mecânico',
   'Ergonômica (AEP/AET)',
   'Psicossocial',
+]
+const TRILHAS_DESLIGADAS: TrilhaProbabilidade[] = ['Psicossocial']
+const METODOLOGIAS_MATRIZ = [
+  { valor: 'AIHA', nome: 'AIHA (adaptação BS 8800)' },
+  { valor: 'ISO45002', nome: 'ISO 45002 (manual do MTE)' },
 ]
 const NIVEIS_CONTROLE = [
   'Excelente / melhor prática',
@@ -129,6 +135,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   const [agentes, setAgentes] = useState<AgenteCatalogo[]>([])
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoRisco[]>([])
   const [dimensao, setDimensao] = useState<Dimensao>(5)
+  const [metodologia, setMetodologia] = useState<string>('AIHA')
   const [matriz, setMatriz] = useState<MatrizRisco | null>(null)
   const [carregando, setCarregando] = useState(true)
 
@@ -151,14 +158,14 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   }, [empresaId])
 
   useEffect(() => {
-    getMatrizOficial(dimensao)
+    getMatrizOficial(dimensao, metodologia)
       .then(setMatriz)
       .catch((error) =>
         toast.error('Não foi possível carregar a matriz de risco', {
           description: getErrorMessage(error),
         }),
       )
-  }, [dimensao])
+  }, [dimensao, metodologia])
 
   const recarregarAvaliacoes = () =>
     getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id)).then(setAvaliacoes)
@@ -266,6 +273,8 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
         categoria_aiha_exposicao: f.categoria_aiha_exposicao,
         controle_nivel: f.controle_nivel,
         resultado_aep_aet: f.resultado_aep_aet,
+        nr_especifica_aplicavel: f.nr_especifica_aplicavel,
+        nr_especifica_atendida: f.nr_especifica_atendida,
       },
       dimensao,
     )
@@ -327,7 +336,26 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground">Matriz</Label>
+          <Label className="text-xs text-muted-foreground">Metodologia</Label>
+          <Select
+            value={metodologia}
+            onValueChange={(v) => {
+              setMetodologia(v)
+              if (v === 'ISO45002') setDimensao(5)
+            }}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {METODOLOGIAS_MATRIZ.map((m) => (
+                <SelectItem key={m.valor} value={m.valor}>
+                  {m.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Label className="text-xs text-muted-foreground">Dimensão</Label>
           <Select
             value={String(dimensao)}
             onValueChange={(v) => setDimensao(Number(v) as Dimensao)}
@@ -337,7 +365,9 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="5">5 x 5</SelectItem>
-              <SelectItem value="3">3 x 3</SelectItem>
+              <SelectItem value="3" disabled={metodologia === 'ISO45002'}>
+                3 x 3
+              </SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" disabled={ghes.length === 0} onClick={() => abrir(null)}>
@@ -456,6 +486,103 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               />
             </div>
 
+            <div className="rounded-lg border p-3">
+              <Label className="mb-2 block text-sm font-semibold">
+                Levantamento preliminar (manual do MTE, item 9)
+              </Label>
+              <div className="grid grid-cols-3 gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={!!f.risco_evidente}
+                    onCheckedChange={(c) => setF((v) => ({ ...v, risco_evidente: !!c }))}
+                  />
+                  Risco evidente
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={!!f.perigo_externo}
+                    onCheckedChange={(c) => setF((v) => ({ ...v, perigo_externo: !!c }))}
+                  />
+                  Perigo externo
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={!!f.atividade_nao_rotineira}
+                    onCheckedChange={(c) => setF((v) => ({ ...v, atividade_nao_rotineira: !!c }))}
+                  />
+                  Atividade não rotineira
+                </label>
+              </div>
+              {f.risco_evidente && (
+                <div className="mt-3">
+                  <div className="mb-2 flex items-start gap-1.5 text-xs text-amber-700">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Risco evidente exige ação imediata, antes da conclusão da avaliação formal pela
+                    matriz (não espera a categoria de P × S).
+                  </div>
+                  <Label className="text-xs">Ação imediata adotada</Label>
+                  <Textarea
+                    className="mt-1"
+                    value={f.risco_evidente_acao_imediata || ''}
+                    onChange={(e) =>
+                      setF((v) => ({ ...v, risco_evidente_acao_imediata: e.target.value }))
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border p-3">
+              <Label className="mb-2 block text-sm font-semibold">
+                Requisito específico de NR (manual do MTE, item 11.4)
+              </Label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={!!f.nr_especifica_aplicavel}
+                  onCheckedChange={(c) => setF((v) => ({ ...v, nr_especifica_aplicavel: !!c }))}
+                />
+                Há um requisito específico de NR aplicável a este perigo
+              </label>
+              {f.nr_especifica_aplicavel && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <Label className="text-xs">Referência (ex.: NR-17, item 17.3.5)</Label>
+                    <Input
+                      className="mt-1"
+                      value={f.nr_especifica_referencia || ''}
+                      onChange={(e) =>
+                        setF((v) => ({ ...v, nr_especifica_referencia: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!!f.nr_especifica_atendida}
+                      onCheckedChange={(c) => setF((v) => ({ ...v, nr_especifica_atendida: !!c }))}
+                    />
+                    O requisito está atendido
+                  </label>
+                  {!f.nr_especifica_atendida && (
+                    <div className="flex items-start gap-1.5 text-xs text-amber-700">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Requisito não atendido: a probabilidade é elevada ao teto da matriz,
+                      independente da trilha escolhida (exemplo dos assentos da NR-17 no manual).
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-xs">Justificativa</Label>
+                    <Textarea
+                      className="mt-1"
+                      value={f.nr_especifica_justificativa || ''}
+                      onChange={(e) =>
+                        setF((v) => ({ ...v, nr_especifica_justificativa: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Frequência de exposição</Label>
@@ -501,12 +628,19 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
                 </SelectTrigger>
                 <SelectContent>
                   {TRILHAS.map((t) => (
-                    <SelectItem key={t} value={t}>
+                    <SelectItem key={t} value={t} disabled={TRILHAS_DESLIGADAS.includes(t)}>
                       {t}
+                      {TRILHAS_DESLIGADAS.includes(t) ? ' (em breve)' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {TRILHAS_DESLIGADAS.includes(f.trilha_probabilidade as TrilhaProbabilidade) && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  A análise psicossocial ainda não é feita pelo Labora Vistorias — o campo já existe
+                  para reservar o lugar dela no inventário, e será habilitado em uma versão futura.
+                </p>
+              )}
 
               {f.trilha_probabilidade === 'Quantitativa (medição)' && (
                 <div className="mt-3 space-y-3">
@@ -636,6 +770,15 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {f.trilha_probabilidade === 'Sem dados suficientes' && (
+                <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Sem base para avaliar ainda (nem medição, nem julgamento sobre um controle
+                  existente). A probabilidade fica no teto da matriz até essa trilha ser trocada por
+                  uma das outras, com dado de apoio.
                 </div>
               )}
 
@@ -783,6 +926,9 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
                 incerteza: f.incerteza,
                 categoria_aiha_exposicao: f.categoria_aiha_exposicao,
                 trilha_probabilidade: f.trilha_probabilidade || 'Qualitativa (controle)',
+                nr_especifica_aplicavel: f.nr_especifica_aplicavel,
+                nr_especifica_atendida: f.nr_especifica_atendida,
+                risco_evidente: f.risco_evidente,
               }).map((aviso) => (
                 <div key={aviso} className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

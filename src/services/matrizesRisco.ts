@@ -47,7 +47,11 @@ export interface MatrizRisco extends RecordModel {
 export const getMatrizesRisco = () =>
   pb.collection('matrizes_risco').getFullList<MatrizRisco>({ sort: 'dimensao' })
 
-export const getMatrizOficial = async (dimensao: 3 | 5) => {
+export const getMatrizOficial = async (dimensao: 3 | 5, metodologia: string = 'AIHA') => {
   const todas = await getMatrizesRisco()
-  return todas.find((m) => m.somente_leitura && Number(m.dimensao) === dimensao) || null
+  return (
+    todas.find(
+      (m) => m.somente_leitura && Number(m.dimensao) === dimensao && m.metodologia === metodologia,
+    ) || null
+  )
 }

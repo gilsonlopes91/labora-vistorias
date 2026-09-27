@@ -9,6 +9,7 @@ export type TrilhaProbabilidade =
   | 'Acidente/mecânico'
   | 'Ergonômica (AEP/AET)'
   | 'Psicossocial'
+  | 'Sem dados suficientes'
 
 export interface AvaliacaoRisco extends RecordModel {
   id: string
@@ -60,6 +61,14 @@ export interface AvaliacaoRisco extends RecordModel {
   origem?: 'Manual' | 'Formulário de campo' | 'Item N/C de vistoria'
   formulario_origem_id?: string
   resposta_vistoria_origem_id?: string
+  risco_evidente?: boolean
+  risco_evidente_acao_imediata?: string
+  perigo_externo?: boolean
+  atividade_nao_rotineira?: boolean
+  nr_especifica_aplicavel?: boolean
+  nr_especifica_referencia?: string
+  nr_especifica_atendida?: boolean
+  nr_especifica_justificativa?: string
   ativo?: boolean
   expand?: { ghe_id?: Ghe; agente_id?: AgenteCatalogo }
   created: string

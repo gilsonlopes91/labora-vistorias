@@ -63,15 +63,34 @@ function probabilidadePorCategoriaAiha(categoria: number, dimensao: Dimensao): n
 
 /** Sugestão de probabilidade a partir do dado bruto da avaliação. Retorna
  *  null quando falta informação para sugerir (ex.: trilha quantitativa sem
- *  categoria AIHA ainda preenchida). */
+ *  categoria AIHA ainda preenchida).
+ *
+ *  Duas regras do manual do MTE são aplicadas por cima da trilha escolhida:
+ *  - "Sem dados suficientes" é uma trilha própria (distinta de "Qualitativa
+ *    (controle)", que pressupõe um julgamento sobre um controle existente):
+ *    sem base para avaliar, a sugestão é sempre o teto da dimensão.
+ *  - Requisito específico de NR não atendido (item 11.4 do manual, exemplo
+ *    dos assentos da NR-17) força a probabilidade ao teto, não importa a
+ *    trilha ou o dado bruto. */
 export function sugerirProbabilidade(
   avaliacao: Pick<
     AvaliacaoRisco,
-    'trilha_probabilidade' | 'categoria_aiha_exposicao' | 'controle_nivel' | 'resultado_aep_aet'
+    | 'trilha_probabilidade'
+    | 'categoria_aiha_exposicao'
+    | 'controle_nivel'
+    | 'resultado_aep_aet'
+    | 'nr_especifica_aplicavel'
+    | 'nr_especifica_atendida'
   >,
   dimensao: Dimensao,
 ): number | null {
+  if (avaliacao.nr_especifica_aplicavel && !avaliacao.nr_especifica_atendida) {
+    return dimensao
+  }
   const { trilha_probabilidade: trilha } = avaliacao
+  if (trilha === 'Sem dados suficientes') {
+    return dimensao
+  }
   if (trilha === 'Quantitativa (medição)') {
     if (avaliacao.categoria_aiha_exposicao == null || avaliacao.categoria_aiha_exposicao === '')
       return null
@@ -137,11 +156,31 @@ export function resolverCelula(
 export function avisosComplementares(
   avaliacao: Pick<
     AvaliacaoRisco,
-    'incerteza' | 'categoria_aiha_exposicao' | 'trilha_probabilidade'
+    | 'incerteza'
+    | 'categoria_aiha_exposicao'
+    | 'trilha_probabilidade'
+    | 'nr_especifica_aplicavel'
+    | 'nr_especifica_atendida'
+    | 'risco_evidente'
   >,
 ): string[] {
   const avisos: string[] = []
   const incerteza = avaliacao.incerteza != null ? Number(avaliacao.incerteza) : null
+  if (avaliacao.risco_evidente) {
+    avisos.push(
+      'Risco evidente (manual do MTE, item 9): a ação imediata não pode esperar a conclusão da avaliação formal pela matriz.',
+    )
+  }
+  if (avaliacao.nr_especifica_aplicavel && !avaliacao.nr_especifica_atendida) {
+    avisos.push(
+      'Requisito específico de NR não atendido: a probabilidade foi elevada ao teto da matriz (manual do MTE, item 11.4), independente da trilha escolhida.',
+    )
+  }
+  if (avaliacao.trilha_probabilidade === 'Sem dados suficientes') {
+    avisos.push(
+      'Sem dados suficientes para avaliar: a probabilidade foi lançada no teto da matriz até que haja base (medição, análise ou julgamento do controle) para reavaliar.',
+    )
+  }
   if (incerteza != null && incerteza >= 2) {
     avisos.push(
       'Incerteza alta: recomenda-se coletar mais dados (mínimo de 6 amostras no GHE) antes de reduzir o risco.',

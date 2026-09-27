@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T22:38:15.566Z",
+  "generatedAt": "2026-09-27T02:49:50.844Z",
   "collections": [
     {
       "name": "users",
@@ -3470,7 +3470,8 @@
             "Qualitativa (controle)",
             "Acidente/mecânico",
             "Ergonômica (AEP/AET)",
-            "Psicossocial"
+            "Psicossocial",
+            "Sem dados suficientes"
           ]
         },
         {
@@ -3758,6 +3759,54 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "risco_evidente",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "risco_evidente_acao_imediata",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "perigo_externo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atividade_nao_rotineira",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nr_especifica_aplicavel",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nr_especifica_referencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nr_especifica_atendida",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nr_especifica_justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
