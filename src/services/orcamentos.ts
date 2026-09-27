@@ -188,6 +188,12 @@ export const updateOrcamento = (id: string, data: Partial<OrcamentoInput>) =>
 
 export const deleteOrcamento = (id: string) => pb.collection('orcamentos').delete(id)
 
+/** Aceite pelo portal do cliente (autenticado) — diferente do link público. */
+export const aceitarOrcamentoCliente = (id: string) =>
+  pb.send<{ ok: boolean; status: StatusOrcamento }>(`/backend/v1/cliente/orcamento/${id}/aceitar`, {
+    method: 'POST',
+  })
+
 // ---------- Link público da proposta ----------
 
 const novaChaveLink = () => (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')

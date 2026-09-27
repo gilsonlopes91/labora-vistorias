@@ -87,6 +87,14 @@ export const getDocumentosSst = (empresaId: string, tipo: TipoDocumentoSst) =>
 export const getDocumentoSst = (id: string) =>
   pb.collection('documentos_sst').getOne<DocumentoSst>(id)
 
+/** Documentos emitidos de uma empresa, de qualquer tipo — usado no portal do
+ *  cliente (só vê o que já foi emitido, nunca rascunho). */
+export const getDocumentosEmitidos = (empresaId: string) =>
+  pb.collection('documentos_sst').getFullList<DocumentoSst>({
+    filter: `empresa_id = "${empresaId}" && status = "emitido"`,
+    sort: '-data_emissao',
+  })
+
 export const createDocumentoSst = (data: DocumentoSstInput) =>
   pb.collection('documentos_sst').create<DocumentoSst>(data)
 

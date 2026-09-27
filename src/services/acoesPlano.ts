@@ -71,3 +71,14 @@ export const updateAcaoPlano = (id: string, data: Partial<AcaoPlanoInput>) =>
   pb.collection('acoes_plano').update<AcaoPlano>(id, data)
 
 export const deleteAcaoPlano = (id: string) => pb.collection('acoes_plano').delete(id)
+
+/** Atualização feita pelo cliente (portal): só status e data de conclusão,
+ *  por rota de servidor — a regra de acesso da coleção não restringe campo. */
+export const atualizarAcaoCliente = (
+  id: string,
+  data: { status?: StatusAcaoPlano; data_conclusao?: string },
+) =>
+  pb.send<{ ok: boolean }>('/backend/v1/cliente/acao', {
+    method: 'POST',
+    body: JSON.stringify({ id, ...data }),
+  })

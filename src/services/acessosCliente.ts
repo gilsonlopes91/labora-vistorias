@@ -2,6 +2,7 @@
  * Uma pessoa (fora da organização) vê só a empresa em que tem acesso ativo. */
 import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
+import type { Empresa } from '@/services/empresas'
 
 export interface AcessoCliente extends RecordModel {
   id: string
@@ -11,7 +12,7 @@ export interface AcessoCliente extends RecordModel {
   ativo: boolean
   created: string
   updated: string
-  expand?: { usuario_id?: { id: string; name: string; email: string } }
+  expand?: { usuario_id?: { id: string; name: string; email: string }; empresa_id?: Empresa }
 }
 
 /** Acessos concedidos para uma empresa (lista na ficha da empresa). */
@@ -21,6 +22,17 @@ export const getAcessosCliente = (empresaId: string) =>
     sort: '-created',
     expand: 'usuario_id',
   })
+
+/** Empresas em que o usuário logado (papel cliente) tem acesso ativo — para
+ *  o portal do cliente e o seletor, quando ele atende mais de uma. */
+export const getMeusAcessosCliente = () => {
+  const uid = pb.authStore.record?.id || ''
+  return pb.collection('acessos_cliente').getFullList<AcessoCliente>({
+    filter: pb.filter('usuario_id = {:u} && ativo = true', { u: uid }),
+    sort: '-created',
+    expand: 'empresa_id',
+  })
+}
 
 /** Convida (ou reativa) o acesso de um e-mail a uma empresa. */
 export const convidarCliente = (data: { email: string; nome: string; empresa_id: string }) =>

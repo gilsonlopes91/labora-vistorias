@@ -88,7 +88,10 @@ export default function Login() {
   }
 
   if (isAuthenticated) {
-    const from = (location.state as { from?: string })?.from || '/painel'
+    const papelLogado = (pb.authStore.record as { papel?: string } | null)?.papel
+    const from =
+      (location.state as { from?: string })?.from ||
+      (papelLogado === 'cliente' ? '/cliente' : '/painel')
     return <Navigate to={from} replace />
   }
 
@@ -108,7 +111,8 @@ export default function Login() {
       navigate('/trocar-senha', { replace: true })
       return
     }
-    navigate('/painel', { replace: true })
+    const papelLogado = (pb.authStore.record as { papel?: string } | null)?.papel
+    navigate(papelLogado === 'cliente' ? '/cliente' : '/painel', { replace: true })
   }
 
   const onSignup = async (values: z.infer<typeof signupSchema>) => {

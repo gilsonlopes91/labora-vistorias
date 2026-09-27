@@ -30,6 +30,11 @@ export default function ProtectedRoute({
     return <Navigate to="/login" replace />
   }
 
+  // Cliente final (empresa vistoriada) só usa o portal, nunca o app interno.
+  if (user?.papel === 'cliente') {
+    return <Navigate to="/cliente" replace />
+  }
+
   // Verifica proteção de admin_plataforma
   if (adminOnly) {
     const isAdmin =

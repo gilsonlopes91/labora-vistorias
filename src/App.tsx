@@ -42,6 +42,13 @@ import AdminNormas from './pages/AdminNormas'
 import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
+import LayoutCliente from './components/LayoutCliente'
+import ProtectedRouteCliente from './components/ProtectedRouteCliente'
+import ClienteInicio from './pages/cliente/ClienteInicio'
+import ClienteDocumentos from './pages/cliente/ClienteDocumentos'
+import ClientePlanoAcao from './pages/cliente/ClientePlanoAcao'
+import ClienteOrcamentos from './pages/cliente/ClienteOrcamentos'
+import ClienteAgenda from './pages/cliente/ClienteAgenda'
 import { trackPublicPageView } from '@/lib/analytics'
 import AvisoCookies from '@/components/AvisoCookies'
 import TituloPorRota from '@/components/TituloPorRota'
@@ -279,6 +286,21 @@ const App = () => (
               }
             />
             {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
+          </Route>
+          {/* Portal do cliente (empresa vistoriada) — casca própria, sem o menu do app interno */}
+          <Route
+            path="/cliente"
+            element={
+              <ProtectedRouteCliente>
+                <LayoutCliente />
+              </ProtectedRouteCliente>
+            }
+          >
+            <Route index element={<ClienteInicio />} />
+            <Route path="documentos" element={<ClienteDocumentos />} />
+            <Route path="plano-acao" element={<ClientePlanoAcao />} />
+            <Route path="orcamentos" element={<ClienteOrcamentos />} />
+            <Route path="agenda" element={<ClienteAgenda />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
