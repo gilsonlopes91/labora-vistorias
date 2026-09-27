@@ -25,6 +25,13 @@ export interface Empresa extends RecordModel {
   bairro?: string
   cidade?: string
   uf?: string
+  /** Planejamento do PGR (E0 — ver P3 do desenho de processo). */
+  pgr_data_inicio_levantamento?: string
+  pgr_modo_organizacao?: 'GHE/GES' | 'Atividade, posto, função ou setor' | 'Misto'
+  pgr_matriz_padrao_metodologia?: 'AIHA' | 'ISO45002'
+  pgr_matriz_padrao_dimensao?: '3' | '5'
+  pgr_participantes?: string
+  pgr_observacoes_planejamento?: string
   created: string
   updated: string
 }

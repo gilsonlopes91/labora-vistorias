@@ -12,6 +12,7 @@ import { getEmpresas, type Empresa } from '@/services/empresas'
 import { EstruturaSstTab } from '@/components/EstruturaSstTab'
 import { InventarioRiscosTab } from '@/components/InventarioRiscosTab'
 import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
+import { PlanejamentoPgrTab } from '@/components/PlanejamentoPgrTab'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -24,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const SUBS = ['estrutura', 'inventario', 'plano'] as const
+const SUBS = ['planejamento', 'estrutura', 'inventario', 'plano'] as const
 type Sub = (typeof SUBS)[number]
 
 export function LevantamentoSstTab() {
@@ -34,7 +35,7 @@ export function LevantamentoSstTab() {
 
   const empresaId = searchParams.get('empresa') || ''
   const subParam = searchParams.get('sub')
-  const sub: Sub = SUBS.includes(subParam as Sub) ? (subParam as Sub) : 'estrutura'
+  const sub: Sub = SUBS.includes(subParam as Sub) ? (subParam as Sub) : 'planejamento'
 
   useEffect(() => {
     getEmpresas()
@@ -106,10 +107,14 @@ export function LevantamentoSstTab() {
       ) : (
         <Tabs value={sub} onValueChange={(v) => mudarParam('sub', v)} className="space-y-6">
           <TabsList>
+            <TabsTrigger value="planejamento">Planejamento</TabsTrigger>
             <TabsTrigger value="estrutura">Estrutura SST</TabsTrigger>
             <TabsTrigger value="inventario">Inventário de riscos</TabsTrigger>
             <TabsTrigger value="plano">Plano de ação</TabsTrigger>
           </TabsList>
+          <TabsContent value="planejamento" className="mt-0 focus-visible:outline-none">
+            <PlanejamentoPgrTab key={empresaId} empresaId={empresaId} />
+          </TabsContent>
           <TabsContent value="estrutura" className="mt-0 focus-visible:outline-none">
             <EstruturaSstTab key={empresaId} empresaId={empresaId} />
           </TabsContent>
