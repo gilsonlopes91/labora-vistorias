@@ -131,9 +131,11 @@ export function DocumentacaoComoFunciona() {
             Intoleráveis sem ação geram sugestões com um clique.
           </li>
           <li>
-            <strong>Documentos</strong> (próxima fase): editor por seções, escolha da matriz no PGR,
-            prévia em PDF, emissão com trava e versão; e, a partir do mesmo levantamento, os laudos
-            de insalubridade e periculosidade e o LTCAT.
+            <strong>Documentos</strong>: para o PGR, um editor por seções (liga/desliga, reordena,
+            texto livre) dentro da sub-aba Documentos; o botão "Emitir PDF" gera o documento a
+            partir das seções e dos dados atuais de estrutura, inventário e plano de ação, e trava
+            aquela versão. Os laudos de insalubridade, periculosidade e o LTCAT, a partir do mesmo
+            levantamento, ainda vêm nas próximas etapas.
           </li>
         </ol>
       </Secao>
@@ -384,6 +386,14 @@ export function DocumentacaoComoFunciona() {
           matriz escolhida. Revisão em 2 anos (3 com certificação), com registro do gatilho quando
           for antecipada.
         </p>
+        <p className="text-muted-foreground">
+          Na prática: a sub-aba Documentos (dentro de Levantamento) tem um editor por seções — cada
+          seção pode ser ligada/desligada, reordenada e ter seu texto editado. Ao emitir, o app gera
+          o PDF juntando essas seções com as unidades de avaliação, o inventário de riscos e o plano
+          de ação de hoje, calcula o hash do arquivo e trava aquela versão: para mudar qualquer
+          coisa depois, é preciso criar uma nova revisão, que fica ligada à versão anterior (que
+          passa a "substituída").
+        </p>
         <p>
           <strong>Laudo de insalubridade.</strong> Agentes quantitativos comparados com o limite do
           catálogo (Anexos 1, 2, 3, 5, 8, 11 e 12 da NR-15); qualitativos pela atividade listada no
@@ -449,18 +459,20 @@ export function DocumentacaoComoFunciona() {
           (AIHA 3×3, AIHA 5×5 e ISO 45002 5×5); o inventário de riscos com as trilhas de
           probabilidade (incluindo "sem dados suficientes"), o levantamento preliminar (risco
           evidente, perigo externo, atividade não rotineira), a regra de NR específica não atendida,
-          e a sugestão de P e S; as medições com a estatística lognormal; e o plano de ação com
-          geração de sugestões, priorizado por categoria de risco e número de expostos.
+          e a sugestão de P e S; as medições com a estatística lognormal; o plano de ação com
+          geração de sugestões, priorizado por categoria de risco e número de expostos; e, para o
+          PGR, o editor de documento por seções com emissão em PDF e trava de versão (nova revisão
+          para editar depois de emitido).
         </p>
         <p>
           <strong>Próximas etapas:</strong> vínculo das fichas de campo de calor e ruído com as
           medições; conversão de item não conforme de vistoria em perigo de acidente; registro de
-          cenários de emergência; editor de documentos por seções com biblioteca de textos e emissão
-          do PGR em PDF; motores de cálculo automático e documentos dos laudos de insalubridade e
-          periculosidade; LTCAT com o checklist do art. 276; análise de acidentes; assinatura
-          digital e exportação final dos documentos; alertas de revisão e link de disponibilização.
-          A análise psicossocial (seção 3) fica para depois dessas etapas. Vídeos explicando o uso
-          ficam para uma fase posterior, depois que o fluxo estiver fechado de ponta a ponta.
+          cenários de emergência; biblioteca de textos-padrão reutilizáveis no editor de documentos;
+          motores de cálculo automático e documentos dos laudos de insalubridade e periculosidade;
+          LTCAT com o checklist do art. 276; análise de acidentes; assinatura digital; link de
+          disponibilização pública do documento emitido; e alertas de revisão. A análise
+          psicossocial (seção 3) fica para depois dessas etapas. Vídeos explicando o uso ficam para
+          uma fase posterior, depois que o fluxo estiver fechado de ponta a ponta.
         </p>
       </Secao>
     </div>
