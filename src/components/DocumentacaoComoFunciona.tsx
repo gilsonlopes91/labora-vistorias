@@ -453,7 +453,36 @@ export function DocumentacaoComoFunciona() {
         </p>
       </Secao>
 
-      <Secao titulo="12. O que já está pronto e o que vem">
+      <Secao titulo="12. Assinatura eletrônica ao emitir, e o que o cliente vê">
+        <p>
+          Ao emitir o PDF do PGR (e, do mesmo jeito, o relatório de vistoria), o app pede a senha de
+          quem está emitindo — confirma que é mesmo aquela pessoa antes de gerar o documento. Só
+          depois disso o PDF é criado e a versão trava.
+        </p>
+        <p>
+          O documento final traz um carimbo de "assinatura eletrônica": nome do profissional,
+          conselho/registro/UF, data e hora da confirmação por senha, e um link curto de
+          verificação. Qualquer pessoa que receba o PDF pode abrir esse link (sem precisar de login)
+          para conferir os dados de emissão e, se quiser, enviar o próprio arquivo para comparar — a
+          conferência do arquivo é feita no navegador de quem está verificando, o app nunca recebe
+          esse arquivo.
+        </p>
+        <p>
+          Esse é o nível 1 de assinatura: reautenticação por senha, carimbo e verificação pública.
+          Não é assinatura com certificado ICP-Brasil nem integração com um provedor (ZapSign,
+          D4Sign, Clicksign, Autentique) — isso fica para uma etapa futura, como um adicional pago.
+        </p>
+        <p>
+          <strong>O que o cliente da empresa vistoriada enxerga.</strong> Quando a organização dá
+          acesso ao portal do cliente para alguém da empresa vistoriada, essa pessoa só vê o que já
+          foi concluído e emitido: vistorias concluídas (com o PDF e o link de verificação) e
+          documentos de SST emitidos — nunca rascunhos, nem o PGR ainda em elaboração. Ela também
+          acompanha e atualiza o andamento do plano de ação das próprias empresas, e responde a
+          propostas de orçamento.
+        </p>
+      </Secao>
+
+      <Secao titulo="13. O que já está pronto e o que vem">
         <p>
           <strong>Pronto:</strong> planejamento do PGR por empresa; estrutura da empresa (setores,
           unidades de avaliação com GHE/GES opcional, funções); catálogo de agentes editável (com
