@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Allow: /calculadora
+Allow: /blog
+Disallow: /painel
+Disallow: /admin
+Disallow: /empresas
+Disallow: /vistorias
+Disallow: /auditoria-formularios
+Disallow: /documentacao
+Disallow: /modelos
+Disallow: /formularios
+Disallow: /agenda
+Disallow: /orcamentos
+Disallow: /artigos
+Disallow: /configuracoes
+Disallow: /equipe
+Disallow: /conteudo
+Disallow: /cliente
+Disallow: /trocar-senha
+Disallow: /verificar
+
+Sitemap: https://labora-vistoria-efe63.goskip.app/sitemap.xml

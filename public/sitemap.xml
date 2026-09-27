@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sitemap mínimo, só com as páginas estáticas. Os artigos do blog (/blog/:slug)
+     não entram aqui ainda — precisam ser gerados dinamicamente a partir da
+     coleção "artigos"; ficou registrado como pendente no plano de vendas. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://labora-vistoria-efe63.goskip.app/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://labora-vistoria-efe63.goskip.app/calculadora</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://labora-vistoria-efe63.goskip.app/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://labora-vistoria-efe63.goskip.app/termos</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://labora-vistoria-efe63.goskip.app/privacidade</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+</urlset>
