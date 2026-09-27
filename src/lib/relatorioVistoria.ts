@@ -21,6 +21,7 @@ import {
   COR_PRIMARIA_LABORA,
   COR_SECUNDARIA_LABORA,
 } from '@/lib/identidadeVisual'
+import type { AssinaturaEletronica } from '@/lib/gerarPdfPgr'
 
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
 
@@ -99,6 +100,8 @@ export interface DadosRelatorioVistoria {
   /** Cores da organização (hex). Sem elas, o laudo lê de Configurações > Identidade visual. */
   corPrimaria?: string
   corSecundaria?: string
+  /** Carimbo de assinatura eletrônica (etapa 3d) — omitido em laudos antigos. */
+  assinatura?: AssinaturaEletronica
 }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -201,7 +204,25 @@ async function carregarImagemComoDataUrl(
   }
 }
 
-export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<void> {
+/** Nome de arquivo do relatório, a partir da empresa e do tipo de vistoria. */
+export const nomeArquivoVistoria = (
+  empresaNome: string,
+  tipoNrReferencia?: string,
+  tipoNome?: string,
+) => {
+  const slug = (texto: string) =>
+    texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+  const slugEmpresa = slug(empresaNome)
+  const slugTipo = slug(tipoNrReferencia || tipoNome || 'vistoria')
+  return `relatorio-${slugEmpresa || 'empresa'}-${slugTipo || 'vistoria'}.pdf`
+}
+
+export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<jsPDF> {
   // Regime de cada item. Fallback para laudos gerados por chamadas antigas,
   // sem o mapa: código de ementa 231xxx = NR-31 (rural).
   const regimeDoItem = (item: ItemChecklist): RegimeMultaItem =>
@@ -796,6 +817,33 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
   doc.text(linhasEmpresa, centroEmpresa, yEmpresa, { align: 'center' })
   doc.setTextColor(0)
 
+  if (dados.assinatura) {
+    let yAssinatura = Math.max(yRT, yEmpresa) + 24
+    if (yAssinatura > pageHeight - 60) {
+      doc.addPage()
+      yAssinatura = margin
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(120)
+    doc.text(
+      `Assinatura eletrônica: identidade confirmada por senha em ${dados.assinatura.confirmadaEm.toLocaleString('pt-BR')}.`,
+      margin,
+      yAssinatura,
+    )
+    yAssinatura += 11
+    doc.setTextColor(60, 90, 200)
+    doc.textWithLink(
+      `Verificar autenticidade: ${dados.assinatura.linkVerificacao}`,
+      margin,
+      yAssinatura,
+      {
+        url: dados.assinatura.linkVerificacao,
+      },
+    )
+    doc.setTextColor(0)
+  }
+
   // Rodapé em todas as páginas: dados da organização (Configurações) e página.
   const dadosOrg = identidade?.dados
   const linhaOrganizacao = [
@@ -823,17 +871,5 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<v
     doc.setTextColor(0)
   }
 
-  const slugEmpresa = dados.empresaNome
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-  const slugTipo = (dados.tipoNrReferencia || dados.tipoNome || 'vistoria')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-  doc.save(`relatorio-${slugEmpresa || 'empresa'}-${slugTipo || 'vistoria'}.pdf`)
+  return doc
 }

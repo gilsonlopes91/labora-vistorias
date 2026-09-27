@@ -58,6 +58,12 @@ export interface Vistoria extends RecordModel {
   reaberturas?: ReaberturaVistoria[] | null
   /** Histórico de revisões, quando a organização exige revisão do gestor (migration 0155). */
   revisoes?: RevisaoVistoria[] | null
+  /** Assinatura eletrônica do relatório (migration 0157). */
+  pdf?: string
+  pdf_hash_sha256?: string
+  assinatura_confirmada_em?: string
+  link_publico_chave?: string
+  link_publico_ativo?: boolean
   /** Quem acompanhou pela empresa, ART e RT que assinou (migration 0130). */
   acompanhante_nome?: string
   acompanhante_cargo?: string
@@ -125,8 +131,12 @@ export const getVistoria = (id: string) =>
 export const createVistoria = (data: VistoriaInput) =>
   pb.collection('vistorias').create<Vistoria>(data)
 
-export const updateVistoria = (id: string, data: Partial<VistoriaInput>) =>
+export const updateVistoria = (id: string, data: Partial<VistoriaInput> | FormData) =>
   pb.collection('vistorias').update<Vistoria>(id, data)
+
+/** Token temporário para abrir o PDF assinado (arquivo protegido). */
+export const urlPdfVistoria = (v: Vistoria, token?: string) =>
+  v.pdf ? pb.files.getURL(v, v.pdf, token ? { token } : undefined) : null
 
 export const deleteVistoria = (id: string) => pb.collection('vistorias').delete(id)
 

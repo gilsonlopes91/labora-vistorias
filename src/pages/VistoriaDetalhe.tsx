@@ -31,7 +31,9 @@ import {
   type AlteracaoResposta,
 } from '@/lib/filaOffline'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
-import { gerarPdfVistoria } from '@/lib/relatorioVistoria'
+import { gerarPdfVistoria, nomeArquivoVistoria } from '@/lib/relatorioVistoria'
+import { hashSha256, type AssinaturaEletronica } from '@/lib/gerarPdfPgr'
+import pb from '@/lib/pocketbase/client'
 import { METODOLOGIA_PADRAO, rascunhoConclusao } from '@/lib/textosRelatorio'
 import { ehOrganizacaoLabora } from '@/lib/identidadeVisual'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -68,6 +70,7 @@ import {
   definirComoPadrao,
   formatarRegistroRT,
   urlAssinaturaRT,
+  buscarResponsavelDoUsuario,
   TIPOS_REGISTRO_RT,
   type ResponsavelTecnico,
   type TipoRegistroRT,
@@ -213,6 +216,9 @@ export default function VistoriaDetalhe() {
   // Sem logo próprio, a organização fica sem logo (só a Labora usa o da Labora).
   const [logoMarcaDagua, setLogoMarcaDagua] = useState<string>('')
   const [nomeOrganizacao, setNomeOrganizacao] = useState<string>('')
+  // Se true, a finalização do técnico vira "aguardando_revisao" (chave da
+  // organização) — nesse caso ainda não assina nem gera o PDF definitivo.
+  const [revisaoObrigatoria, setRevisaoObrigatoria] = useState(false)
 
   // Finalização da vistoria — escolha do responsável técnico que assina o
   // laudo, e geração do PDF.
@@ -234,6 +240,9 @@ export default function VistoriaDetalhe() {
   const [metodologiaOrg, setMetodologiaOrg] = useState('')
   const [mostrarMetodologia, setMostrarMetodologia] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
+  // Assinatura eletrônica: confirma a identidade por senha antes de finalizar.
+  const [senhaAssinatura, setSenhaAssinatura] = useState('')
+  const [erroSenhaAssinatura, setErroSenhaAssinatura] = useState('')
 
   // Itens sem resposta na hora de finalizar (marcar como N/A ou voltar).
   const [pendentesDialogAberto, setPendentesDialogAberto] = useState(false)
@@ -385,6 +394,7 @@ export default function VistoriaDetalhe() {
         setLogoMarcaDagua(url || (ehOrganizacaoLabora(org.nome) ? laboraLogoUrl : ''))
         if (org.nome) setNomeOrganizacao(org.nome)
         setMetodologiaOrg(org.dados_documentos?.metodologia_relatorio || '')
+        setRevisaoObrigatoria(!!org.revisao_obrigatoria_tecnico)
       })
       .catch(() => {
         // sem organização carregada — documentos saem sem logo
@@ -815,8 +825,13 @@ export default function VistoriaDetalhe() {
     return temChecklistPrincipal || temChecklistAdicional || temFormulario
   }, [vistoria])
 
-  // Monta e baixa o PDF da vistoria (na finalização ou depois, em "Baixar PDF").
-  const gerarPdf = async (v: Vistoria, respostasPdf: Record<string, RespostaVistoria>) => {
+  // Monta o PDF da vistoria (na finalização ou depois, em "Baixar PDF").
+  // Devolve o documento pronto — quem chama decide se baixa, faz hash ou envia.
+  const construirPdf = async (
+    v: Vistoria,
+    respostasPdf: Record<string, RespostaVistoria>,
+    assinatura?: AssinaturaEletronica,
+  ) => {
     const empresaV = v.expand?.empresa_id
     const tipoV = v.expand?.tipo_vistoria_id
     // Assinatura digitalizada do RT que assinou (arquivo protegido: link com token).
@@ -831,7 +846,7 @@ export default function VistoriaDetalhe() {
         assinaturaRtUrl = ''
       }
     }
-    await gerarPdfVistoria({
+    return gerarPdfVistoria({
       vistoria: v,
       empresaNome: empresaV?.nome_fantasia || empresaV?.razao_social || 'Empresa',
       empresaCnpj: empresaV?.cnpj,
@@ -854,14 +869,36 @@ export default function VistoriaDetalhe() {
         itensOrdenados.map((item) => [item.id, regimeDoItem(item)]),
       ),
       valorRuralPorEmpregado,
+      assinatura,
     })
   }
+
+  // Assinatura eletrônica já confirmada desta vistoria (se houver) — para o
+  // carimbo aparecer também quando alguém baixa o PDF de novo depois.
+  const assinaturaDaVistoria = (v: Vistoria): AssinaturaEletronica | undefined =>
+    v.assinatura_confirmada_em && v.link_publico_chave
+      ? {
+          nome: v.responsavel_tecnico_nome || '',
+          registro: v.responsavel_tecnico_registro,
+          confirmadaEm: new Date(v.assinatura_confirmada_em),
+          linkVerificacao: `${window.location.origin}/verificar/${v.link_publico_chave}`,
+        }
+      : undefined
 
   const baixarPdf = async () => {
     if (!vistoria) return
     toast.info('Gerando o PDF...')
     try {
-      await gerarPdf(vistoria, respostas)
+      const doc = await construirPdf(vistoria, respostas, assinaturaDaVistoria(vistoria))
+      doc.save(
+        nomeArquivoVistoria(
+          vistoria.expand?.empresa_id?.nome_fantasia ||
+            vistoria.expand?.empresa_id?.razao_social ||
+            'Empresa',
+          vistoria.expand?.tipo_vistoria_id?.nr_referencia,
+          vistoria.expand?.tipo_vistoria_id?.nome,
+        ),
+      )
     } catch (error) {
       toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
     }
@@ -905,6 +942,8 @@ export default function VistoriaDetalhe() {
     setConclusao(vistoria?.conclusao || '')
     setMetodologia(vistoria?.metodologia || metodologiaOrg || METODOLOGIA_PADRAO)
     setMostrarMetodologia(false)
+    setSenhaAssinatura('')
+    setErroSenhaAssinatura('')
     setRtDialogAberto(true)
   }
 
@@ -1122,8 +1161,24 @@ export default function VistoriaDetalhe() {
       setRtDialogAberto(false)
       return
     }
+    if (!senhaAssinatura) {
+      setErroSenhaAssinatura('Confirme sua senha para finalizar e assinar o relatório')
+      return
+    }
     setFinalizando(true)
+    setErroSenhaAssinatura('')
     try {
+      // Reautentica o mesmo usuário logado (confirma identidade; não troca de
+      // conta) antes de assinar o relatório — assinatura eletrônica nível 1.
+      const email = pb.authStore.record?.email as string | undefined
+      try {
+        await pb.collection('users').authWithPassword(email || '', senhaAssinatura)
+      } catch {
+        setErroSenhaAssinatura('Senha incorreta')
+        setFinalizando(false)
+        return
+      }
+
       let nomeRT: string
       let registroRT: string
       let rtAssinanteId = ''
@@ -1159,20 +1214,61 @@ export default function VistoriaDetalhe() {
         rtAssinanteId = rt.id
       }
 
-      const updated = await updateVistoria(vistoria.id, {
+      const camposBase: Record<string, string> = {
         status: 'concluida',
         responsavel_tecnico_nome: nomeRT,
         responsavel_tecnico_registro: registroRT,
-        rt_assinante_id: rtAssinanteId || undefined,
         acompanhante_nome: acompanhanteNome.trim(),
         acompanhante_cargo: acompanhanteCargo.trim(),
         art_numero: artNumero.trim(),
         conclusao: conclusao.trim(),
         metodologia: metodologia.trim(),
-        // Data em que a vistoria foi feita de fato (a agendada pode ser outra).
-        // Se a vistoria foi reaberta, mantém a data original.
-        ...(vistoria.data_realizada ? {} : { data_realizada: toPocketBaseDate(new Date()) }),
-      })
+      }
+      if (rtAssinanteId) camposBase.rt_assinante_id = rtAssinanteId
+      // Data em que a vistoria foi feita de fato (a agendada pode ser outra).
+      // Se a vistoria foi reaberta, mantém a data original.
+      if (!vistoria.data_realizada) camposBase.data_realizada = toPocketBaseDate(new Date())
+
+      // Indo para revisão obrigatória, a assinatura ainda não é definitiva —
+      // o gestor decide antes (aprovar/devolver); não gera PDF nem carimbo aqui.
+      const vaiParaRevisao = papelUsuario === 'executor' && revisaoObrigatoria
+
+      let docAssinado: Awaited<ReturnType<typeof construirPdf>> | undefined
+      let updated: Vistoria
+
+      if (vaiParaRevisao) {
+        updated = await updateVistoria(vistoria.id, camposBase)
+      } else {
+        const confirmadaEm = new Date()
+        const chaveVerificacao = crypto.randomUUID()
+        const assinatura: AssinaturaEletronica = {
+          nome: nomeRT,
+          registro: registroRT,
+          confirmadaEm,
+          linkVerificacao: `${window.location.origin}/verificar/${chaveVerificacao}`,
+        }
+        docAssinado = await construirPdf(
+          {
+            ...vistoria,
+            responsavel_tecnico_nome: nomeRT,
+            responsavel_tecnico_registro: registroRT,
+          },
+          respostas,
+          assinatura,
+        )
+        const blobPdf = docAssinado.output('blob')
+        const hash = await hashSha256(blobPdf)
+
+        const fd = new FormData()
+        Object.entries(camposBase).forEach(([chave, valor]) => fd.append(chave, valor))
+        fd.append('pdf', blobPdf, 'relatorio.pdf')
+        fd.append('pdf_hash_sha256', hash)
+        fd.append('assinatura_confirmada_em', toPocketBaseDate(confirmadaEm))
+        fd.append('link_publico_chave', chaveVerificacao)
+        fd.append('link_publico_ativo', 'true')
+        updated = await updateVistoria(vistoria.id, fd)
+      }
+
       const vistoriaFinalizada: Vistoria = {
         ...vistoria,
         status: updated.status,
@@ -1185,23 +1281,31 @@ export default function VistoriaDetalhe() {
         art_numero: updated.art_numero,
         conclusao: updated.conclusao,
         metodologia: updated.metodologia,
+        pdf: updated.pdf,
+        pdf_hash_sha256: updated.pdf_hash_sha256,
+        assinatura_confirmada_em: updated.assinatura_confirmada_em,
+        link_publico_chave: updated.link_publico_chave,
+        link_publico_ativo: updated.link_publico_ativo,
       }
       setVistoria(vistoriaFinalizada)
       setRtDialogAberto(false)
+      setSenhaAssinatura('')
 
       if (updated.status === 'aguardando_revisao') {
         toast.success('Vistoria enviada para revisão', {
           description: 'O gestor da organização vai aprovar antes do relatório sair definitivo.',
         })
       } else {
-        toast.success('Vistoria finalizada — gerando o PDF...')
-        try {
-          await gerarPdf(vistoriaFinalizada, respostas)
-        } catch (pdfError) {
-          toast.error('Vistoria finalizada, mas o PDF não pôde ser gerado', {
-            description: getErrorMessage(pdfError),
-          })
-        }
+        toast.success('Vistoria finalizada — relatório assinado.')
+        docAssinado?.save(
+          nomeArquivoVistoria(
+            vistoria.expand?.empresa_id?.nome_fantasia ||
+              vistoria.expand?.empresa_id?.razao_social ||
+              'Empresa',
+            vistoria.expand?.tipo_vistoria_id?.nr_referencia,
+            vistoria.expand?.tipo_vistoria_id?.nome,
+          ),
+        )
       }
     } catch (error) {
       toast.error('Não foi possível finalizar a vistoria', { description: getErrorMessage(error) })
@@ -2480,7 +2584,16 @@ export default function VistoriaDetalhe() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={rtDialogAberto} onOpenChange={setRtDialogAberto}>
+      <Dialog
+        open={rtDialogAberto}
+        onOpenChange={(open) => {
+          setRtDialogAberto(open)
+          if (!open) {
+            setSenhaAssinatura('')
+            setErroSenhaAssinatura('')
+          }
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Responsável técnico do relatório</DialogTitle>
@@ -2668,6 +2781,26 @@ export default function VistoriaDetalhe() {
                 />
               )}
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="senha-assinatura">Confirme sua senha para assinar</Label>
+              <Input
+                id="senha-assinatura"
+                type="password"
+                autoComplete="current-password"
+                value={senhaAssinatura}
+                onChange={(e) => {
+                  setSenhaAssinatura(e.target.value)
+                  setErroSenhaAssinatura('')
+                }}
+                placeholder="Sua senha de login"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Confirma sua identidade e carimba o relatório com data, hora e link de verificação.
+              </p>
+              {erroSenhaAssinatura && (
+                <p className="text-[11px] text-destructive">{erroSenhaAssinatura}</p>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -2675,7 +2808,7 @@ export default function VistoriaDetalhe() {
               Cancelar
             </Button>
             <Button onClick={handleConfirmarFinalizacao} disabled={finalizando}>
-              {finalizando ? 'Finalizando...' : 'Finalizar e gerar PDF'}
+              {finalizando ? 'Finalizando...' : 'Finalizar e assinar'}
             </Button>
           </DialogFooter>
         </DialogContent>
