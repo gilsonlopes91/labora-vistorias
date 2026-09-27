@@ -1,18 +1,23 @@
-/* Editor de documentos por seções (P6): lista as versões do PGR de uma
- * empresa e permite editar um rascunho seção a seção antes de emitir. A
- * emissão em PDF com trava de versão é feita em DocumentosSstTab através do
- * botão "Emitir PDF" (gerarPdfPgr.ts). Documento emitido não pode mais ser
- * editado — só uma nova revisão. */
-import { useEffect, useState } from 'react'
+/* Editor de documentos por seções: lista as versões de cada tipo de
+ * documento (PGR, LTCAT, Laudo de Insalubridade, Laudo de Periculosidade)
+ * de uma empresa e permite editar um rascunho seção a seção antes de
+ * emitir. Um novo documento já nasce com o conteúdo básico (fundamentação
+ * legal e metodologia) preenchido — só as partes que dependem dos dados da
+ * empresa ficam com um texto-guia entre colchetes. O rascunho é salvo
+ * automaticamente enquanto a pessoa edita, sem precisar clicar em nada; o
+ * botão "Salvar rascunho" continua existindo para quem quiser confirmar na
+ * hora. A emissão em PDF (gerarPdfPgr.ts) trava a versão — documento
+ * emitido não pode mais ser editado, só uma nova revisão. */
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { FileText, Plus, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
+import { FileText, Plus, ChevronUp, ChevronDown, Trash2, Check, Loader2 } from 'lucide-react'
 
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { carregarIdentidade } from '@/lib/identidadeVisual'
 import { resolverCelula } from '@/lib/matrizRisco'
-import { gerarPdfPgr, nomeArquivoPgr, hashSha256 } from '@/lib/gerarPdfPgr'
+import { gerarPdfPgr, nomeArquivoDocumentoSst, hashSha256 } from '@/lib/gerarPdfPgr'
 import { getEmpresa } from '@/services/empresas'
 import { getGhes } from '@/services/ghes'
 import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
@@ -27,9 +32,12 @@ import {
   emitirDocumentoSst,
   getTokenArquivos,
   pdfUrlDocumentoSst,
-  secoesPadraoPgr,
+  secoesPadrao,
+  TIPO_DOCUMENTO_LABEL,
+  TIPO_DOCUMENTO_TITULO_PADRAO,
   type DocumentoSst,
   type SecaoDocumento,
+  type TipoDocumentoSst,
 } from '@/services/documentosSst'
 
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +48,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { RichTextEditor } from '@/components/RichTextEditor'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -62,15 +71,23 @@ const STATUS_VARIANTE: Record<DocumentoSst['status'], 'secondary' | 'default' | 
   substituido: 'outline',
 }
 
+const TIPOS: TipoDocumentoSst[] = ['pgr', 'ltcat', 'insalubridade', 'periculosidade']
+
+/** Tempo de inatividade antes de salvar automaticamente o rascunho. */
+const AUTOSAVE_DEBOUNCE_MS = 1500
+
 export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const { user } = useAuth()
   const organizacaoId = (user?.organizacao_id as string) || ''
 
+  const [tipo, setTipo] = useState<TipoDocumentoSst>('pgr')
   const [documentos, setDocumentos] = useState<DocumentoSst[]>([])
   const [carregando, setCarregando] = useState(true)
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null)
   const [f, setF] = useState<Partial<DocumentoSst>>({})
   const [salvando, setSalvando] = useState(false)
+  const [autosalvando, setAutosalvando] = useState(false)
+  const [ultimoAutosalvamento, setUltimoAutosalvamento] = useState<Date | null>(null)
   const [dialogRevisao, setDialogRevisao] = useState(false)
   const [motivoRevisao, setMotivoRevisao] = useState('')
   const [emitindo, setEmitindo] = useState(false)
@@ -82,12 +99,11 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
 
   const carregar = () => {
     setCarregando(true)
-    getDocumentosSst(empresaId, 'pgr')
+    setSelecionadoId(null)
+    getDocumentosSst(empresaId, tipo)
       .then((lista) => {
         setDocumentos(lista)
-        if (lista.length > 0 && !lista.some((d) => d.id === selecionadoId)) {
-          setSelecionadoId(lista[0].id)
-        }
+        if (lista.length > 0) setSelecionadoId(lista[0].id)
       })
       .catch((error) =>
         toast.error('Não foi possível carregar os documentos', {
@@ -97,7 +113,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
       .finally(() => setCarregando(false))
   }
 
-  useEffect(carregar, [empresaId])
+  useEffect(carregar, [empresaId, tipo])
 
   useEffect(() => {
     const doc = documentos.find((d) => d.id === selecionadoId)
@@ -106,6 +122,40 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
 
   const selecionado = documentos.find((d) => d.id === selecionadoId)
   const travado = selecionado?.status === 'emitido' || selecionado?.status === 'substituido'
+
+  // Autosave: salva sozinho pouco tempo depois da última alteração, sem
+  // exigir clique no botão "Salvar rascunho". Só roda em documentos que
+  // ainda podem ser editados, e não roda na carga inicial de cada seleção.
+  const carregadoRef = useRef<string | null>(null)
+  useEffect(() => {
+    carregadoRef.current = selecionado ? selecionado.id : null
+  }, [selecionado?.id])
+
+  useEffect(() => {
+    if (!selecionado || travado) return
+    if (carregadoRef.current !== selecionado.id) return
+    const t = setTimeout(async () => {
+      setAutosalvando(true)
+      try {
+        const atualizado = await updateDocumentoSst(selecionado.id, {
+          titulo: f.titulo,
+          elaboradores: f.elaboradores,
+          secoes: f.secoes,
+        })
+        setDocumentos((v) => v.map((d) => (d.id === atualizado.id ? atualizado : d)))
+        setUltimoAutosalvamento(new Date())
+      } catch (error) {
+        toast.error('Não foi possível salvar automaticamente', {
+          description: getErrorMessage(error),
+        })
+      } finally {
+        setAutosalvando(false)
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, AUTOSAVE_DEBOUNCE_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.titulo, f.elaboradores, f.secoes])
 
   useEffect(() => {
     setUrlPdf(null)
@@ -188,7 +238,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         logoUrl: identidade.logoUrl,
         empresaNome: nomeEmpresa,
         empresaCnpj: empresa.cnpj,
-        titulo: f.titulo || 'PGR',
+        titulo: f.titulo || TIPO_DOCUMENTO_TITULO_PADRAO[selecionado.tipo],
         versao: proximaVersao,
         dataEmissao: new Date(),
         elaboradores: f.elaboradores,
@@ -204,7 +254,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         },
       })
       const blob = pdf.output('blob')
-      const nomeArquivo = nomeArquivoPgr(nomeEmpresa, proximaVersao)
+      const nomeArquivo = nomeArquivoDocumentoSst(selecionado.tipo, nomeEmpresa, proximaVersao)
       const hash = await hashSha256(blob)
 
       const emitido = await emitirDocumentoSst(
@@ -243,7 +293,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         }),
       )
       setSelecionadoId(emitido.id)
-      toast.success('PGR emitido em PDF')
+      toast.success(`${TIPO_DOCUMENTO_LABEL[selecionado.tipo]} emitido em PDF`)
     } catch (error) {
       toast.error('Não foi possível emitir o PDF', { description: getErrorMessage(error) })
     } finally {
@@ -256,12 +306,12 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
       const criado = await createDocumentoSst({
         organizacao_id: organizacaoId,
         empresa_id: empresaId,
-        tipo: 'pgr',
-        titulo: 'PGR',
+        tipo,
+        titulo: TIPO_DOCUMENTO_TITULO_PADRAO[tipo],
         status: 'rascunho',
-        secoes: secoesPadraoPgr(),
+        secoes: secoesPadrao(tipo),
       })
-      toast.success('Rascunho de PGR criado')
+      toast.success(`Rascunho de ${TIPO_DOCUMENTO_LABEL[tipo]} criado com o modelo básico`)
       setDocumentos((v) => [criado, ...v])
       setSelecionadoId(criado.id)
     } catch (error) {
@@ -279,6 +329,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         secoes: f.secoes,
       })
       setDocumentos((v) => v.map((d) => (d.id === atualizado.id ? atualizado : d)))
+      setUltimoAutosalvamento(new Date())
       toast.success('Rascunho salvo')
     } catch (error) {
       toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
@@ -341,201 +392,232 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <div className="space-y-3">
-        <Button onClick={novoDocumento} className="w-full" variant="outline">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo PGR
-        </Button>
-        {carregando ? (
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        ) : documentos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum PGR criado ainda para esta empresa.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {documentos.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setSelecionadoId(d.id)}
-                className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
-                  d.id === selecionadoId ? 'border-primary bg-primary/5' : 'hover:bg-muted'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{d.titulo}</span>
-                  <Badge variant={STATUS_VARIANTE[d.status]}>{STATUS_LABEL[d.status]}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {d.versao ? `Versão ${d.versao}` : 'Sem versão emitida'}
-                </p>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="space-y-4">
+      <Tabs value={tipo} onValueChange={(v) => setTipo(v as TipoDocumentoSst)}>
+        <TabsList className="flex-wrap h-auto">
+          {TIPOS.map((t) => (
+            <TabsTrigger key={t} value={t}>
+              {TIPO_DOCUMENTO_LABEL[t]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-      <div>
-        {!selecionado ? (
-          <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="space-y-3">
+          <Button onClick={novoDocumento} className="w-full" variant="outline">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo {TIPO_DOCUMENTO_LABEL[tipo]}
+          </Button>
+          {carregando ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : documentos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Crie um novo PGR ou escolha um existente na lista ao lado.
+              Nenhum {TIPO_DOCUMENTO_LABEL[tipo]} criado ainda para esta empresa.
             </p>
-          </div>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                {f.titulo}
-                <Badge variant={STATUS_VARIANTE[selecionado.status]}>
-                  {STATUS_LABEL[selecionado.status]}
-                </Badge>
-              </CardTitle>
-              {travado && (
-                <p className="text-sm text-muted-foreground">
-                  Este documento está {STATUS_LABEL[selecionado.status].toLowerCase()} e não pode
-                  mais ser editado.{' '}
-                  {selecionado.status === 'emitido' && 'Para mudar algo, crie uma nova revisão.'}
-                </p>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Título</Label>
-                  <Input
-                    className="mt-1.5"
-                    disabled={travado}
-                    value={f.titulo || ''}
-                    onChange={(e) => setF((v) => ({ ...v, titulo: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label>Elaboradores</Label>
-                  <Input
-                    className="mt-1.5"
-                    disabled={travado}
-                    placeholder="Nome e registro profissional"
-                    value={f.elaboradores || ''}
-                    onChange={(e) => setF((v) => ({ ...v, elaboradores: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {secoes.map((secao, i) => (
-                  <div key={secao.id} className="rounded-lg border p-3">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={secao.ativo}
-                        disabled={travado}
-                        onCheckedChange={(v) => atualizarSecao(secao.id, { ativo: v })}
-                      />
-                      <Input
-                        className="flex-1 font-medium"
-                        disabled={travado}
-                        value={secao.titulo}
-                        onChange={(e) => atualizarSecao(secao.id, { titulo: e.target.value })}
-                      />
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={travado || i === 0}
-                        onClick={() => moverSecao(secao.id, -1)}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={travado || i === secoes.length - 1}
-                        onClick={() => moverSecao(secao.id, 1)}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={travado}
-                        onClick={() => removerSecao(secao.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {secao.ativo && (
-                      <div className="mt-3">
-                        {travado ? (
-                          <div
-                            className="prose prose-sm max-w-none rounded border bg-muted/30 p-3"
-                            dangerouslySetInnerHTML={{
-                              __html: secao.texto || '<p><em>Vazio</em></p>',
-                            }}
-                          />
-                        ) : (
-                          <RichTextEditor
-                            value={secao.texto}
-                            onChange={(html) => atualizarSecao(secao.id, { texto: html })}
-                            placeholder="Texto desta seção..."
-                            minHeight="120px"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {!travado && (
-                  <Button variant="outline" size="sm" onClick={adicionarSecao}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Adicionar seção
-                  </Button>
-                )}
-              </div>
-
-              {selecionado.status === 'emitido' && urlPdf && (
-                <a
-                  href={urlPdf}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-primary underline"
+          ) : (
+            <div className="space-y-2">
+              {documentos.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setSelecionadoId(d.id)}
+                  className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
+                    d.id === selecionadoId ? 'border-primary bg-primary/5' : 'hover:bg-muted'
+                  }`}
                 >
-                  Baixar PDF emitido (versão {selecionado.versao})
-                </a>
-              )}
-              <div className="flex justify-end gap-2">
-                {selecionado.status === 'emitido' && (
-                  <Button variant="outline" onClick={() => setDialogRevisao(true)}>
-                    Nova revisão
-                  </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{d.titulo}</span>
+                    <Badge variant={STATUS_VARIANTE[d.status]}>{STATUS_LABEL[d.status]}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {d.versao ? `Versão ${d.versao}` : 'Sem versão emitida'}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {!selecionado ? (
+            <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
+              <p className="text-sm text-muted-foreground">
+                Crie um novo {TIPO_DOCUMENTO_LABEL[tipo]} ou escolha um existente na lista ao lado.
+                O documento já nasce com o texto normativo e a metodologia básica preenchidos — só é
+                preciso completar as partes específicas desta empresa.
+              </p>
+            </div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    {f.titulo}
+                    <Badge variant={STATUS_VARIANTE[selecionado.status]}>
+                      {STATUS_LABEL[selecionado.status]}
+                    </Badge>
+                  </CardTitle>
+                  {!travado && (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {autosalvando ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...
+                        </>
+                      ) : ultimoAutosalvamento ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" /> Salvo automaticamente às{' '}
+                          {ultimoAutosalvamento.toLocaleTimeString('pt-BR')}
+                        </>
+                      ) : null}
+                    </span>
+                  )}
+                </div>
+                {travado && (
+                  <p className="text-sm text-muted-foreground">
+                    Este documento está {STATUS_LABEL[selecionado.status].toLowerCase()} e não pode
+                    mais ser editado.{' '}
+                    {selecionado.status === 'emitido' && 'Para mudar algo, crie uma nova revisão.'}
+                  </p>
                 )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Título</Label>
+                    <Input
+                      className="mt-1.5"
+                      disabled={travado}
+                      value={f.titulo || ''}
+                      onChange={(e) => setF((v) => ({ ...v, titulo: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Elaboradores</Label>
+                    <Input
+                      className="mt-1.5"
+                      disabled={travado}
+                      placeholder="Nome e registro profissional"
+                      value={f.elaboradores || ''}
+                      onChange={(e) => setF((v) => ({ ...v, elaboradores: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {secoes.map((secao, i) => (
+                    <div key={secao.id} className="rounded-lg border p-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={secao.ativo}
+                          disabled={travado}
+                          onCheckedChange={(v) => atualizarSecao(secao.id, { ativo: v })}
+                        />
+                        <Input
+                          className="flex-1 font-medium"
+                          disabled={travado}
+                          value={secao.titulo}
+                          onChange={(e) => atualizarSecao(secao.id, { titulo: e.target.value })}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={travado || i === 0}
+                          onClick={() => moverSecao(secao.id, -1)}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={travado || i === secoes.length - 1}
+                          onClick={() => moverSecao(secao.id, 1)}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={travado}
+                          onClick={() => removerSecao(secao.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {secao.ativo && (
+                        <div className="mt-3">
+                          {travado ? (
+                            <div
+                              className="prose prose-sm max-w-none rounded border bg-muted/30 p-3"
+                              dangerouslySetInnerHTML={{
+                                __html: secao.texto || '<p><em>Vazio</em></p>',
+                              }}
+                            />
+                          ) : (
+                            <RichTextEditor
+                              value={secao.texto}
+                              onChange={(html) => atualizarSecao(secao.id, { texto: html })}
+                              placeholder="Texto desta seção..."
+                              minHeight="120px"
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!travado && (
+                    <Button variant="outline" size="sm" onClick={adicionarSecao}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar seção
+                    </Button>
+                  )}
+                </div>
+
+                {selecionado.status === 'emitido' && urlPdf && (
+                  <a
+                    href={urlPdf}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-primary underline"
+                  >
+                    Baixar PDF emitido (versão {selecionado.versao})
+                  </a>
+                )}
+                <div className="flex justify-end gap-2">
+                  {selecionado.status === 'emitido' && (
+                    <Button variant="outline" onClick={() => setDialogRevisao(true)}>
+                      Nova revisão
+                    </Button>
+                  )}
+                  {!travado && (
+                    <>
+                      <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
+                        Salvar rascunho
+                      </Button>
+                      <Button onClick={abrirDialogEmissao} disabled={salvando || emitindo}>
+                        {emitindo ? 'Emitindo...' : 'Emitir PDF'}
+                      </Button>
+                    </>
+                  )}
+                </div>
                 {!travado && (
-                  <>
-                    <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
-                      Salvar rascunho
-                    </Button>
-                    <Button onClick={abrirDialogEmissao} disabled={salvando || emitindo}>
-                      {emitindo ? 'Emitindo...' : 'Emitir PDF'}
-                    </Button>
-                  </>
+                  <p className="text-xs text-muted-foreground">
+                    O rascunho é salvo automaticamente enquanto você edita. Emitir gera o PDF a
+                    partir das seções e dos dados atuais de estrutura, inventário e plano de ação, e
+                    trava esta versão — se você alterar algo depois, será preciso gerar o documento
+                    de novo (criando uma nova revisão) para que a mudança valha oficialmente.
+                  </p>
                 )}
-              </div>
-              {!travado && (
-                <p className="text-xs text-muted-foreground">
-                  Emitir gera o PDF a partir das seções e dos dados atuais de estrutura, inventário
-                  e plano de ação, e trava esta versão — para mudar algo depois, será preciso criar
-                  uma nova revisão.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       <Dialog open={dialogRevisao} onOpenChange={setDialogRevisao}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova revisão do PGR</DialogTitle>
+            <DialogTitle>Nova revisão do {TIPO_DOCUMENTO_LABEL[tipo]}</DialogTitle>
           </DialogHeader>
           <div>
             <Label>Motivo da revisão</Label>

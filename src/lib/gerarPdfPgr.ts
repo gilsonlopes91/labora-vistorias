@@ -316,14 +316,19 @@ export async function gerarPdfPgr(dados: DadosRelatorioPgr): Promise<jsPDF> {
   return doc
 }
 
-export const nomeArquivoPgr = (empresaNome: string, versao: number) => {
+export const nomeArquivoPgr = (empresaNome: string, versao: number) =>
+  nomeArquivoDocumentoSst('pgr', empresaNome, versao)
+
+/** Nome de arquivo para qualquer um dos 4 tipos de documento SST (PGR,
+ * LTCAT, laudo de insalubridade ou de periculosidade). */
+export const nomeArquivoDocumentoSst = (tipo: string, empresaNome: string, versao: number) => {
   const slug = empresaNome
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
-  return `pgr-${slug || 'empresa'}-v${versao}.pdf`
+  return `${tipo}-${slug || 'empresa'}-v${versao}.pdf`
 }
 
 export const hashSha256 = async (blob: Blob) => {
