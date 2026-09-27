@@ -1,11 +1,34 @@
 // Valida regra de negócio ao finalizar vistoria:
-// Só é possível transicionar o status para "concluida" se a vistoria tiver:
+// Só é possível transicionar o status para "concluida" (ou "aguardando_revisao",
+// que segue a mesma regra) se a vistoria tiver:
 // - Pelo menos um checklist (tipo_vistoria_id ou checklists[] adicional)
 // OU
 // - Pelo menos um formulário de campo vinculado (formularios[]).
-onRecordUpdate((e) => {
+//
+// Revisão obrigatória: se a organização exige (organizacoes.
+// revisao_obrigatoria_tecnico) e quem está concluindo é o técnico, a vistoria
+// não vai direto para "concluida" — vai para "aguardando_revisao", até o
+// gestor aprovar pela rota /backend/v1/vistorias/{id}/revisar.
+onRecordUpdateRequest((e) => {
   const record = e.record
-  if (record.getString('status') !== 'concluida') {
+  const eraConcluida = record.original().getString('status') === 'concluida'
+
+  if (record.getString('status') === 'concluida' && !eraConcluida) {
+    try {
+      const papel = e.auth ? e.auth.getString('papel') : ''
+      if (papel === 'executor') {
+        const org = e.app.findRecordById('organizacoes', record.getString('organizacao_id'))
+        if (org.getBool('revisao_obrigatoria_tecnico')) {
+          record.set('status', 'aguardando_revisao')
+        }
+      }
+    } catch (_) {
+      // se não der para checar a organização, segue concluindo direto
+    }
+  }
+
+  const statusFinal = record.getString('status')
+  if (statusFinal !== 'concluida' && statusFinal !== 'aguardando_revisao') {
     e.next()
     return
   }
