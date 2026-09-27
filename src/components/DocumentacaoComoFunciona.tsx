@@ -62,7 +62,7 @@ export function DocumentacaoComoFunciona() {
           <TableBody>
             <TableRow>
               <TableCell className="font-medium">Unidade de análise</TableCell>
-              <TableCell>GHE</TableCell>
+              <TableCell>GHE (ou a unidade escolhida — ver seção 3)</TableCell>
               <TableCell>Função</TableCell>
               <TableCell>Função</TableCell>
               <TableCell>Função (e GHE)</TableCell>
@@ -106,13 +106,19 @@ export function DocumentacaoComoFunciona() {
         <p>O trabalho segue uma ordem, e cada etapa fica em um lugar do módulo:</p>
         <ol className="list-decimal space-y-1.5 pl-5">
           <li>
-            <strong>Estrutura SST</strong> (aba Levantamento): cadastro dos setores (ambientes de
-            trabalho, com área, piso, ventilação), dos GHE e das funções da empresa.
+            <strong>Planejamento</strong> (aba Levantamento, primeira sub-aba): antes de sair a
+            campo, registra-se a data de início, o modo de organização predominante (GHE/GES ou
+            atividade/posto/função/setor), a matriz de risco padrão e quem participa.
           </li>
           <li>
-            <strong>Inventário de riscos</strong>: uma linha por GHE × agente ou perigo. É aqui que
-            entram a fonte geradora, a exposição, os danos possíveis, os controles, o EPI e a trilha
-            de probabilidade.
+            <strong>Estrutura SST</strong>: cadastro dos setores (ambientes de trabalho, com área,
+            piso, ventilação), das unidades de avaliação (GHE ou outra — ver seção 3) e das funções
+            da empresa.
+          </li>
+          <li>
+            <strong>Inventário de riscos</strong>: uma linha por unidade × agente ou perigo. É aqui
+            que entram a fonte geradora, a exposição, os danos possíveis, os controles, o EPI, o
+            levantamento preliminar e a trilha de probabilidade.
           </li>
           <li>
             <strong>Medições</strong>: dentro da avaliação com trilha quantitativa, as amostras de
@@ -126,29 +132,84 @@ export function DocumentacaoComoFunciona() {
           </li>
           <li>
             <strong>Documentos</strong> (próxima fase): editor por seções, escolha da matriz no PGR,
-            prévia em PDF, emissão com trava e versão.
+            prévia em PDF, emissão com trava e versão; e, a partir do mesmo levantamento, os laudos
+            de insalubridade e periculosidade e o LTCAT.
           </li>
         </ol>
       </Secao>
 
-      <Secao titulo="3. O GHE é a unidade de avaliação">
+      <Secao titulo="3. O desenho do processo: planejamento, levantamento preliminar e as regras do manual do MTE">
         <p>
-          GHE é o Grupo Homogêneo de Exposição: trabalhadores que executam atividades parecidas, no
-          mesmo ambiente, com exposição semelhante. O PGR avalia por GHE. As funções pertencem a um
-          GHE e herdam as avaliações dele; os laudos e o LTCAT concluem por função a partir do que o
-          GHE tem.
+          Esta seção documenta o que foi alinhado ao Manual de Interpretação do capítulo 1.5 da NR-1
+          (MTE) — a base oficial usada para desenhar o fluxo do PGR neste app. O plano completo está
+          registrado no Projeto (documento "Desenho do processo: PGR, laudos e LTCAT").
         </p>
         <p>
-          O critério de agrupamento fica registrado no cadastro do GHE, porque a NR-01 e a
+          <strong>GHE/GES é opcional (NR-1, item 13.3.1).</strong> O GHE/GES é a ferramenta da
+          NR-09, mas a norma aceita organizar o PGR por atividade, posto de trabalho, função ou
+          setor também. Por isso cada unidade de avaliação, na aba Estrutura SST, tem um "tipo de
+          agrupamento" (GHE, Atividade, Posto de trabalho, Função ou Setor) — a escolha é do
+          profissional, unidade por unidade, e pode ser mista dentro da mesma empresa. Todo o resto
+          do inventário funciona igual, seja qual for o tipo escolhido.
+        </p>
+        <p>
+          <strong>Levantamento preliminar (manual, item 9).</strong> Antes da avaliação formal pela
+          matriz, cada linha do inventário pode ser marcada como risco evidente, perigo externo ou
+          atividade não rotineira. Risco evidente exige ação imediata registrada ali mesmo — não
+          espera a categoria de P × S ser calculada, porque a lógica da matriz não se aplica a um
+          risco que já é claramente inaceitável.
+        </p>
+        <p>
+          <strong>
+            NR específica não atendida eleva a probabilidade ao teto (manual, item 11.4).
+          </strong>{' '}
+          O exemplo do manual é o dos assentos da NR-17: se existe um requisito específico de outra
+          NR aplicável ao perigo e ele não está atendido, a probabilidade vai para o nível máximo da
+          matriz automaticamente, não importa a trilha escolhida nem o dado bruto. O inventário tem
+          um campo para declarar esse requisito (referência, se está atendido, justificativa) e o
+          motor de cálculo aplica a regra sozinho.
+        </p>
+        <p>
+          <strong>"Sem dados suficientes" é uma trilha própria.</strong> Antes só havia "Qualitativa
+          (controle)", que pressupõe um julgamento sobre um controle existente. Agora, quando ainda
+          não há nem medição nem esse julgamento, o técnico escolhe "Sem dados suficientes": a
+          probabilidade fica no teto até a trilha ser trocada por uma das outras, com dado de apoio
+          — em vez de forçar uma resposta qualitativa sem base real.
+        </p>
+        <p>
+          <strong>Psicossocial: visível, mas desligada.</strong> A trilha psicossocial continua no
+          inventário (para reservar o lugar dela e mostrar onde vai entrar), mas está desabilitada
+          por enquanto — a análise psicossocial em si é uma fase futura, feita por questionário e
+          observação por unidade, nunca individual.
+        </p>
+        <p>
+          <strong>Terceira matriz: ISO 45002.</strong> Além das duas matrizes AIHA (3×3 e 5×5), o
+          app agora oferece uma matriz 5×5 no estilo ISO 45001/45002, como o manual do MTE apresenta
+          para ilustrar o GRO. A escolha da metodologia (AIHA ou ISO 45002) e da dimensão pode ser
+          feita por avaliação, no inventário, ou definida como padrão da empresa na aba
+          Planejamento.
+        </p>
+      </Secao>
+
+      <Secao titulo="4. O GHE (ou a unidade escolhida) é a base da avaliação">
+        <p>
+          GHE é o Grupo Homogêneo de Exposição: trabalhadores que executam atividades parecidas, no
+          mesmo ambiente, com exposição semelhante. Quando a organização escolhe usar GHE/GES, o PGR
+          avalia por GHE; quando escolhe atividade, posto, função ou setor (seção 3), a mesma
+          estrutura de dados representa essa unidade. As funções pertencem a uma unidade e herdam as
+          avaliações dela; os laudos e o LTCAT concluem por função a partir do que a unidade tem.
+        </p>
+        <p>
+          O critério de agrupamento fica registrado no cadastro da unidade, porque a NR-01 e a
           metodologia AIHA exigem que a escolha do grupo seja justificável.
         </p>
       </Secao>
 
-      <Secao titulo="4. As cinco trilhas de probabilidade">
+      <Secao titulo="5. As trilhas de probabilidade">
         <p>
           A severidade segue sempre a mesma tabela (o pior dano plausível). A probabilidade chega
-          por caminhos diferentes conforme o tipo de risco, e todos são convertidos na mesma escala
-          da matriz:
+          por caminhos diferentes conforme o tipo de risco e o quanto já se sabe sobre ele, e todos
+          são convertidos na mesma escala da matriz — sujeitos às regras de força-máxima da seção 3:
         </p>
         <Table>
           <TableHeader>
@@ -172,6 +233,11 @@ export function DocumentacaoComoFunciona() {
               <TableCell>Direto para P; a incerteza fica alta</TableCell>
             </TableRow>
             <TableRow>
+              <TableCell className="font-medium">Sem dados suficientes</TableCell>
+              <TableCell>Nada ainda — nem medição, nem julgamento sobre um controle</TableCell>
+              <TableCell>P no teto da matriz até trocar de trilha</TableCell>
+            </TableRow>
+            <TableRow>
               <TableCell className="font-medium">Acidente/mecânico</TableCell>
               <TableCell>Frequência de exposição ao perigo e eficácia das medidas</TableCell>
               <TableCell>Mesmo quadro da trilha qualitativa</TableCell>
@@ -182,17 +248,19 @@ export function DocumentacaoComoFunciona() {
               <TableCell>Baixo → P2, médio → P3, alto → P4 na 5×5 (P1/P2/P3 na 3×3)</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell className="font-medium">Psicossocial</TableCell>
-              <TableCell>Avaliação por GHE (questionário, observação), nunca individual</TableCell>
-              <TableCell>Mesma conversão da ergonômica</TableCell>
+              <TableCell className="font-medium">Psicossocial (desligada)</TableCell>
+              <TableCell>
+                Reservada para a análise por questionário/observação, ainda não feita
+              </TableCell>
+              <TableCell>—</TableCell>
             </TableRow>
           </TableBody>
         </Table>
       </Secao>
 
-      <Secao titulo="5. A categoria AIHA de exposição">
+      <Secao titulo="6. A categoria AIHA de exposição">
         <p>
-          A metodologia AIHA julga cada GHE pela exposição comparada ao limite de exposição
+          A metodologia AIHA julga cada unidade pela exposição comparada ao limite de exposição
           ocupacional (LEO). O app usa cinco categorias, medidas pela razão exposição ÷ limite:
         </p>
         <Table>
@@ -232,7 +300,7 @@ export function DocumentacaoComoFunciona() {
           </TableBody>
         </Table>
         <p>
-          <strong>Estatística das medições.</strong> Com 6 ou mais amostras no GHE, o app assume
+          <strong>Estatística das medições.</strong> Com 6 ou mais amostras na unidade, o app assume
           distribuição lognormal e calcula média geométrica, desvio-padrão geométrico, o P95 e o
           limite superior de confiança de 95% do P95. A categoria é definida por esse limite
           superior, que é conservador. Com menos de 6 amostras não há base estatística: vale o maior
@@ -240,17 +308,17 @@ export function DocumentacaoComoFunciona() {
         </p>
       </Secao>
 
-      <Secao titulo="6. A matriz: 3×3 ou 5×5">
+      <Secao titulo="7. A matriz: AIHA (3×3 ou 5×5) ou ISO 45002">
         <p>
-          A matriz é escolhida no documento PGR e fica gravada nele. Como a avaliação guarda o dado
-          bruto (categoria de exposição, nível de controle, efeito à saúde) e não P e S "soltos",
-          trocar a matriz recalcula tudo sem perder nada. Dois PGRs da mesma empresa podem usar
-          matrizes diferentes.
+          A matriz pode ser escolhida por avaliação, no inventário, ou definida como padrão da
+          empresa na aba Planejamento, e no futuro documento PGR emitido ficará gravada nele. Como a
+          avaliação guarda o dado bruto (categoria de exposição, nível de controle, efeito à saúde)
+          e não P e S "soltos", trocar a matriz recalcula tudo sem perder nada.
         </p>
         <p>
-          As duas matrizes usam as mesmas cinco categorias — Trivial, Tolerável, Moderado,
-          Substancial e Intolerável — então a tabela de ações e prazos é uma só. Os critérios
-          completos de cada uma, com a grade colorida, estão na aba{' '}
+          As duas matrizes AIHA usam as categorias Trivial, Tolerável, Moderado, Substancial e
+          Intolerável; a ISO 45002 usa Baixo, Moderado, Alto e Extremo, no estilo do exemplo do
+          manual do MTE. Os critérios completos de cada uma, com a grade colorida, estão na aba{' '}
           <Link to="/documentacao?aba=matrizes" className="underline">
             Matrizes de risco
           </Link>
@@ -258,17 +326,29 @@ export function DocumentacaoComoFunciona() {
         </p>
         <p>
           A 3×3 junta "irreversível" e "fatal" na mesma coluna de severidade, por isso o mesmo dado
-          pode dar categorias diferentes nas duas matrizes. Exemplo: dosimetria de ruído com dose
-          projetada de 86,7% (categoria 2, acima do nível de ação) e perda auditiva como efeito
+          pode dar categorias diferentes nas duas matrizes AIHA. Exemplo: dosimetria de ruído com
+          dose projetada de 86,7% (categoria 2, acima do nível de ação) e perda auditiva como efeito
           (irreversível, AIHA 3) dá Moderado na 5×5 e Substancial na 3×3.
         </p>
       </Secao>
 
-      <Secao titulo="7. Regras que valem junto com a categoria">
+      <Secao titulo="8. Regras que valem junto com a categoria">
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
+            <strong>Risco evidente</strong> (seção 3): ação imediata, antes da conclusão formal pela
+            matriz.
+          </li>
+          <li>
+            <strong>NR específica não atendida</strong> (seção 3): probabilidade no teto da matriz,
+            independente da trilha.
+          </li>
+          <li>
+            <strong>Sem dados suficientes</strong> (seção 3): probabilidade no teto até haver base
+            para reavaliar.
+          </li>
+          <li>
             <strong>Incerteza alta</strong> (agente quantitativo sem medição, ou menos de 6
-            amostras): o app avisa para coletar mais dados, mesmo em Trivial ou Tolerável.
+            amostras): o app avisa para coletar mais dados, mesmo em categorias baixas.
           </li>
           <li>
             <strong>Acima do nível de ação</strong> (categoria 2 ou mais): monitoramento sistemático
@@ -281,12 +361,13 @@ export function DocumentacaoComoFunciona() {
           </li>
           <li>
             <strong>Número de expostos</strong>: não muda a categoria, mas ordena o plano de ação
-            (NR-01, 1.5.5.2.1.1).
+            (NR-01, 1.5.5.2.1.1) — o plano já lista primeiro pela categoria de risco e, dentro dela,
+            por quem afeta mais gente.
           </li>
         </ul>
       </Secao>
 
-      <Secao titulo="8. Sugerido e final: o app sugere, o técnico decide">
+      <Secao titulo="9. Sugerido e final: o app sugere, o técnico decide">
         <p>
           Todo campo de conclusão tem dois valores: o sugerido pelo app e o final, confirmado pelo
           responsável técnico. Isso vale para probabilidade, severidade, grau de insalubridade,
@@ -296,7 +377,7 @@ export function DocumentacaoComoFunciona() {
         </p>
       </Secao>
 
-      <Secao titulo="9. Como cada documento chega na conclusão">
+      <Secao titulo="10. Como cada documento vai chegar na conclusão">
         <p>
           <strong>PGR.</strong> Inventário com as nove alíneas do item 1.5.7.3.2 da NR-01, plano de
           ação com cronograma, responsáveis e forma de aferição, critérios de avaliação gerados pela
@@ -323,9 +404,14 @@ export function DocumentacaoComoFunciona() {
           do art. 291 marcados. Saída: enquadra ou não, 15/20/25 anos, código do Anexo IV e da
           Tabela 24 do eSocial. Sem os 12 elementos do art. 276, o LTCAT não é emitido.
         </p>
+        <p className="text-muted-foreground">
+          Os três laudos já têm campos de conclusão sugerida/final no inventário de riscos (grau de
+          insalubridade, enquadramento de periculosidade, enquadramento do LTCAT); o motor de
+          cálculo automático e a emissão do documento em si são a próxima fase (seção 11).
+        </p>
       </Secao>
 
-      <Secao titulo="10. O catálogo de agentes e a Tabela 24 do eSocial">
+      <Secao titulo="11. O catálogo de agentes e a Tabela 24 do eSocial">
         <p>
           Cada agente do catálogo (aba{' '}
           <Link to="/documentacao?aba=catalogo" className="underline">
@@ -355,19 +441,26 @@ export function DocumentacaoComoFunciona() {
         </p>
       </Secao>
 
-      <Secao titulo="11. O que já está pronto e o que vem">
+      <Secao titulo="12. O que já está pronto e o que vem">
         <p>
-          <strong>Pronto:</strong> estrutura da empresa (setores, GHE, funções), catálogo de agentes
-          editável (com exemplos de fonte geradora, danos à saúde e medidas de controle), as duas
-          matrizes AIHA, o inventário de riscos com as cinco trilhas e a sugestão de P e S, as
-          medições com a estatística lognormal, e o plano de ação com geração de sugestões.
+          <strong>Pronto:</strong> planejamento do PGR por empresa; estrutura da empresa (setores,
+          unidades de avaliação com GHE/GES opcional, funções); catálogo de agentes editável (com
+          exemplos de fonte geradora, danos à saúde e medidas de controle); três matrizes de risco
+          (AIHA 3×3, AIHA 5×5 e ISO 45002 5×5); o inventário de riscos com as trilhas de
+          probabilidade (incluindo "sem dados suficientes"), o levantamento preliminar (risco
+          evidente, perigo externo, atividade não rotineira), a regra de NR específica não atendida,
+          e a sugestão de P e S; as medições com a estatística lognormal; e o plano de ação com
+          geração de sugestões, priorizado por categoria de risco e número de expostos.
         </p>
         <p>
           <strong>Próximas etapas:</strong> vínculo das fichas de campo de calor e ruído com as
-          medições; conversão de item não conforme de vistoria em perigo de acidente; editor de
-          documentos por seções com biblioteca de textos e emissão do PGR em PDF; motores e
-          documentos dos laudos de insalubridade e periculosidade; LTCAT com o checklist do art.
-          276; alertas de revisão, link de disponibilização e envio do PDF assinado.
+          medições; conversão de item não conforme de vistoria em perigo de acidente; registro de
+          cenários de emergência; editor de documentos por seções com biblioteca de textos e emissão
+          do PGR em PDF; motores de cálculo automático e documentos dos laudos de insalubridade e
+          periculosidade; LTCAT com o checklist do art. 276; análise de acidentes; assinatura
+          digital e exportação final dos documentos; alertas de revisão e link de disponibilização.
+          A análise psicossocial (seção 3) fica para depois dessas etapas. Vídeos explicando o uso
+          ficam para uma fase posterior, depois que o fluxo estiver fechado de ponta a ponta.
         </p>
       </Secao>
     </div>
