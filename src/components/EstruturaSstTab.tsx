@@ -41,6 +41,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -248,145 +249,158 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
   }
 
   return (
-    <div className="space-y-6">
-      <Secao
-        titulo={`Setores (${setores.length})`}
-        icone={Building}
-        acao={
-          <Button size="sm" variant="outline" onClick={() => abrirSetor(null)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Novo setor
-          </Button>
-        }
-      >
-        {setores.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum setor cadastrado. Setores descrevem os ambientes de trabalho (área, piso,
-            ventilação) usados no PGR e no LTCAT.
-          </p>
-        ) : (
-          <div className="divide-y">
-            {setores.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <div className="font-medium">{s.nome}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {[s.local, s.area_m2 ? `${s.area_m2} m²` : null].filter(Boolean).join(' · ') ||
-                      'sem detalhes'}
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-0.5">
-                  <Button variant="ghost" size="icon" onClick={() => abrirSetor(s)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setSetorExcluir(s)}>
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Secao>
+    <Tabs defaultValue="ambientes" className="space-y-4">
+      <TabsList className="flex-wrap h-auto">
+        <TabsTrigger value="ambientes">Ambientes ({setores.length})</TabsTrigger>
+        <TabsTrigger value="ghes">GHEs ({ghes.length})</TabsTrigger>
+        <TabsTrigger value="funcoes">Funções ({funcoes.length})</TabsTrigger>
+      </TabsList>
 
-      <Secao
-        titulo={`Unidades de avaliação (${ghes.length})`}
-        icone={Layers}
-        acao={
-          <Button size="sm" variant="outline" onClick={() => abrirGhe(null)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nova unidade
-          </Button>
-        }
-      >
-        {ghes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhuma unidade cadastrada ainda. É a base do inventário de riscos: cada avaliação
-            (agentes, probabilidade, severidade) pertence a uma unidade. O NR-1 (item 13.3.1) aceita
-            organizar o PGR por GHE/GES (ferramenta da NR-09), ou por atividade, posto de trabalho,
-            função ou setor — a escolha é sua.
-          </p>
-        ) : (
-          <div className="divide-y">
-            {ghes.map((g) => (
-              <div key={g.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-[10px]">
-                      {g.tipo_agrupamento || 'GHE'}
-                    </Badge>
-                    {g.codigo && (
-                      <span className="font-mono text-xs text-muted-foreground">{g.codigo}</span>
-                    )}
-                    <span className="font-medium">{g.nome}</span>
+      <TabsContent value="ambientes" className="mt-0 space-y-6 focus-visible:outline-none">
+        <Secao
+          titulo={`Setores (${setores.length})`}
+          icone={Building}
+          acao={
+            <Button size="sm" variant="outline" onClick={() => abrirSetor(null)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Novo setor
+            </Button>
+          }
+        >
+          {setores.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum setor cadastrado. Setores descrevem os ambientes de trabalho (área, piso,
+              ventilação) usados no PGR e no LTCAT.
+            </p>
+          ) : (
+            <div className="divide-y">
+              {setores.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="font-medium">{s.nome}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[s.local, s.area_m2 ? `${s.area_m2} m²` : null]
+                        .filter(Boolean)
+                        .join(' · ') || 'sem detalhes'}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {[
-                      g.expand?.setor_id?.nome,
-                      g.numero_expostos ? `${g.numero_expostos} expostos` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || 'sem setor vinculado'}
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button variant="ghost" size="icon" onClick={() => abrirSetor(s)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setSetorExcluir(s)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-0.5">
-                  <Button variant="ghost" size="icon" onClick={() => abrirGhe(g)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setGheExcluir(g)}>
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Secao>
+              ))}
+            </div>
+          )}
+        </Secao>
+      </TabsContent>
 
-      <Secao
-        titulo={`Funções (${funcoes.length})`}
-        icone={Users2}
-        acao={
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={ghes.length === 0}
-            onClick={() => abrirFuncao(null)}
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nova função
-          </Button>
-        }
-      >
-        {ghes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Cadastre um GHE antes das funções.</p>
-        ) : funcoes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma função cadastrada.</p>
-        ) : (
-          <div className="divide-y">
-            {funcoes.map((f) => (
-              <div key={f.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <div className="font-medium">{f.nome}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {f.expand?.ghe_id?.nome || 'GHE removido'}
-                    {f.cbo && ` · CBO ${f.cbo}`}
-                    {f.numero_empregados ? ` · ${f.numero_empregados} empregados` : ''}
+      <TabsContent value="ghes" className="mt-0 space-y-6 focus-visible:outline-none">
+        <Secao
+          titulo={`Unidades de avaliação (${ghes.length})`}
+          icone={Layers}
+          acao={
+            <Button size="sm" variant="outline" onClick={() => abrirGhe(null)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Nova unidade
+            </Button>
+          }
+        >
+          {ghes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma unidade cadastrada ainda. É a base do inventário de riscos: cada avaliação
+              (agentes, probabilidade, severidade) pertence a uma unidade. O NR-1 (item 13.3.1)
+              aceita organizar o PGR por GHE/GES (ferramenta da NR-09), ou por atividade, posto de
+              trabalho, função ou setor — a escolha é sua.
+            </p>
+          ) : (
+            <div className="divide-y">
+              {ghes.map((g) => (
+                <div key={g.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px]">
+                        {g.tipo_agrupamento || 'GHE'}
+                      </Badge>
+                      {g.codigo && (
+                        <span className="font-mono text-xs text-muted-foreground">{g.codigo}</span>
+                      )}
+                      <span className="font-medium">{g.nome}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {[
+                        g.expand?.setor_id?.nome,
+                        g.numero_expostos ? `${g.numero_expostos} expostos` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || 'sem setor vinculado'}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button variant="ghost" size="icon" onClick={() => abrirGhe(g)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setGheExcluir(g)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-0.5">
-                  <Button variant="ghost" size="icon" onClick={() => abrirFuncao(f)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setFuncaoExcluir(f)}>
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
+              ))}
+            </div>
+          )}
+        </Secao>
+      </TabsContent>
+
+      <TabsContent value="funcoes" className="mt-0 space-y-6 focus-visible:outline-none">
+        <Secao
+          titulo={`Funções (${funcoes.length})`}
+          icone={Users2}
+          acao={
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={ghes.length === 0}
+              onClick={() => abrirFuncao(null)}
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Nova função
+            </Button>
+          }
+        >
+          {ghes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Cadastre um GHE antes das funções.</p>
+          ) : funcoes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma função cadastrada.</p>
+          ) : (
+            <div className="divide-y">
+              {funcoes.map((f) => (
+                <div key={f.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="font-medium">{f.nome}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {f.expand?.ghe_id?.nome || 'GHE removido'}
+                      {f.cbo && ` · CBO ${f.cbo}`}
+                      {f.numero_empregados ? ` · ${f.numero_empregados} empregados` : ''}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button variant="ghost" size="icon" onClick={() => abrirFuncao(f)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setFuncaoExcluir(f)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Secao>
+              ))}
+            </div>
+          )}
+        </Secao>
+      </TabsContent>
 
       {/* Diálogo: Setor */}
       <Dialog open={setorDialog} onOpenChange={setSetorDialog}>
@@ -708,7 +722,7 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Tabs>
   )
 }
 
