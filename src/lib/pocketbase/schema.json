@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T18:34:07.943Z",
+  "generatedAt": "2026-09-27T18:42:59.410Z",
   "collections": [
     {
       "name": "users",
@@ -155,7 +155,7 @@
         "list": "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id || @request.auth.papel = 'admin_plataforma' || staff_ids.id ?= @request.auth.id)",
         "view": "@request.auth.id != '' && (dono_id = @request.auth.id || @request.auth.organizacao_id = id || @request.auth.papel = 'admin_plataforma' || staff_ids.id ?= @request.auth.id)",
         "create": null,
-        "update": "@request.auth.id != '' && (@request.auth.papel = 'admin_plataforma' || ((dono_id = @request.auth.id || (@request.auth.organizacao_id = id && (@request.auth.papel = 'gerente' || @request.auth.papel = 'gestor'))) && @request.body.modulos:isset = false && @request.body.status:isset = false && @request.body.staff_ids:isset = false && @request.body.dono_id:isset = false))",
+        "update": "@request.auth.id != '' && (@request.auth.papel = 'admin_plataforma' || ((dono_id = @request.auth.id || (@request.auth.organizacao_id = id && (@request.auth.papel = 'gerente' || @request.auth.papel = 'gestor'))) && @request.body.modulos:isset = false && @request.body.status:isset = false && @request.body.staff_ids:isset = false && @request.body.dono_id:isset = false && @request.body.plano:isset = false && @request.body.limite_usuarios:isset = false && @request.body.vencimento:isset = false))",
         "delete": null
       },
       "fields": [
@@ -212,7 +212,8 @@
           "selectValues": [
             "ativa",
             "trial",
-            "bloqueada"
+            "bloqueada",
+            "vencida"
           ]
         },
         {
@@ -248,6 +249,30 @@
         {
           "name": "revisao_obrigatoria_tecnico",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plano",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "individual",
+            "equipe",
+            "escritorio",
+            "empresa"
+          ]
+        },
+        {
+          "name": "limite_usuarios",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vencimento",
+          "type": "date",
           "required": false,
           "system": false
         }

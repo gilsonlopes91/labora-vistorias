@@ -16,6 +16,7 @@ import {
   Trash2,
   Package,
   KeyRound,
+  CalendarClock,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -51,6 +52,9 @@ interface OrgRow {
   empresas: number
   vistorias: number
   perguntas_ia: number
+  plano?: string
+  limite_usuarios?: number
+  vencimento?: string
 }
 
 interface StaffRow {
@@ -73,6 +77,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = 
   ativa: 'default',
   trial: 'secondary',
   bloqueada: 'destructive',
+  vencida: 'destructive',
 }
 
 export default function AdminConsole() {
@@ -104,6 +109,13 @@ export default function AdminConsole() {
   const [senhaAlvo, setSenhaAlvo] = useState<OrgRow | null>(null)
   const [novaSenha, setNovaSenha] = useState('')
   const [gerandoSenha, setGerandoSenha] = useState(false)
+
+  // Plano, vagas e vencimento
+  const [planoAlvo, setPlanoAlvo] = useState<OrgRow | null>(null)
+  const [plano, setPlano] = useState('empresa')
+  const [limiteUsuarios, setLimiteUsuarios] = useState('999')
+  const [vencimento, setVencimento] = useState('')
+  const [salvandoPlano, setSalvandoPlano] = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -161,6 +173,9 @@ export default function AdminConsole() {
           empresas: empresas.totalItems,
           vistorias: vistorias.totalItems,
           perguntas_ia: perguntasIa,
+          plano: org.plano || '',
+          limite_usuarios: org.limite_usuarios || 0,
+          vencimento: org.vencimento || '',
         })
       }
       setOrgs(linhas)
@@ -360,6 +375,33 @@ export default function AdminConsole() {
     }
   }
 
+  // ---- Plano, vagas e vencimento ----
+  const abrirPlano = (org: OrgRow) => {
+    setPlanoAlvo(org)
+    setPlano(org.plano || 'empresa')
+    setLimiteUsuarios(String(org.limite_usuarios || 0))
+    setVencimento(org.vencimento ? org.vencimento.slice(0, 10) : '')
+  }
+
+  const salvarPlano = async () => {
+    if (!planoAlvo) return
+    setSalvandoPlano(true)
+    try {
+      await pb.collection('organizacoes').update(planoAlvo.id, {
+        plano,
+        limite_usuarios: Number(limiteUsuarios) || 0,
+        vencimento: vencimento || null,
+      })
+      toast.success('Plano atualizado')
+      setPlanoAlvo(null)
+      carregar()
+    } catch (error) {
+      toast.error('Não foi possível salvar o plano', { description: getErrorMessage(error) })
+    } finally {
+      setSalvandoPlano(false)
+    }
+  }
+
   const alternarBloqueio = async () => {
     if (!alvo) return
     setBloqueando(true)
@@ -519,6 +561,15 @@ export default function AdminConsole() {
                   >
                     <Package className="mr-1.5 h-3.5 w-3.5" />
                     Pacote
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => abrirPlano(org)}
+                  >
+                    <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
+                    Plano
                   </Button>
                   <Button
                     size="sm"
@@ -740,6 +791,68 @@ export default function AdminConsole() {
             </Button>
             <Button onClick={salvarPacote} disabled={salvandoPacote}>
               {salvandoPacote ? 'Salvando...' : 'Salvar pacote'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de plano, vagas e vencimento */}
+      <Dialog open={!!planoAlvo} onOpenChange={(open) => !open && setPlanoAlvo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Plano de {planoAlvo?.nome}</DialogTitle>
+            <DialogDescription>
+              Define quantas vagas a organização tem (o titular não conta) e até quando o plano
+              vale. Sem vencimento, a organização nunca vira somente-leitura sozinha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="plano-select" className="mb-1.5 block text-xs">
+                Plano
+              </Label>
+              <select
+                id="plano-select"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                value={plano}
+                onChange={(e) => setPlano(e.target.value)}
+              >
+                <option value="individual">Individual (0 vagas)</option>
+                <option value="equipe">Equipe (até 3 vagas)</option>
+                <option value="escritorio">Escritório (até 8 vagas)</option>
+                <option value="empresa">Empresa (negociado)</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="plano-limite" className="mb-1.5 block text-xs">
+                Vagas (sem contar o titular)
+              </Label>
+              <Input
+                id="plano-limite"
+                type="number"
+                min={0}
+                value={limiteUsuarios}
+                onChange={(e) => setLimiteUsuarios(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="plano-vencimento" className="mb-1.5 block text-xs">
+                Vencimento (opcional)
+              </Label>
+              <Input
+                id="plano-vencimento"
+                type="date"
+                value={vencimento}
+                onChange={(e) => setVencimento(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanoAlvo(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarPlano} disabled={salvandoPlano}>
+              {salvandoPlano ? 'Salvando...' : 'Salvar plano'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -31,6 +31,11 @@ export interface Organizacao {
   /** Chaves do fluxo do técnico (migration 0155). */
   tecnico_ve_todas_vistorias?: boolean
   revisao_obrigatoria_tecnico?: boolean
+  /** Plano, vagas e vencimento (migration 0160). Só o admin da plataforma edita. */
+  status?: 'ativa' | 'trial' | 'bloqueada' | 'vencida'
+  plano?: 'individual' | 'equipe' | 'escritorio' | 'empresa'
+  limite_usuarios?: number
+  vencimento?: string
   created: string
   updated: string
 }

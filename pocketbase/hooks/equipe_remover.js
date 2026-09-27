@@ -10,12 +10,20 @@ routerAdd(
   (e) => {
     const auth = e.auth
     if (!auth) return e.unauthorizedError('auth required')
-    const papelAuth = auth.getString('papel') || 'dono'
-    if (papelAuth === 'executor' || papelAuth === 'administrativo') {
-      return e.json(403, { error: 'Só o dono e o gerente removem pessoas da equipe.' })
-    }
     const orgId = auth.getString('organizacao_id')
     if (!orgId) return e.json(403, { error: 'Organização não encontrada.' })
+
+    let donoId = ''
+    try {
+      donoId = $app.findRecordById('organizacoes', orgId).getString('dono_id')
+    } catch (_) {
+      donoId = ''
+    }
+    // Só o titular da conta (organizacoes.dono_id) remove — é quem cuida do
+    // plano e das vagas. Gestor não titular não remove ninguém.
+    if (auth.id !== donoId) {
+      return e.json(403, { error: 'Só o titular da conta remove pessoas da equipe.' })
+    }
 
     const body = e.requestInfo().body || {}
     const id = String(body.id || '')
@@ -31,22 +39,8 @@ routerAdd(
     if (!alvo || alvo.getString('organizacao_id') !== orgId) {
       return e.notFoundError('Pessoa não encontrada na sua equipe.')
     }
-
-    let donoId = ''
-    try {
-      donoId = $app.findRecordById('organizacoes', orgId).getString('dono_id')
-    } catch (_) {
-      donoId = ''
-    }
-    const papelAlvo = alvo.getString('papel')
-    if (alvo.id === donoId || papelAlvo === 'dono') {
-      return e.json(403, { error: 'O dono da conta não pode ser removido.' })
-    }
-    if (
-      (papelAuth === 'gerente' || papelAuth === 'gestor') &&
-      (papelAlvo === 'gerente' || papelAlvo === 'gestor')
-    ) {
-      return e.json(403, { error: 'Só o dono remove um gerente ou gestor.' })
+    if (alvo.id === donoId) {
+      return e.json(403, { error: 'O titular da conta não pode ser removido.' })
     }
 
     $app.runInTransaction((txApp) => {

@@ -48,15 +48,17 @@ export const isAdmin = (): boolean => {
 // vem de uma rota do servidor que devolve só nome, e-mail e papel.
 const ORDEM_PAPEL: Record<string, number> = { dono: 0, gerente: 1, executor: 2 }
 
-export const getEquipe = async (): Promise<MembroEquipe[]> => {
-  const r = await pb.send<{ membros: MembroEquipe[] }>('/backend/v1/equipe/membros', {
-    method: 'GET',
-  })
-  return (r.membros || []).sort(
+export const getEquipe = async (): Promise<{ membros: MembroEquipe[]; donoId: string }> => {
+  const r = await pb.send<{ membros: MembroEquipe[]; dono_id: string }>(
+    '/backend/v1/equipe/membros',
+    { method: 'GET' },
+  )
+  const membros = (r.membros || []).sort(
     (a, b) =>
       (ORDEM_PAPEL[a.papel] ?? 3) - (ORDEM_PAPEL[b.papel] ?? 3) ||
       a.name.localeCompare(b.name, 'pt-BR'),
   )
+  return { membros, donoId: r.dono_id || '' }
 }
 
 export interface ConviteInput {
@@ -74,6 +76,14 @@ export const convidarMembro = (data: ConviteInput) =>
 /** Tira a pessoa da equipe: perde o acesso na hora (a conta não é apagada). */
 export const removerMembro = (id: string) =>
   pb.send<{ ok: boolean }>('/backend/v1/equipe/remover', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
+
+/** Só o titular transfere: quem recebe vira titular (vagas, plano, cobrança);
+ *  quem transferiu vira um gestor comum. */
+export const transferirTitularidade = (id: string) =>
+  pb.send<{ ok: boolean }>('/backend/v1/equipe/transferir', {
     method: 'POST',
     body: JSON.stringify({ id }),
   })

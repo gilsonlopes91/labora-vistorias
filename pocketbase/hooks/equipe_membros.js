@@ -36,7 +36,7 @@ routerAdd(
       email: u.getString('email'),
       papel: u.getString('papel') || 'dono',
     }))
-    return e.json(200, { membros: membros })
+    return e.json(200, { membros: membros, dono_id: donoId })
   },
   $apis.requireAuth(),
 )

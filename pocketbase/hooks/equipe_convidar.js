@@ -29,15 +29,31 @@ routerAdd(
       return e.badRequestError('papel deve ser gerente, executor ou administrativo')
     }
 
-    // Apenas dono, gerente ou gestor convidam.
-    const papelAuth = auth.getString('papel') || 'dono'
-    if (papelAuth === 'executor' || papelAuth === 'administrativo') {
-      return e.json(403, { error: 'apenas dono ou gestor podem convidar' })
-    }
-
     const orgId = auth.getString('organizacao_id')
     if (!orgId) return e.json(404, { error: 'organização do usuário não encontrada' })
     const org = $app.findRecordById('organizacoes', orgId)
+
+    // Só o titular da conta (organizacoes.dono_id) convida — é quem cuida do
+    // plano e das vagas. Gestor não titular não convida nem remove.
+    if (auth.id !== org.getString('dono_id')) {
+      return e.json(403, { error: 'apenas o titular da conta convida' })
+    }
+
+    // Vaga disponível? O titular não conta no limite do plano.
+    const limite = org.getInt('limite_usuarios')
+    const emUso = $app.findRecordsByFilter(
+      'users',
+      'organizacao_id = {:o} && id != {:d}',
+      '',
+      0,
+      0,
+      { o: orgId, d: org.getString('dono_id') },
+    ).length
+    if (emUso >= limite) {
+      return e.json(409, {
+        error: `Seu plano (${org.getString('plano') || 'individual'}) tem ${limite} vaga(s) e todas estão em uso. Remova alguém ou mude de plano.`,
+      })
+    }
 
     // Usuário já existe?
     let user = null

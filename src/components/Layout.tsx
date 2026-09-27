@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { getModulos, type Modulos } from '@/services/modulos'
+import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { LogOut, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
@@ -262,6 +263,15 @@ export default function Layout() {
         .catch(() => {})
   }, [isAuthenticated])
 
+  // Plano vencido: organização em somente-leitura (aviso só para gestor).
+  const [orgVencida, setOrgVencida] = useState(false)
+  useEffect(() => {
+    if (!isAuthenticated) return
+    getMinhaOrganizacao()
+      .then((org) => setOrgVencida(org.status === 'vencida'))
+      .catch(() => setOrgVencida(false))
+  }, [isAuthenticated])
+
   // Selo do menu Normas: NRs com possível atualização encontrada no gov.br.
   const ehAdmin = user?.papel === 'admin_plataforma'
   const [alertasNormas, setAlertasNormas] = useState(0)
@@ -381,6 +391,12 @@ export default function Layout() {
           )}
         </header>
         <BarraOffline />
+        {userGestor && orgVencida && (
+          <div className="bg-destructive/10 px-3 py-1.5 text-center text-xs font-medium text-destructive">
+            Plano vencido — a organização está em modo somente leitura. Regularize para voltar a
+            editar.
+          </div>
+        )}
         <div className="flex-1">
           <Outlet />
         </div>

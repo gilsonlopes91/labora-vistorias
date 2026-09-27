@@ -9,10 +9,12 @@ import {
   convidarMembro,
   enviarLinkDeAcesso,
   removerMembro,
+  transferirTitularidade,
   getEquipe,
   getPapelUsuarioLogado,
   type MembroEquipe,
 } from '@/services/equipe'
+import { getMinhaOrganizacao } from '@/services/organizacoes'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,19 +60,32 @@ const PAPEL_LABEL: Record<string, string> = {
 
 export default function Equipe() {
   const [membros, setMembros] = useState<MembroEquipe[]>([])
+  const [donoId, setDonoId] = useState('')
+  const [vagas, setVagas] = useState<{ plano: string; limite: number } | null>(null)
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ nome: '', email: '', papel: 'executor' })
   const [reenviando, setReenviando] = useState<string | null>(null)
   const [paraRemover, setParaRemover] = useState<MembroEquipe | null>(null)
+  const [paraTransferir, setParaTransferir] = useState<MembroEquipe | null>(null)
+  const [transferindo, setTransferindo] = useState(false)
   const meuPapel = getPapelUsuarioLogado()
   const meuId = pb.authStore.record?.id
+  const souTitular = !!meuId && meuId === donoId
 
   const loadData = useCallback(async () => {
     try {
-      setMembros(await getEquipe())
+      const r = await getEquipe()
+      setMembros(r.membros)
+      setDonoId(r.donoId)
     } catch (error) {
       toast.error('Não foi possível carregar a equipe', { description: getErrorMessage(error) })
+    }
+    try {
+      const org = await getMinhaOrganizacao()
+      setVagas({ plano: org.plano || 'individual', limite: org.limite_usuarios ?? 0 })
+    } catch (_) {
+      setVagas(null)
     }
   }, [])
 
@@ -135,14 +150,28 @@ export default function Equipe() {
     }
   }
 
-  // Dono remove qualquer um (menos ele mesmo); gerente e gestor removem
-  // técnico e administrativo.
-  const podeRemover = (m: MembroEquipe) =>
+  const confirmarTransferencia = async () => {
+    if (!paraTransferir) return
+    setTransferindo(true)
+    try {
+      await transferirTitularidade(paraTransferir.id)
+      toast.success(`${paraTransferir.name} agora é o titular da conta`)
+      setParaTransferir(null)
+      loadData()
+    } catch (error) {
+      toast.error('Não foi possível transferir', { description: getErrorMessage(error) })
+    } finally {
+      setTransferindo(false)
+    }
+  }
+
+  // Só o titular da conta convida e remove (cuida do plano e das vagas).
+  const podeRemover = (m: MembroEquipe) => souTitular && m.id !== meuId && m.id !== donoId
+  const podeVirarTitular = (m: MembroEquipe) =>
+    souTitular &&
     m.id !== meuId &&
-    m.papel !== 'dono' &&
-    (meuPapel === 'dono' ||
-      ((meuPapel === 'gerente' || meuPapel === 'gestor') &&
-        (m.papel === 'executor' || m.papel === 'administrativo')))
+    m.id !== donoId &&
+    ['dono', 'gerente', 'gestor'].includes(m.papel)
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
 
@@ -155,7 +184,7 @@ export default function Equipe() {
             Pessoas com acesso à organização e o que cada uma pode fazer.
           </p>
         </div>
-        {meuPapel !== 'executor' && meuPapel !== 'administrativo' && (
+        {souTitular && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -231,6 +260,13 @@ export default function Equipe() {
           <CardDescription>
             Gestor gerencia tudo; técnico vê todas as empresas, mas só edita as vistorias atribuídas
             a ele.
+            {vagas && vagas.limite > 0 && (
+              <>
+                {' '}
+                Vagas do plano {vagas.plano}: {Math.max(membros.length - 1, 0)} de {vagas.limite} em
+                uso.
+              </>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -259,7 +295,7 @@ export default function Equipe() {
                     {meuPapel !== 'executor' &&
                       meuPapel !== 'administrativo' &&
                       m.id !== meuId &&
-                      m.papel !== 'dono' && (
+                      m.id !== donoId && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -271,9 +307,20 @@ export default function Equipe() {
                           {reenviando === m.id ? 'Enviando...' : 'Reenviar link'}
                         </Button>
                       )}
-                    <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
+                    {podeVirarTitular(m) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setParaTransferir(m)}
+                        title="Passar a titularidade da conta para esta pessoa"
+                      >
+                        Tornar titular
+                      </Button>
+                    )}
+                    <Badge variant={m.id === donoId ? 'default' : 'secondary'}>
                       <ShieldCheck className="mr-1 h-3 w-3" />
                       {PAPEL_LABEL[m.papel] || m.papel}
+                      {m.id === donoId ? ' · titular' : ''}
                     </Badge>
                     {podeRemover(m) && (
                       <Button
@@ -305,6 +352,25 @@ export default function Equipe() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmarRemocao}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!paraTransferir} onOpenChange={(v) => !v && setParaTransferir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tornar {paraTransferir?.name} o titular da conta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A partir de agora, só {paraTransferir?.name} convida e remove pessoas da equipe e
+              cuida do plano. Você continua gestor, mas sem essas duas ações — a não ser que alguém
+              transfira a titularidade de volta para você.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarTransferencia} disabled={transferindo}>
+              {transferindo ? 'Transferindo...' : 'Transferir titularidade'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
