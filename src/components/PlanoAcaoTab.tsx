@@ -89,7 +89,9 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
   const organizacaoId = (user?.organizacao_id as string) || ''
 
   const [acoes, setAcoes] = useState<AcaoPlano[]>([])
-  const [avaliacoesCriticas, setAvaliacoesCriticas] = useState<AvaliacaoRisco[]>([])
+  const [avaliacoesCriticas, setAvaliacoesCriticas] = useState<
+    (AvaliacaoRisco & { _categoria: PrioridadeAcaoPlano })[]
+  >([])
   const [carregando, setCarregando] = useState(true)
   const [gerando, setGerando] = useState(false)
 
@@ -105,17 +107,20 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
     ])
     if (!matriz5) return setAvaliacoesCriticas([])
     const comAcao = new Set(acoes.map((a) => a.avaliacao_id).filter(Boolean))
-    const criticas = avaliacoes.filter((a) => {
+    const criticas: (AvaliacaoRisco & { _categoria: PrioridadeAcaoPlano })[] = []
+    for (const a of avaliacoes) {
       const p = a.probabilidade_final ?? a.probabilidade_sugerida
       const s = a.severidade_final ?? a.severidade_sugerida
-      if (p == null || s == null) return false
+      if (p == null || s == null) continue
       const celula = resolverCelula(matriz5, p, s)
-      return (
+      if (
         celula &&
         (celula.categoria === 'Substancial' || celula.categoria === 'Intolerável') &&
         !comAcao.has(a.id)
-      )
-    })
+      ) {
+        criticas.push({ ...a, _categoria: celula.categoria as PrioridadeAcaoPlano })
+      }
+    }
     setAvaliacoesCriticas(criticas)
   }
 
@@ -140,22 +145,18 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
     setGerando(true)
     try {
       await Promise.all(
-        avaliacoesCriticas.map((a) => {
-          const p = a.probabilidade_final ?? a.probabilidade_sugerida
-          const s = a.severidade_final ?? a.severidade_sugerida
-          return createAcaoPlano({
+        avaliacoesCriticas.map((a) =>
+          createAcaoPlano({
             organizacao_id: organizacaoId,
             empresa_id: empresaId,
             avaliacao_id: a.id,
             medida: `Reduzir o risco: ${a.perigo_descricao || a.expand?.agente_id?.nome || 'perigo do inventário'} (${a.expand?.ghe_id?.nome || 'GHE'})`,
             status: 'Pendente' as StatusAcaoPlano,
-            prioridade: (p != null && s != null ? undefined : undefined) as
-              | PrioridadeAcaoPlano
-              | undefined,
+            prioridade: a._categoria,
             numero_expostos: a.numero_expostos,
             origem: 'Sugerida',
-          })
-        }),
+          }),
+        ),
       )
       toast.success(`${avaliacoesCriticas.length} ação(ões) sugerida(s) criada(s)`)
       carregar()
@@ -219,6 +220,8 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
     }
   }
 
+  // getAcoesPlano já devolve ordenado por prioridade e, dentro dela, por nº
+  // de expostos (NR-01, 1.5.5.2.1.1) — ver src/services/acoesPlano.ts.
   const resumo = useMemo(() => {
     const pendentes = acoes.filter((a) => a.status === 'Pendente').length
     const emAndamento = acoes.filter((a) => a.status === 'Em andamento').length
@@ -434,13 +437,26 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
                 />
               </div>
             </div>
-            <div>
-              <Label>Forma de acompanhamento</Label>
-              <Textarea
-                className="mt-1.5"
-                value={f.forma_acompanhamento || ''}
-                onChange={(e) => setF((v) => ({ ...v, forma_acompanhamento: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Forma de acompanhamento</Label>
+                <Textarea
+                  className="mt-1.5"
+                  value={f.forma_acompanhamento || ''}
+                  onChange={(e) => setF((v) => ({ ...v, forma_acompanhamento: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Forma de aferição do resultado</Label>
+                <Textarea
+                  className="mt-1.5"
+                  placeholder="Como será medido se a medida funcionou (nova medição, checklist, inspeção...)"
+                  value={f.forma_afericao_resultado || ''}
+                  onChange={(e) =>
+                    setF((v) => ({ ...v, forma_afericao_resultado: e.target.value }))
+                  }
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
