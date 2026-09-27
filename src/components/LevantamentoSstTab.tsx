@@ -13,7 +13,7 @@ import { EstruturaSstTab } from '@/components/EstruturaSstTab'
 import { InventarioRiscosTab } from '@/components/InventarioRiscosTab'
 import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 import { PlanejamentoPgrTab } from '@/components/PlanejamentoPgrTab'
-
+import { DocumentosSstTab } from '@/components/DocumentosSstTab'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const SUBS = ['planejamento', 'estrutura', 'inventario', 'plano'] as const
+const SUBS = ['planejamento', 'estrutura', 'inventario', 'plano', 'documentos'] as const
 type Sub = (typeof SUBS)[number]
 
 export function LevantamentoSstTab() {
@@ -111,7 +111,8 @@ export function LevantamentoSstTab() {
             <TabsTrigger value="estrutura">Estrutura SST</TabsTrigger>
             <TabsTrigger value="inventario">Inventário de riscos</TabsTrigger>
             <TabsTrigger value="plano">Plano de ação</TabsTrigger>
-          </TabsList>
+            <TabsTrigger value="documentos">Documentos</TabsTrigger>
+          </TabsList>{' '}
           <TabsContent value="planejamento" className="mt-0 focus-visible:outline-none">
             <PlanejamentoPgrTab key={empresaId} empresaId={empresaId} />
           </TabsContent>
@@ -123,6 +124,9 @@ export function LevantamentoSstTab() {
           </TabsContent>
           <TabsContent value="plano" className="mt-0 focus-visible:outline-none">
             <PlanoAcaoTab key={empresaId} empresaId={empresaId} />
+          </TabsContent>
+          <TabsContent value="documentos" className="mt-0 focus-visible:outline-none">
+            <DocumentosSstTab key={empresaId} empresaId={empresaId} />
           </TabsContent>
         </Tabs>
       )}
