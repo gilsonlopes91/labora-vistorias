@@ -2,6 +2,18 @@ import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import type { Setor } from '@/services/setores'
 
+/** NR-1, item 13.3.1: o PGR pode ser organizado por GHE/GES (ferramenta da
+ *  NR-09) ou por atividade, posto de trabalho, função ou setor — a escolha
+ *  é do profissional. */
+export type TipoAgrupamento = 'GHE' | 'Atividade' | 'Posto de trabalho' | 'Função' | 'Setor'
+export const TIPOS_AGRUPAMENTO: TipoAgrupamento[] = [
+  'GHE',
+  'Atividade',
+  'Posto de trabalho',
+  'Função',
+  'Setor',
+]
+
 export interface Ghe extends RecordModel {
   id: string
   organizacao_id: string
@@ -9,6 +21,7 @@ export interface Ghe extends RecordModel {
   setor_id?: string
   codigo?: string
   nome: string
+  tipo_agrupamento?: TipoAgrupamento
   descricao_atividades?: string
   criterio_agrupamento?: string
   jornada_trabalho?: string

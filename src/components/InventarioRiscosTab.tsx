@@ -379,7 +379,8 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
 
       {ghes.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Cadastre pelo menos um GHE na aba "Estrutura SST" antes de iniciar o inventário.
+          Cadastre pelo menos uma unidade de avaliação (GHE, atividade, posto, função ou setor) na
+          aba "Estrutura SST" antes de iniciar o inventário.
         </p>
       ) : avaliacoes.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
@@ -442,7 +443,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>GHE</Label>
+                <Label>Unidade de avaliação</Label>
                 <Select
                   value={f.ghe_id || ''}
                   onValueChange={(v) => setF((s) => ({ ...s, ghe_id: v }))}
@@ -453,7 +454,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
                   <SelectContent>
                     {ghes.map((g) => (
                       <SelectItem key={g.id} value={g.id}>
-                        {g.nome}
+                        [{g.tipo_agrupamento || 'GHE'}] {g.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>

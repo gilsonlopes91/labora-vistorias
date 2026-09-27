@@ -17,7 +17,15 @@ import {
   type Setor,
   type SetorInput,
 } from '@/services/setores'
-import { createGhe, deleteGhe, getGhes, updateGhe, type Ghe, type GheInput } from '@/services/ghes'
+import {
+  createGhe,
+  deleteGhe,
+  getGhes,
+  updateGhe,
+  TIPOS_AGRUPAMENTO,
+  type Ghe,
+  type GheInput,
+} from '@/services/ghes'
 import {
   createFuncaoSst,
   deleteFuncaoSst,
@@ -160,7 +168,7 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
 
   const abrirGhe = (g: Ghe | null) => {
     setGheEdit(g)
-    setFGhe(g ? { ...g } : {})
+    setFGhe(g ? { ...g } : { tipo_agrupamento: 'GHE' })
     setGheDialog(true)
   }
   const salvarGhe = async () => {
@@ -282,20 +290,21 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
       </Secao>
 
       <Secao
-        titulo={`GHEs — Grupos Homogêneos de Exposição (${ghes.length})`}
+        titulo={`Unidades de avaliação (${ghes.length})`}
         icone={Layers}
         acao={
           <Button size="sm" variant="outline" onClick={() => abrirGhe(null)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Novo GHE
+            Nova unidade
           </Button>
         }
       >
         {ghes.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhum GHE cadastrado. O GHE é a unidade de avaliação de risco: trabalhadores com
-            exposição semelhante são agrupados em um GHE e todas as avaliações do inventário
-            (agentes, probabilidade, severidade) são feitas por GHE.
+            Nenhuma unidade cadastrada ainda. É a base do inventário de riscos: cada avaliação
+            (agentes, probabilidade, severidade) pertence a uma unidade. O NR-1 (item 13.3.1) aceita
+            organizar o PGR por GHE/GES (ferramenta da NR-09), ou por atividade, posto de trabalho,
+            função ou setor — a escolha é sua.
           </p>
         ) : (
           <div className="divide-y">
@@ -303,6 +312,9 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
               <div key={g.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[10px]">
+                      {g.tipo_agrupamento || 'GHE'}
+                    </Badge>
                     {g.codigo && (
                       <span className="font-mono text-xs text-muted-foreground">{g.codigo}</span>
                     )}
@@ -455,9 +467,34 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
       <Dialog open={gheDialog} onOpenChange={setGheDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{gheEdit ? 'Editar GHE' : 'Novo GHE'}</DialogTitle>
+            <DialogTitle>{gheEdit ? 'Editar unidade' : 'Nova unidade de avaliação'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <div>
+              <Label>Tipo de agrupamento</Label>
+              <Select
+                value={fGhe.tipo_agrupamento || 'GHE'}
+                onValueChange={(v) =>
+                  setFGhe((s) => ({ ...s, tipo_agrupamento: v as Ghe['tipo_agrupamento'] }))
+                }
+              >
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_AGRUPAMENTO.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                GHE/GES é a ferramenta da NR-09; as demais opções (NR-1, 13.3.1) evitam criar um GHE
+                quando a atividade, o posto, a função ou o setor já bastam para descrever a
+                exposição.
+              </p>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label>Código</Label>
