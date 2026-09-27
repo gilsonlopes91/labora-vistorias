@@ -152,6 +152,22 @@ export const emitirDocumentoSst = async (
   return emitido
 }
 
+/** Página pública de verificação (/verificar/:chave) — sem login. */
+export interface VerificacaoDocumento {
+  tipo: string
+  titulo: string
+  versao: number
+  data_emissao: string
+  assinatura_confirmada_em: string
+  profissional: string
+  registro: string
+  organizacao: string
+  pdf_hash_sha256: string
+}
+
+export const getVerificacaoDocumento = (chave: string) =>
+  pb.send<VerificacaoDocumento>(`/backend/v1/verificar/${chave}`, { method: 'GET' })
+
 export const getTokenArquivos = () => pb.files.getToken()
 
 export const pdfUrlDocumentoSst = (documento: DocumentoSst, token?: string) =>
