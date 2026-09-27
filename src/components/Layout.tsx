@@ -334,6 +334,7 @@ export default function Layout() {
             <SidebarMenu>
               {NAV_ITEMS.filter((item) => !item.gestor || userGestor)
                 .filter((item) => !item.adminOnly || userAdmin)
+                .filter((item) => !item.escondaAdministrativo || user?.papel !== 'administrativo')
                 .filter((item) => !modulos || !moduloDe[item.to] || moduloDe[item.to](modulos))
                 .map((item) => (
                   <NavItemTree

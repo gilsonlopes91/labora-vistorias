@@ -51,6 +51,7 @@ const PAPEL_LABEL: Record<string, string> = {
   gerente: 'Gestor',
   gestor: 'Gestor',
   executor: 'Técnico',
+  administrativo: 'Administrativo',
   admin_plataforma: 'Administração da plataforma',
   staff_labora: 'Equipe Labora',
 }
@@ -84,7 +85,7 @@ export default function Equipe() {
       await convidarMembro({
         email,
         nome: form.nome.trim(),
-        papel: form.papel as 'gerente' | 'executor',
+        papel: form.papel as 'gerente' | 'executor' | 'administrativo',
       })
     } catch (error) {
       toast.error('Não foi possível adicionar o membro', { description: getErrorMessage(error) })
@@ -134,12 +135,14 @@ export default function Equipe() {
     }
   }
 
-  // Dono remove qualquer um (menos ele mesmo); gerente e gestor removem executores.
+  // Dono remove qualquer um (menos ele mesmo); gerente e gestor removem
+  // técnico e administrativo.
   const podeRemover = (m: MembroEquipe) =>
     m.id !== meuId &&
     m.papel !== 'dono' &&
     (meuPapel === 'dono' ||
-      ((meuPapel === 'gerente' || meuPapel === 'gestor') && m.papel === 'executor'))
+      ((meuPapel === 'gerente' || meuPapel === 'gestor') &&
+        (m.papel === 'executor' || m.papel === 'administrativo')))
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
 
@@ -152,7 +155,7 @@ export default function Equipe() {
             Pessoas com acesso à organização e o que cada uma pode fazer.
           </p>
         </div>
-        {meuPapel !== 'executor' && (
+        {meuPapel !== 'executor' && meuPapel !== 'administrativo' && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -199,6 +202,9 @@ export default function Equipe() {
                     <SelectContent>
                       <SelectItem value="gerente">Gestor — tudo operacional</SelectItem>
                       <SelectItem value="executor">Técnico — vistorias de campo</SelectItem>
+                      <SelectItem value="administrativo">
+                        Administrativo — agenda, orçamentos e empresas
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -250,18 +256,21 @@ export default function Equipe() {
                     <div className="truncate text-sm text-muted-foreground">{m.email}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {meuPapel !== 'executor' && m.id !== meuId && m.papel !== 'dono' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => reenviarLink(m)}
-                        disabled={reenviando === m.id}
-                        title="Manda de novo o e-mail para a pessoa criar ou trocar a senha"
-                      >
-                        <Mail className="mr-1 h-3 w-3" />
-                        {reenviando === m.id ? 'Enviando...' : 'Reenviar link'}
-                      </Button>
-                    )}
+                    {meuPapel !== 'executor' &&
+                      meuPapel !== 'administrativo' &&
+                      m.id !== meuId &&
+                      m.papel !== 'dono' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => reenviarLink(m)}
+                          disabled={reenviando === m.id}
+                          title="Manda de novo o e-mail para a pessoa criar ou trocar a senha"
+                        >
+                          <Mail className="mr-1 h-3 w-3" />
+                          {reenviando === m.id ? 'Enviando...' : 'Reenviar link'}
+                        </Button>
+                      )}
                     <Badge variant={m.papel === 'dono' ? 'default' : 'secondary'}>
                       <ShieldCheck className="mr-1 h-3 w-3" />
                       {PAPEL_LABEL[m.papel] || m.papel}

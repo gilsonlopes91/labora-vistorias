@@ -11,7 +11,7 @@ routerAdd(
     const auth = e.auth
     if (!auth) return e.unauthorizedError('auth required')
     const papelAuth = auth.getString('papel') || 'dono'
-    if (papelAuth === 'executor') {
+    if (papelAuth === 'executor' || papelAuth === 'administrativo') {
       return e.json(403, { error: 'Só o dono e o gerente removem pessoas da equipe.' })
     }
     const orgId = auth.getString('organizacao_id')

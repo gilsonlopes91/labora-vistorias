@@ -25,13 +25,13 @@ routerAdd(
       return e.badRequestError('senha deve ter ao menos 8 caracteres')
     }
     const senha = senhaInformada || $security.randomString(32)
-    if (!['gerente', 'executor'].includes(papel)) {
-      return e.badRequestError('papel deve ser gerente ou executor')
+    if (!['gerente', 'executor', 'administrativo'].includes(papel)) {
+      return e.badRequestError('papel deve ser gerente, executor ou administrativo')
     }
 
     // Apenas dono, gerente ou gestor convidam.
     const papelAuth = auth.getString('papel') || 'dono'
-    if (papelAuth === 'executor') {
+    if (papelAuth === 'executor' || papelAuth === 'administrativo') {
       return e.json(403, { error: 'apenas dono ou gestor podem convidar' })
     }
 
@@ -57,7 +57,7 @@ routerAdd(
         user.set('papel', papel)
         if (nome) user.set('name', nome)
         $app.save(user)
-        if (papel === 'executor') {
+        if (papel === 'executor' || papel === 'gerente') {
           let temRt = false
           try {
             $app.findFirstRecordByFilter(
@@ -119,8 +119,10 @@ routerAdd(
     novo.set('verified', true)
     $app.save(novo)
 
-    // Se for executor, cria o responsável técnico vinculado ao login.
-    if (papel === 'executor') {
+    // Executor e gerente ganham um responsável técnico vinculado ao login
+    // (o gerente pode ser RT das próprias vistorias); administrativo não tem
+    // registro profissional.
+    if (papel === 'executor' || papel === 'gerente') {
       const rtCol = $app.findCollectionByNameOrId('responsaveis_tecnicos')
       const rt = new Record(rtCol)
       rt.set('organizacao_id', orgId)

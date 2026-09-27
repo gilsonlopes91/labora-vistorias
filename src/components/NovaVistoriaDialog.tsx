@@ -22,6 +22,7 @@ import {
 } from '@/services/formularios'
 import { getItensChecklist } from '@/services/itensChecklist'
 import { createVistoria } from '@/services/vistorias'
+import pb from '@/lib/pocketbase/client'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -143,8 +144,12 @@ export default function NovaVistoriaDialog({
       .then((org) => getResponsaveisTecnicos(org.id))
       .then((rts) => {
         setResponsaveis(rts)
+        // Prioriza o próprio registro do usuário logado (se existir) sobre o padrão da org.
+        const meuId = pb.authStore.record?.id
+        const meu = rts.find((rt) => rt.usuario_id === meuId)
         const padrao = rts.find((rt) => rt.padrao)
-        if (padrao) form.setValue('responsavel_tecnico_id', padrao.id)
+        const preferido = meu || padrao
+        if (preferido) form.setValue('responsavel_tecnico_id', preferido.id)
       })
       .catch(() => setResponsaveis([]))
     getModelosFormulario()

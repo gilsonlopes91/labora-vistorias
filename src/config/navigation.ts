@@ -36,6 +36,8 @@ export interface NavItemConfig {
   gestor?: boolean
   /** Só aparece para o admin da plataforma (papel admin_plataforma). */
   adminOnly?: boolean
+  /** Oculto do papel administrativo (agenda/orçamentos/empresas apenas). */
+  escondaAdministrativo?: boolean
   children?: NavSubItemConfig[]
 }
 
@@ -68,11 +70,12 @@ export const NAV_ITEMS: NavItemConfig[] = [
       },
     ],
   },
-  { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck },
+  { to: '/vistorias', label: 'Vistorias', icon: ClipboardCheck, escondaAdministrativo: true },
   {
     to: '/auditoria-formularios',
     label: 'Auditoria e Formulários',
     icon: ListChecks,
+    escondaAdministrativo: true,
     children: [
       {
         to: '/auditoria-formularios?aba=auditoria',
@@ -94,6 +97,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     to: '/documentacao',
     label: 'Documentação SST',
     icon: FileBadge,
+    escondaAdministrativo: true,
     children: [
       {
         to: '/documentacao?aba=como-funciona',

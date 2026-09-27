@@ -82,6 +82,12 @@ export default function Configuracoes() {
   const [rtUf, setRtUf] = useState('')
   const [rtPadrao, setRtPadrao] = useState(false)
 
+  // Registro profissional do próprio usuário logado (qualquer papel, não só gestor).
+  const [meuTipo, setMeuTipo] = useState<TipoRegistroRT>('CREA')
+  const [meuNumero, setMeuNumero] = useState('')
+  const [meuUf, setMeuUf] = useState('')
+  const [salvandoMeuRT, setSalvandoMeuRT] = useState(false)
+
   const carregarResponsaveis = (organizacaoId: string) => {
     setCarregandoRT(true)
     getResponsaveisTecnicos(organizacaoId)
@@ -335,6 +341,45 @@ export default function Configuracoes() {
       carregarResponsaveis(org.id)
     } catch (error) {
       toast.error('Não foi possível remover', { description: getErrorMessage(error) })
+    }
+  }
+
+  const meuRT = responsaveis.find((rt) => rt.usuario_id === pb.authStore.record?.id) || null
+
+  useEffect(() => {
+    if (!meuRT) return
+    setMeuTipo(meuRT.tipo_registro)
+    setMeuNumero(meuRT.numero_registro)
+    setMeuUf(meuRT.uf || '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meuRT?.id])
+
+  const handleSalvarMeuRegistro = async () => {
+    if (!org || !meuNumero.trim()) return
+    setSalvandoMeuRT(true)
+    try {
+      if (meuRT) {
+        await atualizarResponsavelTecnico(meuRT.id, {
+          tipo_registro: meuTipo,
+          numero_registro: meuNumero.trim(),
+          uf: meuUf.trim() || undefined,
+        })
+      } else {
+        await pb.collection('responsaveis_tecnicos').create({
+          organizacao_id: org.id,
+          nome: pb.authStore.record?.name || pb.authStore.record?.email || 'Eu',
+          tipo_registro: meuTipo,
+          numero_registro: meuNumero.trim(),
+          uf: meuUf.trim() || undefined,
+          usuario_id: pb.authStore.record?.id,
+        })
+      }
+      carregarResponsaveis(org.id)
+      toast.success('Registro salvo')
+    } catch (error) {
+      toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
+    } finally {
+      setSalvandoMeuRT(false)
     }
   }
 
@@ -753,6 +798,126 @@ export default function Configuracoes() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {org && pb.authStore.record?.id && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PenLine className="h-4 w-4" />
+              Meu registro profissional
+            </CardTitle>
+            <CardDescription>
+              Conselho e número usados no carimbo quando você assina um relatório de vistoria como
+              responsável técnico.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {carregandoRT ? (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label className="mb-1.5 block text-xs">Conselho</Label>
+                    <Select value={meuTipo} onValueChange={(v) => setMeuTipo(v as TipoRegistroRT)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_REGISTRO_RT.map((tipo) => (
+                          <SelectItem key={tipo} value={tipo}>
+                            {tipo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="w-16">
+                      <Label htmlFor="meu-rt-uf" className="mb-1.5 block text-xs">
+                        UF
+                      </Label>
+                      <Input
+                        id="meu-rt-uf"
+                        value={meuUf}
+                        maxLength={2}
+                        onChange={(e) => setMeuUf(e.target.value.toUpperCase())}
+                        placeholder="PI"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="meu-rt-numero" className="mb-1.5 block text-xs">
+                        Número do registro
+                      </Label>
+                      <Input
+                        id="meu-rt-numero"
+                        value={meuNumero}
+                        onChange={(e) => setMeuNumero(e.target.value)}
+                        placeholder="12345"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {meuRT?.assinatura || meuRT ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      id="minha-assinatura"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (meuRT) handleAssinatura(meuRT.id, e.target.files)
+                        e.target.value = ''
+                      }}
+                    />
+                    {meuRT?.assinatura && tokenArquivos && (
+                      <img
+                        src={urlAssinaturaRT(meuRT, tokenArquivos)}
+                        alt="Minha assinatura"
+                        className="h-7 max-w-[90px] rounded border bg-white object-contain"
+                      />
+                    )}
+                    <label
+                      htmlFor="minha-assinatura"
+                      className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs hover:bg-accent"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      {enviandoAssinatura === meuRT?.id
+                        ? 'Enviando...'
+                        : meuRT?.assinatura
+                          ? 'Trocar assinatura'
+                          : 'Enviar assinatura'}
+                    </label>
+                    {meuRT?.assinatura && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground"
+                        onClick={() => meuRT && handleRemoverAssinatura(meuRT.id)}
+                      >
+                        Tirar assinatura
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Salve o registro para depois poder enviar sua assinatura digitalizada.
+                  </p>
+                )}
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={handleSalvarMeuRegistro}
+                    disabled={salvandoMeuRT || !meuNumero.trim()}
+                  >
+                    {salvandoMeuRT ? 'Salvando...' : 'Salvar meu registro'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {gestor && org && (
