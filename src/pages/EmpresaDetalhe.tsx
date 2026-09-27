@@ -30,6 +30,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { getVistorias, type Vistoria } from '@/services/vistorias'
 import { calcularIndicadores, getOrcamentos, type Orcamento } from '@/services/orcamentos'
 import { OrcamentosTab } from '@/components/OrcamentosTab'
+import AcessoClienteCard from '@/components/AcessoClienteCard'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -200,7 +201,6 @@ export default function EmpresaDetalhe() {
           </Button>
         </div>
       </div>
-      =======
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         <Numero
           rotulo="Vistorias"
@@ -252,6 +252,9 @@ export default function EmpresaDetalhe() {
           icone={Wallet}
           cor="bg-emerald-500"
         />
+      </div>
+      <div className="mb-6">
+        <AcessoClienteCard empresaId={empresa.id} />
       </div>
       <Tabs defaultValue="vistorias" className="space-y-6">
         <TabsList>
