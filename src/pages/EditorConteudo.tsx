@@ -191,7 +191,7 @@ export default function EditorConteudo() {
 
         {/* forceMount: trocar de aba não descarta o que ainda não foi salvo */}
         <TabsContent value="home" forceMount className="data-[state=inactive]:hidden">
-          <EditorPagina<HomeConteudo>
+          <EditorPagina
             chave="home"
             padrao={HOME_PADRAO}
             Formulario={FormHome}
@@ -199,7 +199,7 @@ export default function EditorConteudo() {
           />
         </TabsContent>
         <TabsContent value="rodape" forceMount className="data-[state=inactive]:hidden">
-          <EditorPagina<RodapeConteudo>
+          <EditorPagina
             chave="rodape"
             padrao={RODAPE_PADRAO}
             Formulario={FormRodape}
