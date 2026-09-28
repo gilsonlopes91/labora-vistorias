@@ -15,7 +15,7 @@ export const CONTROLADOR = {
 
 // Canal de atendimento e do encarregado de dados (LGPD, art. 41). Também
 // aparece no rodapé do site (link "Contato").
-export const EMAIL_ATENDIMENTO = 'eng.amaury.sousa@gmail.com'
+export const EMAIL_ATENDIMENTO = 'labora@laboravistorias.com.br'
 const CANAL = `pelo e-mail ${EMAIL_ATENDIMENTO}`
 
 export interface SecaoLegal {

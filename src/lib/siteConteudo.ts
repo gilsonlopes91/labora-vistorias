@@ -138,7 +138,7 @@ export const HOME_PADRAO: HomeConteudo = {
 export const RODAPE_PADRAO: RodapeConteudo = {
   nome: 'LABORA vistorias',
   descricao: 'Gestão de vistorias e inspeções de SST',
-  email_contato: 'eng.amaury.sousa@gmail.com',
+  email_contato: 'labora@laboravistorias.com.br',
   assinatura: 'Labora Engenharia e SST',
 }
 
