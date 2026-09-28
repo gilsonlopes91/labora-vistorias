@@ -236,6 +236,18 @@ export interface PropostaPublica {
   organizacao: { nome: string; telefone: string; email: string; site: string }
 }
 
+/** A6: envio real de e-mail pelo backend (não é mailto:). */
+export const enviarPropostaPorEmail = (params: {
+  orcamento_id: string
+  destinatario: string
+  assunto: string
+  mensagem: string
+}) =>
+  pb.send<{ ok: boolean }>('/backend/v1/orcamentos/enviar-email', {
+    method: 'POST',
+    body: params,
+  })
+
 export const getPropostaPublica = (token: string) =>
   pb.send<PropostaPublica>(`/backend/v1/proposta-publica/${token}`, { method: 'GET' })
 

@@ -10,13 +10,17 @@ import type { PdfGerado } from '@/lib/propostaPdf'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import {
   desativarLinkProposta,
+  enviarPropostaPorEmail,
   publicarLinkProposta,
+  updateOrcamento,
   urlLinkProposta,
+  camposAoMudarStatus,
   type Orcamento,
 } from '@/services/orcamentos'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -68,6 +72,8 @@ export function EnviarPropostaDialog({
   const [preparando, setPreparando] = useState(false)
   const [erro, setErro] = useState('')
   const [nomeOrg, setNomeOrg] = useState('')
+  const [destinatarioEmail, setDestinatarioEmail] = useState('')
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
 
   const preparar = async (o: Orcamento) => {
     setPreparando(true)
@@ -98,6 +104,7 @@ export function EnviarPropostaDialog({
       return
     }
     setAtual(orcamento)
+    setDestinatarioEmail(orcamento.expand?.empresa_id?.contato_email || '')
     preparar(orcamento)
     getMinhaOrganizacao()
       .then((org) => setNomeOrg(org.nome || ''))
@@ -137,9 +144,38 @@ export function EnviarPropostaDialog({
 
   const fone = telefoneWhatsApp(empresa?.contato_telefone)
   const urlWhatsApp = `https://wa.me/${fone}?text=${encodeURIComponent(mensagem)}`
-  const urlEmail = `mailto:${empresa?.contato_email || ''}?subject=${encodeURIComponent(
-    `Proposta ${atual?.numero || ''}${nomeOrg ? ` — ${nomeOrg}` : ''}`,
-  )}&body=${encodeURIComponent(mensagem)}`
+  const assuntoEmail = `Proposta ${atual?.numero || ''}${nomeOrg ? ` — ${nomeOrg}` : ''}`
+
+  const enviarEmailReal = async () => {
+    if (!atual) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatarioEmail.trim())) {
+      toast.error('Informe um e-mail válido')
+      return
+    }
+    setEnviandoEmail(true)
+    try {
+      await enviarPropostaPorEmail({
+        orcamento_id: atual.id,
+        destinatario: destinatarioEmail.trim(),
+        assunto: assuntoEmail,
+        mensagem,
+      })
+      const eraRascunho = atual.status === 'rascunho'
+      const extras = eraRascunho ? camposAoMudarStatus(atual, 'enviado') : {}
+      const patch = eraRascunho ? { status: 'enviado' as const, ...extras } : {}
+      if (Object.keys(patch).length > 0) {
+        const salvo = await updateOrcamento(atual.id, patch)
+        onAtualizado(atual.id, salvo)
+        setAtual({ ...atual, ...salvo })
+      }
+      if (eraRascunho) onEnviado(atual)
+      toast.success(`E-mail enviado para ${destinatarioEmail.trim()}`)
+    } catch (error) {
+      toast.error('Não foi possível enviar o e-mail', { description: getErrorMessage(error) })
+    } finally {
+      setEnviandoEmail(false)
+    }
+  }
 
   const desativar = async () => {
     if (!atual) return
@@ -194,25 +230,37 @@ export function EnviarPropostaDialog({
               </Button>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button asChild>
-                <a href={urlWhatsApp} target="_blank" rel="noreferrer" onClick={marcarEnviado}>
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Enviar pelo WhatsApp
-                </a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href={urlEmail} onClick={marcarEnviado}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Enviar por e-mail
-                </a>
-              </Button>
-            </div>
+            <Button asChild className="w-full">
+              <a href={urlWhatsApp} target="_blank" rel="noreferrer" onClick={marcarEnviado}>
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Enviar pelo WhatsApp
+              </a>
+            </Button>
             {!fone && (
               <p className="text-xs text-muted-foreground">
                 A empresa não tem celular no cadastro; o WhatsApp abre para você escolher o contato.
               </p>
             )}
+
+            <div className="space-y-2 rounded-md border p-3">
+              <Label htmlFor="destinatario-email" className="text-xs">
+                Enviar por e-mail (direto pelo app, com o link da proposta)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="destinatario-email"
+                  type="email"
+                  value={destinatarioEmail}
+                  onChange={(e) => setDestinatarioEmail(e.target.value)}
+                  placeholder="cliente@empresa.com.br"
+                  className="text-sm"
+                />
+                <Button onClick={enviarEmailReal} disabled={enviandoEmail}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  {enviandoEmail ? 'Enviando...' : 'Enviar'}
+                </Button>
+              </div>
+            </div>
 
             <div className="rounded-md border p-3 text-sm">
               {vezes > 0 ? (
