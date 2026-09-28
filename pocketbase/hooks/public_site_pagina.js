@@ -1,9 +1,8 @@
 // Rota pública (sem login): devolve o conteúdo PUBLICADO de uma página do site
 // (home, rodapé). Nunca devolve o rascunho. Se nada foi publicado, devolve
 // conteudo null e o site usa os textos originais que estão no código.
-// GET /backend/v1/public/site/{chave}
-// (reenviado para forçar o backend a recarregar este hook)
-routerAdd('GET', '/backend/v1/public/site/{chave}', (e) => {
+// GET /backend/v1/public/conteudo-pagina/{chave}
+routerAdd('GET', '/backend/v1/public/conteudo-pagina/{chave}', (e) => {
   const chave = e.request.pathValue('chave')
   if (['home', 'rodape'].indexOf(chave) < 0) return e.notFoundError('página não encontrada')
 
