@@ -6,6 +6,8 @@
 //    publicado.
 //  - site_imagens: arquivos (públicos, como as capas do blog) usados nos blocos.
 //  - site_versoes: cópia de cada publicação. Só os hooks escrevem.
+// (0163: reenviada para o backend junto com os hooks public_site_pagina e
+// admin_site_publicar.)
 migrate(
   (app) => {
     const admin =
