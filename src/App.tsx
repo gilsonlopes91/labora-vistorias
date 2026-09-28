@@ -37,7 +37,11 @@ import ModelosProposta from './pages/ModelosProposta'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
 import NotFound from './pages/NotFound'
-import AdminConsole from './pages/AdminConsole'
+import AdminVisaoGeral from './pages/admin/AdminVisaoGeral'
+import AdminOrganizacoes from './pages/admin/AdminOrganizacoes'
+import AdminOrganizacaoDetalhe from './pages/admin/AdminOrganizacaoDetalhe'
+import AdminStaff from './pages/admin/AdminStaff'
+import AdminListaEspera from './pages/admin/AdminListaEspera'
 import AdminNormas from './pages/AdminNormas'
 import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
@@ -257,7 +261,39 @@ const App = () => (
               path="/admin"
               element={
                 <ProtectedRoute adminOnly>
-                  <AdminConsole />
+                  <AdminVisaoGeral />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/organizacoes"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminOrganizacoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/organizacoes/:id"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminOrganizacaoDetalhe />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/staff"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminStaff />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/lista-espera"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminListaEspera />
                 </ProtectedRoute>
               }
             />

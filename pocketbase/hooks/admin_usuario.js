@@ -15,6 +15,88 @@ routerAdd(
     const body = e.requestInfo().body || {}
     const acao = body.acao
 
+    // Histórico do console (coleção admin_atividades). Falha silenciosa se a
+    // coleção ainda não existir, para nunca travar a ação em si.
+    const registrar = (orgId, acaoNome, descricao, detalhes) => {
+      try {
+        const col = $app.findCollectionByNameOrId('admin_atividades')
+        const rec = new Record(col)
+        rec.set('organizacao_id', orgId || '')
+        rec.set('usuario_id', auth.id)
+        rec.set('usuario_nome', auth.getString('name') || auth.getString('email'))
+        rec.set('acao', acaoNome)
+        rec.set('descricao', descricao || '')
+        rec.set('detalhes', detalhes || {})
+        $app.saveNoValidate(rec)
+      } catch (_) {
+        // sem histórico
+      }
+    }
+
+    if (acao === 'bloqueio') {
+      if (!ehAdmin) return e.forbiddenError('Só o administrador bloqueia organizações.')
+      const orgId = String(body.org_id || '')
+      if (!orgId) return e.badRequestError('org_id obrigatório')
+      let org
+      try {
+        org = $app.findRecordById('organizacoes', orgId)
+      } catch (_) {
+        return e.notFoundError('organização não encontrada')
+      }
+      const anterior = org.getString('status') || 'ativa'
+      const novo = anterior === 'bloqueada' ? 'ativa' : 'bloqueada'
+      org.set('status', novo)
+      $app.save(org)
+      registrar(
+        orgId,
+        novo === 'bloqueada' ? 'bloqueio' : 'desbloqueio',
+        novo === 'bloqueada' ? 'Organização bloqueada' : 'Organização desbloqueada',
+        { de: anterior, para: novo },
+      )
+      return e.json(200, { ok: true, status: novo })
+    }
+
+    if (acao === 'plano') {
+      if (!ehAdmin) return e.forbiddenError('Só o administrador altera o plano.')
+      const orgId = String(body.org_id || '')
+      if (!orgId) return e.badRequestError('org_id obrigatório')
+      let org
+      try {
+        org = $app.findRecordById('organizacoes', orgId)
+      } catch (_) {
+        return e.notFoundError('organização não encontrada')
+      }
+      const antes = {
+        plano: org.getString('plano'),
+        limite_usuarios: org.getInt('limite_usuarios'),
+        vencimento: org.getString('vencimento'),
+      }
+      const plano = String(body.plano || '')
+      if (['individual', 'equipe', 'escritorio', 'empresa'].indexOf(plano) < 0) {
+        return e.badRequestError('plano inválido')
+      }
+      const limite = parseInt(String(body.limite_usuarios || '0'), 10) || 0
+      const venc = body.vencimento ? String(body.vencimento) : ''
+      org.set('plano', plano)
+      org.set('limite_usuarios', limite)
+      org.set('vencimento', venc || null)
+      $app.save(org)
+      const depois = { plano: plano, limite_usuarios: limite, vencimento: venc }
+      registrar(
+        orgId,
+        'plano',
+        'Plano alterado para ' +
+          plano +
+          ' (' +
+          limite +
+          ' vagas' +
+          (venc ? ', vence ' + venc.slice(0, 10) : '') +
+          ')',
+        { antes: antes, depois: depois },
+      )
+      return e.json(200, { ok: true })
+    }
+
     if (acao === 'nova_senha') {
       const userId = String(body.user_id || '')
       if (!userId) return e.badRequestError('user_id obrigatório')
@@ -45,6 +127,12 @@ routerAdd(
       alvo.setPassword(senha)
       alvo.set('trocar_senha', true)
       $app.save(alvo)
+      registrar(
+        alvo.getString('organizacao_id'),
+        'nova_senha',
+        'Senha temporária definida para ' + (alvo.getString('name') || alvo.getString('email')),
+        { user_id: alvo.id },
+      )
       return e.json(200, { ok: true })
     }
 
@@ -78,6 +166,8 @@ routerAdd(
       }
       org.set('modulos', JSON.stringify(atuais))
       $app.save(org)
+      const ligados = CHAVES.filter((k) => atuais[k] !== false)
+      registrar(orgId, 'pacote', 'Pacote atualizado: ' + ligados.join(', '), { modulos: atuais })
       return e.json(200, { ok: true, modulos: org.getString('modulos') })
     }
 
@@ -90,6 +180,13 @@ routerAdd(
         alvo = $app.findRecordById('users', userId)
         alvo.set('acesso_console', !!body.acesso)
         $app.save(alvo)
+        registrar(
+          '',
+          'staff_console',
+          (body.acesso ? 'Acesso ao console concedido a ' : 'Acesso ao console removido de ') +
+            (alvo.getString('name') || alvo.getString('email')),
+          { user_id: alvo.id, acesso: !!body.acesso },
+        )
         return e.json(200, { ok: true, acesso_console: alvo.getBool('acesso_console') })
       } catch (_) {
         return e.notFoundError('usuário não encontrado')
