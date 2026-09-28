@@ -2,6 +2,7 @@
 // uma versão no histórico (mantém as 30 mais recentes por página).
 // POST /backend/v1/admin/site/publicar  { chave }
 // Acesso: admin_plataforma OU staff_labora com acesso_console.
+// (reenviado para forçar o backend a recarregar este hook)
 routerAdd(
   'POST',
   '/backend/v1/admin/site/publicar',

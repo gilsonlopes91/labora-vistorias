@@ -2,6 +2,7 @@
 // (home, rodapé). Nunca devolve o rascunho. Se nada foi publicado, devolve
 // conteudo null e o site usa os textos originais que estão no código.
 // GET /backend/v1/public/site/{chave}
+// (reenviado para forçar o backend a recarregar este hook)
 routerAdd('GET', '/backend/v1/public/site/{chave}', (e) => {
   const chave = e.request.pathValue('chave')
   if (['home', 'rodape'].indexOf(chave) < 0) return e.notFoundError('página não encontrada')
