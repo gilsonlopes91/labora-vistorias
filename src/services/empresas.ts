@@ -11,6 +11,9 @@ export interface Empresa extends RecordModel {
   grau_risco?: number
   numero_funcionarios?: number
   endereco?: string
+  /** Logo da empresa (PNG), usada na capa dos documentos SST ao lado do logo
+   *  da organização que presta o serviço (migration 0166). */
+  logo?: string
   contato_nome?: string
   contato_telefone?: string
   contato_email?: string
@@ -80,3 +83,17 @@ export const updateEmpresa = (id: string, data: Partial<EmpresaInput>) =>
   pb.collection('empresas').update<Empresa>(id, data)
 
 export const deleteEmpresa = (id: string) => pb.collection('empresas').delete(id)
+
+export const atualizarLogoEmpresa = (id: string, logo: File) => {
+  const fd = new FormData()
+  fd.append('logo', logo)
+  return pb.collection('empresas').update<Empresa>(id, fd)
+}
+
+export const removerLogoEmpresa = (id: string) =>
+  pb.collection('empresas').update<Empresa>(id, { logo: null })
+
+/** URL do logo da empresa cliente, usado na capa dos documentos SST junto
+ *  com o logo da organização (identidadeVisual.ts / urlLogoOrganizacao). */
+export const urlLogoEmpresa = (empresa: Empresa) =>
+  empresa.logo ? pb.files.getURL(empresa, empresa.logo) : null

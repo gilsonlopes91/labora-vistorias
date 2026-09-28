@@ -13,6 +13,7 @@ import {
   hexParaRgb,
   COR_PRIMARIA_LABORA,
   COR_SECUNDARIA_LABORA,
+  type RGB,
 } from '@/lib/identidadeVisual'
 import type { SecaoDocumento } from '@/services/documentosSst'
 
@@ -95,9 +96,17 @@ export interface DadosRelatorioPgr {
   corSecundaria?: string
   empresaNome: string
   empresaCnpj?: string
+  /** Logo da empresa cliente (services/empresas.ts, migration 0166), exibida
+   *  na capa ao lado do logo da organização que presta o serviço. */
+  empresaLogoUrl?: string | null
+  /** Sigla em destaque na capa (ex.: "PGR", "LTCAT"). Sem ela, usa `titulo`. */
+  siglaDocumento?: string
   titulo: string
   versao: number
   dataEmissao: Date
+  /** Início/fim de vigência mostrados na capa. Sem `vigenciaInicio`, usa `dataEmissao`. */
+  vigenciaInicio?: Date
+  vigenciaFim?: Date | null
   elaboradores?: string
   secoes: SecaoDocumento[]
   unidadesAvaliacao: string[]
@@ -108,6 +117,146 @@ export interface DadosRelatorioPgr {
    *  conclusão por função, com a régua e o dado técnico usados (NR-1, item
    *  1.5.2 — não é a classificação do PGR). */
   conclusoesFuncao?: LinhaConclusaoLaudo[]
+}
+
+/** Busca uma imagem (logo) pela URL e converte para data URL, para poder ser
+ *  embutida no PDF com doc.addImage. Retorna null se não conseguir buscar
+ *  (sem logo cadastrado, CORS, etc.) — a capa cai para o nome em texto. */
+async function carregarImagemComoDataUrl(url: string): Promise<string | null> {
+  try {
+    const resposta = await fetch(url)
+    if (!resposta.ok) return null
+    const blob = await resposta.blob()
+    return await new Promise<string>((resolve, reject) => {
+      const leitor = new FileReader()
+      leitor.onload = () => resolve(leitor.result as string)
+      leitor.onerror = () => reject(leitor.error)
+      leitor.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+function dimensoesImagem(dataUrl: string): Promise<{ largura: number; altura: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ largura: img.naturalWidth || 1, altura: img.naturalHeight || 1 })
+    img.onerror = () => reject(new Error('Não foi possível ler as dimensões da imagem'))
+    img.src = dataUrl
+  })
+}
+
+/** Padrão decorativo de linhas cruzadas da identidade visual da Labora,
+ *  redesenhado em vetor (leque de linhas retas a partir de um ponto de
+ *  fuga) para não depender de uma imagem de fundo embutida no app. */
+function desenharPadraoCapa(doc: jsPDF, pageWidth: number, pageHeight: number, cor: RGB) {
+  const fugaX = pageWidth * 0.78
+  const fugaY = pageHeight * 0.64
+  const nLinhas = 26
+  doc.setDrawColor(cor[0], cor[1], cor[2])
+  doc.setLineWidth(0.6)
+  for (let i = 0; i < nLinhas; i++) {
+    const t = i / (nLinhas - 1)
+    doc.line(fugaX, fugaY, -pageWidth * 0.15 + t * pageWidth * 1.3, pageHeight)
+    doc.line(fugaX, fugaY, pageWidth, fugaY + t * (pageHeight - fugaY))
+  }
+}
+
+/** Capa do documento: fundo neutro, padrão decorativo, título/sigla em
+ *  destaque, logo da empresa cliente e, no rodapé, o logo (ou nome) de quem
+ *  presta o serviço — os dois lados do trabalho, na primeira página. */
+async function desenharCapa(
+  doc: jsPDF,
+  dados: DadosRelatorioPgr,
+  primaria: RGB,
+  secundaria: RGB,
+): Promise<void> {
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const centroX = pageWidth / 2
+
+  doc.setFillColor(238, 238, 238)
+  doc.rect(0, 0, pageWidth, pageHeight, 'F')
+  desenharPadraoCapa(doc, pageWidth, pageHeight, clarear(primaria, 0.15))
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(52)
+  doc.setTextColor(30, 30, 30)
+  doc.text(dados.siglaDocumento || dados.titulo, centroX, 130, { align: 'center' })
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(15)
+  doc.setTextColor(primaria[0], primaria[1], primaria[2])
+  doc.text(dados.titulo, centroX, 155, { align: 'center' })
+
+  let y = 260
+  const logoCliente = dados.empresaLogoUrl
+    ? await carregarImagemComoDataUrl(dados.empresaLogoUrl)
+    : null
+  if (logoCliente) {
+    try {
+      const { largura, altura } = await dimensoesImagem(logoCliente)
+      const escala = Math.min(180 / largura, 100 / altura, 1)
+      const w = largura * escala
+      const h = altura * escala
+      doc.addImage(logoCliente, centroX - w / 2, y, w, h)
+      y += h + 24
+    } catch {
+      y += 20
+    }
+  } else {
+    y += 20
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.setTextColor(20, 20, 20)
+  doc.text(dados.empresaNome, centroX, y, { align: 'center' })
+  y += 16
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(60, 60, 60)
+  const vigenciaInicio = dados.vigenciaInicio || dados.dataEmissao
+  doc.text(
+    `Início da vigência: ${vigenciaInicio.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })}`,
+    centroX,
+    y,
+    { align: 'center' },
+  )
+  if (dados.vigenciaFim) {
+    y += 13
+    doc.text(
+      `Fim da vigência: ${dados.vigenciaFim.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })}`,
+      centroX,
+      y,
+      { align: 'center' },
+    )
+  }
+
+  const logoOrg = dados.logoUrl ? await carregarImagemComoDataUrl(dados.logoUrl) : null
+  if (logoOrg) {
+    try {
+      const { largura, altura } = await dimensoesImagem(logoOrg)
+      const escala = Math.min(140 / largura, 60 / altura, 1)
+      const w = largura * escala
+      const h = altura * escala
+      doc.addImage(logoOrg, centroX - w / 2, pageHeight - 90, w, h)
+    } catch {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
+      doc.text(dados.organizacaoNome, centroX, pageHeight - 60, { align: 'center' })
+    }
+  } else {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
+    doc.text(dados.organizacaoNome, centroX, pageHeight - 60, { align: 'center' })
+  }
+
+  doc.addPage()
 }
 
 const htmlParaTexto = (html: string) =>
@@ -134,6 +283,9 @@ export async function gerarPdfPgr(dados: DadosRelatorioPgr): Promise<jsPDF> {
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
+
+  await desenharCapa(doc, dados, primaria, secundaria)
+
   const margin = 40
   const larguraUtil = pageWidth - margin * 2
   let y = margin

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T17:48:58.539Z",
+  "generatedAt": "2026-09-28T22:34:06.871Z",
   "collections": [
     {
       "name": "users",
@@ -484,6 +484,12 @@
         {
           "name": "pgr_observacoes_planejamento",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo",
+          "type": "file",
           "required": false,
           "system": false
         }

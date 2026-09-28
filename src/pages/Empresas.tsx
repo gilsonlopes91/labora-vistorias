@@ -20,6 +20,9 @@ import {
   deleteEmpresa,
   montarEndereco,
   temEnderecoEmPartes,
+  atualizarLogoEmpresa,
+  removerLogoEmpresa,
+  urlLogoEmpresa,
   type Empresa,
 } from '@/services/empresas'
 import { getFormularios, type Formulario } from '@/services/registrosFormulario'
@@ -155,6 +158,10 @@ export default function Empresas() {
   const [buscandoCep, setBuscandoCep] = useState(false)
   // Texto digitado no campo de CNAE (código ou palavras da atividade).
   const [textoCnae, setTextoCnae] = useState('')
+  // Logo da empresa cliente, exibida na capa dos documentos SST (migration 0166).
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [removendoLogo, setRemovendoLogo] = useState(false)
 
   const empresasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -214,7 +221,37 @@ export default function Empresas() {
     setEditing(null)
     form.reset(emptyValues)
     setTextoCnae('')
+    setLogoFile(null)
+    setLogoPreview(null)
     setDialogOpen(true)
+  }
+
+  const escolherLogo = (arquivo: File | null) => {
+    setLogoFile(arquivo)
+    setLogoPreview(
+      arquivo ? URL.createObjectURL(arquivo) : editing ? urlLogoEmpresa(editing) : null,
+    )
+  }
+
+  const removerLogoAtual = async () => {
+    if (!editing) {
+      setLogoFile(null)
+      setLogoPreview(null)
+      return
+    }
+    setRemovendoLogo(true)
+    try {
+      const atualizada = await removerLogoEmpresa(editing.id)
+      setEditing(atualizada)
+      setLogoFile(null)
+      setLogoPreview(null)
+      loadData()
+      toast.success('Logo removida')
+    } catch (error) {
+      toast.error('Não foi possível remover a logo', { description: getErrorMessage(error) })
+    } finally {
+      setRemovendoLogo(false)
+    }
   }
 
   // CNAE escolhido: grava a subclasse/classe e puxa o grau de risco da NR-04.
@@ -338,6 +375,8 @@ export default function Empresas() {
       contato_email: empresa.contato_email ?? '',
     })
     setTextoCnae(empresa.cnae ? formatarCnae(empresa.cnae) : '')
+    setLogoFile(null)
+    setLogoPreview(urlLogoEmpresa(empresa))
     setDialogOpen(true)
   }
 
@@ -386,12 +425,23 @@ export default function Empresas() {
       contato_email: values.contato_email?.trim() || undefined,
     }
     try {
+      let empresaId = editing?.id
       if (editing) {
         await updateEmpresa(editing.id, payload)
         toast.success('Empresa atualizada com sucesso')
       } else {
-        await createEmpresa(payload)
+        const criada = await createEmpresa(payload)
+        empresaId = criada.id
         toast.success('Empresa cadastrada com sucesso')
+      }
+      if (empresaId && logoFile) {
+        try {
+          await atualizarLogoEmpresa(empresaId, logoFile)
+        } catch (error) {
+          toast.error('Empresa salva, mas não foi possível enviar a logo', {
+            description: getErrorMessage(error),
+          })
+        }
       }
       setDialogOpen(false)
       loadData()
@@ -643,6 +693,39 @@ export default function Empresas() {
                   </FormItem>
                 )}
               />
+              <div className="space-y-1.5 rounded-md border p-3">
+                <p className="text-sm font-medium">Logo da empresa</p>
+                <p className="text-xs text-muted-foreground">
+                  Aparece na capa dos documentos SST (PGR, LTCAT, laudos) desta empresa, ao lado da
+                  logo de quem presta o serviço. PNG, de preferência com fundo transparente.
+                </p>
+                <div className="flex items-center gap-3">
+                  {logoPreview && (
+                    <img
+                      src={logoPreview}
+                      alt="Logo da empresa"
+                      className="h-12 w-12 rounded border bg-white object-contain"
+                    />
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/png"
+                    className="max-w-xs"
+                    onChange={(e) => escolherLogo(e.target.files?.[0] || null)}
+                  />
+                  {logoPreview && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removerLogoAtual}
+                      disabled={removendoLogo}
+                    >
+                      {removendoLogo ? 'Removendo...' : 'Remover'}
+                    </Button>
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

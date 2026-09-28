@@ -18,7 +18,7 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { carregarIdentidade } from '@/lib/identidadeVisual'
 import { resolverCelula } from '@/lib/matrizRisco'
 import { gerarPdfPgr, nomeArquivoDocumentoSst, hashSha256 } from '@/lib/gerarPdfPgr'
-import { getEmpresa } from '@/services/empresas'
+import { getEmpresa, urlLogoEmpresa } from '@/services/empresas'
 import { getGhes } from '@/services/ghes'
 import { getFuncoesSst } from '@/services/funcoesSst'
 import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
@@ -338,9 +338,12 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         logoUrl: identidade.logoUrl,
         empresaNome: nomeEmpresa,
         empresaCnpj: empresa.cnpj,
+        empresaLogoUrl: urlLogoEmpresa(empresa),
+        siglaDocumento: TIPO_DOCUMENTO_LABEL[selecionado.tipo],
         titulo: f.titulo || TIPO_DOCUMENTO_TITULO_PADRAO[selecionado.tipo],
         versao: proximaVersao,
         dataEmissao: new Date(),
+        vigenciaInicio: new Date(),
         elaboradores: f.elaboradores,
         secoes: f.secoes || [],
         unidadesAvaliacao: ghes.map((g) => g.nome),
