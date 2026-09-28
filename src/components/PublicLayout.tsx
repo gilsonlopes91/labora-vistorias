@@ -5,7 +5,9 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
 import { Button } from '@/components/ui/button'
-import { abrirPreferenciasCookies } from '@/lib/analytics'
+import RodapePublico from '@/components/site/RodapePublico'
+import { useSiteConteudo } from '@/hooks/use-site-conteudo'
+import { RODAPE_PADRAO } from '@/lib/siteConteudo'
 
 const NAV = [
   { to: '/', label: 'Início', exact: true },
@@ -17,6 +19,7 @@ const NAV = [
 export default function PublicLayout() {
   const location = useLocation()
   const [aberto, setAberto] = useState(false)
+  const { conteudo: rodape } = useSiteConteudo('rodape', RODAPE_PADRAO)
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === '/' : !to.includes('?') && location.pathname.startsWith(to)
@@ -81,42 +84,7 @@ export default function PublicLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t bg-card">
-        <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6">
-          <div className="flex flex-col items-center gap-1 sm:items-start">
-            <span className="font-bold text-foreground">LABORA vistorias</span>
-            <span>Gestão de vistorias e inspeções de SST</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-            <Link to="/calculadora" className="hover:text-foreground">
-              Calculadora
-            </Link>
-            <Link to="/blog" className="hover:text-foreground">
-              Blog
-            </Link>
-            <Link to="/login" className="hover:text-foreground">
-              Entrar
-            </Link>
-            <Link to="/termos" className="hover:text-foreground">
-              Termos de Uso
-            </Link>
-            <Link to="/privacidade" className="hover:text-foreground">
-              Privacidade
-            </Link>
-            <button
-              type="button"
-              className="hover:text-foreground"
-              onClick={abrirPreferenciasCookies}
-            >
-              Cookies
-            </button>
-            <a href="mailto:eng.amaury.sousa@gmail.com" className="hover:text-foreground">
-              Contato
-            </a>
-          </div>
-          <div>© {new Date().getFullYear()} Labora Engenharia e SST</div>
-        </div>
-      </footer>
+      <RodapePublico conteudo={rodape} />
     </div>
   )
 }

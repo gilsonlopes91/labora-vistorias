@@ -189,12 +189,20 @@ routerAdd(
         { org: org.id },
       )
       for (const a of regs) {
+        let detalhes = null
+        try {
+          const r = a.get('detalhes')
+          const t = r ? toString(r) : ''
+          detalhes = t ? JSON.parse(t) : null
+        } catch (_) {
+          detalhes = null
+        }
         atividades.push({
           id: a.id,
           usuario_nome: a.getString('usuario_nome'),
           acao: a.getString('acao'),
           descricao: a.getString('descricao'),
-          detalhes: a.get('detalhes'),
+          detalhes: detalhes,
           created: a.getString('created'),
         })
       }
