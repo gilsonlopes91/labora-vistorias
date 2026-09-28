@@ -16,7 +16,7 @@ const ITENS = [
     soAdmin: true,
   },
   { to: '/admin/normas', label: 'Normas', icon: BookOpen, fim: false, soAdmin: true },
-  { to: '/conteudo', label: 'Textos do site', icon: FileText, fim: false, soAdmin: true },
+  { to: '/admin/conteudo', label: 'Textos do site', icon: FileText, fim: false, soAdmin: true },
 ]
 
 export default function AdminNav() {

@@ -16,6 +16,7 @@ import {
   Plus,
   Search,
 } from 'lucide-react'
+import AdminNav from '@/components/admin/AdminNav'
 import AtualizarNrDialog from '@/components/AtualizarNrDialog'
 import MonitorNormasFaixa from '@/components/MonitorNormasFaixa'
 import pb from '@/lib/pocketbase/client'
@@ -293,6 +294,7 @@ export default function AdminNormas() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
+      <AdminNav />
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Normas</h1>

@@ -7,6 +7,7 @@ import { Save } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/hooks/use-auth'
+import AdminNav from '@/components/admin/AdminNav'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -84,7 +85,8 @@ export default function EditorConteudo() {
   }
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
+      <AdminNav />
       <div className="mb-6">
         <h1 className="text-3xl font-extrabold tracking-tight">Textos do site</h1>
         <p className="text-sm text-muted-foreground">

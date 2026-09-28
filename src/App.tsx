@@ -314,13 +314,14 @@ const App = () => (
               }
             />
             <Route
-              path="/conteudo"
+              path="/admin/conteudo"
               element={
                 <ProtectedRoute adminOnly>
                   <EditorConteudo />
                 </ProtectedRoute>
               }
             />
+            <Route path="/conteudo" element={<Navigate to="/admin/conteudo" replace />} />
             {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           </Route>
           {/* Portal do cliente (empresa vistoriada) — casca própria, sem o menu do app interno */}
