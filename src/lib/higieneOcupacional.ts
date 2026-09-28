@@ -478,6 +478,78 @@ export function calcularRuido(dados: Dados, o: OrigemRuido): ResultadoTecnico {
   return { ...r, resumo: montarResumo(r) }
 }
 
+// ---------- Iluminância ----------
+// NHO-11 (Fundacentro) / NBR ISO/CIE 8995-1: iluminância média dos pontos
+// medidos, uniformidade (mínimo ÷ média, aceitável ≥ 0,7 no entorno da
+// tarefa) e conformidade (média ≥ exigida E uniformidade ≥ 0,7).
+
+export interface OrigemIluminancia {
+  pontos: string
+  lux: string
+  exigida: string
+}
+
+export function calcularIluminancia(dados: Dados, o: OrigemIluminancia): ResultadoTecnico {
+  const faltando: string[] = []
+  const avisos: string[] = []
+  const pontos = lista(dados[o.pontos]).filter((p) => Object.keys(p).some((k) => k !== '__novo'))
+  if (pontos.length === 0) faltando.push('ao menos um ponto de medição')
+
+  const valores: number[] = []
+  pontos.forEach((p, i) => {
+    const v = num(p[o.lux])
+    if (v === null || v < 0) {
+      faltando.push(`iluminância do ponto ${i + 1}`)
+      return
+    }
+    valores.push(v)
+  })
+
+  const exigida = num(dados[o.exigida])
+  if (exigida === null || exigida <= 0) faltando.push('iluminância exigida')
+
+  if (faltando.length || valores.length === 0 || exigida === null) {
+    return { linhas: [], conclusoes: [], avisos: [], faltando, resumo: '' }
+  }
+
+  const media = valores.reduce((a, b) => a + b, 0) / valores.length
+  const minimo = Math.min(...valores)
+  const uniformidade = media > 0 ? minimo / media : 0
+
+  const linhas: [string, string][] = [
+    ['Pontos medidos', String(valores.length)],
+    ['Iluminância mínima', `${fmt(minimo, 0)} lux`],
+    ['Iluminância média', `${fmt(media, 0)} lux`],
+    ['Uniformidade (mín. ÷ média)', fmt(uniformidade, 2)],
+    ['Iluminância exigida (NHO-11 / NBR ISO/CIE 8995-1)', `${fmt(exigida, 0)} lux`],
+  ]
+
+  const atendeMedia = media >= exigida
+  const atendeUniformidade = uniformidade >= 0.7
+  const conclusoes: { texto: string; acima: boolean }[] = []
+  if (atendeMedia && atendeUniformidade) {
+    conclusoes.push({
+      texto: 'Conforme: iluminância média atende ao exigido e a uniformidade é adequada (≥ 0,7).',
+      acima: false,
+    })
+  } else {
+    const motivos: string[] = []
+    if (!atendeMedia) {
+      motivos.push(`a média (${fmt(media, 0)} lux) está abaixo da exigida (${fmt(exigida, 0)} lux)`)
+    }
+    if (!atendeUniformidade) {
+      motivos.push(`a uniformidade (${fmt(uniformidade, 2)}) está abaixo de 0,7`)
+    }
+    conclusoes.push({
+      texto: `Não conforme: ${motivos.join('; e ')}.`,
+      acima: true,
+    })
+  }
+
+  const r = { linhas, conclusoes, avisos, faltando: [] as string[] }
+  return { ...r, resumo: montarResumo(r) }
+}
+
 // ---------- Entrada única usada pelo formulário ----------
 
 export interface CampoCalculoTecnico {
@@ -490,5 +562,7 @@ export function calcularTecnico(campo: CampoCalculoTecnico, dados: Dados): Resul
   if (!origem || typeof origem !== 'object') return null
   if (campo.calculo === 'calor') return calcularCalor(dados, origem as unknown as OrigemCalor)
   if (campo.calculo === 'ruido') return calcularRuido(dados, origem as unknown as OrigemRuido)
+  if (campo.calculo === 'iluminancia')
+    return calcularIluminancia(dados, origem as unknown as OrigemIluminancia)
   return null
 }
