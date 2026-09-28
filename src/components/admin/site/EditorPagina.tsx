@@ -125,7 +125,7 @@ export default function EditorPagina<T>({ chave, padrao, Formulario, Previa }: P
     setSalvando(true)
     try {
       await gravarRascunho()
-      await pb.send('/backend/v1/admin/site/publicar', {
+      await pb.send('/backend/v1/admin/conteudo-pagina/publicar', {
         method: 'POST',
         body: JSON.stringify({ chave }),
       })

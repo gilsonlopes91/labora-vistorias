@@ -33,7 +33,7 @@ export function useSiteConteudo<T>(
 
   useEffect(() => {
     let vivo = true
-    pb.send(`/backend/v1/public/site/${chave}`, { method: 'GET' })
+    pb.send(`/backend/v1/public/conteudo-pagina/${chave}`, { method: 'GET' })
       .then((r: { conteudo: unknown }) => {
         if (!vivo) return
         const conteudo = r?.conteudo ?? {}
