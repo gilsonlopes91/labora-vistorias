@@ -20,6 +20,7 @@ import { resolverCelula } from '@/lib/matrizRisco'
 import { gerarPdfPgr, nomeArquivoDocumentoSst, hashSha256 } from '@/lib/gerarPdfPgr'
 import { getEmpresa } from '@/services/empresas'
 import { getGhes } from '@/services/ghes'
+import { getFuncoesSst } from '@/services/funcoesSst'
 import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
 import { getAcoesPlano } from '@/services/acoesPlano'
 import { getMatrizOficial } from '@/services/matrizesRisco'
@@ -48,6 +49,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { RichTextEditor } from '@/components/RichTextEditor'
+import { ConclusoesPorFuncaoTab } from '@/components/ConclusoesPorFuncaoTab'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -100,6 +102,14 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const [dialogSenhaAberto, setDialogSenhaAberto] = useState(false)
   const [senha, setSenha] = useState('')
   const [erroSenha, setErroSenha] = useState('')
+  // Sub-view dentro de um tipo de laudo: "Conclusões por função" (motor de
+  // insalubridade/periculosidade/LTCAT) e "Documento" (editor + emissão).
+  // O PGR não tem "Conclusões por função" — a classificação dele é outra
+  // (NR-1, item 1.5.2).
+  const [subVista, setSubVista] = useState<'conclusoes' | 'documento'>('documento')
+  // LTCAT: o checklist do art. 276 da IN 128/2022 trava a emissão enquanto
+  // não estiver completo (ConclusoesPorFuncaoTab calcula e avisa aqui).
+  const [checklistLtcatCompleto, setChecklistLtcatCompleto] = useState(true)
 
   useEffect(() => {
     let cancelado = false
@@ -134,6 +144,10 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   }
 
   useEffect(carregar, [empresaId, tipo])
+
+  useEffect(() => {
+    setSubVista(tipo === 'pgr' ? 'documento' : 'conclusoes')
+  }, [tipo])
 
   useEffect(() => {
     const doc = documentos.find((d) => d.id === selecionadoId)
@@ -188,6 +202,10 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
 
   // Abre o diálogo de senha; a emissão em si só roda depois de confirmada.
   const abrirDialogEmissao = () => {
+    if (selecionado?.tipo === 'ltcat' && !checklistLtcatCompleto) {
+      toast.error('Complete o checklist do art. 276 (aba Conclusões por função) antes de emitir')
+      return
+    }
     setSenha('')
     setErroSenha('')
     setDialogSenhaAberto(true)
@@ -214,6 +232,10 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
 
   const emitirPdf = async () => {
     if (!selecionado) return
+    if (selecionado.tipo === 'ltcat' && !checklistLtcatCompleto) {
+      toast.error('Complete o checklist do art. 276 (aba Conclusões por função) antes de emitir')
+      return
+    }
     setEmitindo(true)
     try {
       const confirmadaEm = new Date()
@@ -252,6 +274,64 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         prioridade: a.prioridade || '—',
       }))
 
+      // Laudos derivados (insalubridade/periculosidade/LTCAT): a conclusão
+      // por função, já confirmada ou ajustada na aba "Conclusões por
+      // função" — nunca a classificação do PGR (NR-1, item 1.5.2).
+      let conclusoesFuncao: import('@/lib/gerarPdfPgr').LinhaConclusaoLaudo[] | undefined
+      if (selecionado.tipo !== 'pgr') {
+        const funcoes = await getFuncoesSst(empresaId)
+        conclusoesFuncao = []
+        for (const funcao of funcoes) {
+          const avaliacoesDaFuncao = avaliacoes.filter(
+            (a) => a.ghe_id === funcao.ghe_id && a.agente_id,
+          )
+          if (avaliacoesDaFuncao.length === 0 && selecionado.tipo === 'ltcat') {
+            conclusoesFuncao.push({
+              funcao: funcao.nome,
+              agente: '—',
+              regua: 'Decreto 3.048/1999, Anexo IV',
+              dadoUsado: 'sem agente do Anexo IV identificado',
+              conclusao: 'Ausência de agente nocivo (código 09.01.001)',
+              justificativa: '',
+            })
+            continue
+          }
+          for (const a of avaliacoesDaFuncao) {
+            const agenteNome = a.expand?.agente_id?.nome || a.perigo_descricao || '—'
+            if (selecionado.tipo === 'insalubridade' && a.expand?.agente_id?.anexo_nr15) {
+              conclusoesFuncao.push({
+                funcao: funcao.nome,
+                agente: agenteNome,
+                regua: `NR-15, Anexo ${a.expand.agente_id.anexo_nr15}`,
+                dadoUsado: a.insalubridade_justificativa || '—',
+                conclusao: a.insalubridade_final || a.insalubridade_sugerida || 'Não avaliado',
+                justificativa: a.insalubridade_justificativa || '',
+              })
+            } else if (selecionado.tipo === 'periculosidade' && a.expand?.agente_id?.anexo_nr16) {
+              const final = a.periculosidade_final ?? a.periculosidade_sugerida
+              conclusoesFuncao.push({
+                funcao: funcao.nome,
+                agente: agenteNome,
+                regua: `NR-16, Anexo ${a.expand.agente_id.anexo_nr16}`,
+                dadoUsado: a.periculosidade_justificativa || '—',
+                conclusao:
+                  final === undefined ? 'Não avaliado' : final ? 'Devido (30%)' : 'Não devido',
+                justificativa: a.periculosidade_justificativa || '',
+              })
+            } else if (selecionado.tipo === 'ltcat') {
+              conclusoesFuncao.push({
+                funcao: funcao.nome,
+                agente: agenteNome,
+                regua: 'Decreto 3.048/1999, Anexo IV',
+                dadoUsado: a.ltcat_justificativa || '—',
+                conclusao: a.ltcat_enquadra_final || a.ltcat_enquadra_sugerido || 'Não avaliado',
+                justificativa: a.ltcat_justificativa || '',
+              })
+            }
+          }
+        }
+      }
+
       const proximaVersao = (selecionado.versao || 0) + 1
       const pdf = await gerarPdfPgr({
         organizacaoNome: identidade.nome,
@@ -266,6 +346,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         unidadesAvaliacao: ghes.map((g) => g.nome),
         inventario,
         planoAcao,
+        conclusoesFuncao,
         assinatura: {
           nome: rtEmissor?.nome || user?.name || 'Responsável',
           registro: rtEmissor ? formatarRegistroRT(rtEmissor) : undefined,
@@ -427,216 +508,236 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="space-y-3">
-          <Button onClick={novoDocumento} className="w-full" variant="outline">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo {TIPO_DOCUMENTO_LABEL[tipo]}
-          </Button>
-          {carregando ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : documentos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum {TIPO_DOCUMENTO_LABEL[tipo]} criado ainda para esta empresa.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {documentos.map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => setSelecionadoId(d.id)}
-                  className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
-                    d.id === selecionadoId ? 'border-primary bg-primary/5' : 'hover:bg-muted'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{d.titulo}</span>
-                    <Badge variant={STATUS_VARIANTE[d.status]}>{STATUS_LABEL[d.status]}</Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {d.versao ? `Versão ${d.versao}` : 'Sem versão emitida'}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {tipo !== 'pgr' && (
+        <Tabs value={subVista} onValueChange={(v) => setSubVista(v as 'conclusoes' | 'documento')}>
+          <TabsList>
+            <TabsTrigger value="conclusoes">Conclusões por função</TabsTrigger>
+            <TabsTrigger value="documento">Documento</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
-        <div>
-          {!selecionado ? (
-            <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
+      {tipo !== 'pgr' && subVista === 'conclusoes' ? (
+        <ConclusoesPorFuncaoTab
+          key={`${empresaId}-${tipo}`}
+          empresaId={empresaId}
+          tipo={tipo}
+          onChecklistChange={tipo === 'ltcat' ? setChecklistLtcatCompleto : undefined}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <Button onClick={novoDocumento} className="w-full" variant="outline">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo {TIPO_DOCUMENTO_LABEL[tipo]}
+            </Button>
+            {carregando ? (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : documentos.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Crie um novo {TIPO_DOCUMENTO_LABEL[tipo]} ou escolha um existente na lista ao lado.
-                O documento já nasce com o texto normativo e a metodologia básica preenchidos — só é
-                preciso completar as partes específicas desta empresa.
+                Nenhum {TIPO_DOCUMENTO_LABEL[tipo]} criado ainda para esta empresa.
               </p>
-            </div>
-          ) : (
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    {f.titulo}
-                    <Badge variant={STATUS_VARIANTE[selecionado.status]}>
-                      {STATUS_LABEL[selecionado.status]}
-                    </Badge>
-                  </CardTitle>
-                  {!travado && (
-                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {autosalvando ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...
-                        </>
-                      ) : ultimoAutosalvamento ? (
-                        <>
-                          <Check className="h-3.5 w-3.5" /> Salvo automaticamente às{' '}
-                          {ultimoAutosalvamento.toLocaleTimeString('pt-BR')}
-                        </>
-                      ) : null}
-                    </span>
-                  )}
-                </div>
-                {travado && (
-                  <p className="text-sm text-muted-foreground">
-                    Este documento está {STATUS_LABEL[selecionado.status].toLowerCase()} e não pode
-                    mais ser editado.{' '}
-                    {selecionado.status === 'emitido' && 'Para mudar algo, crie uma nova revisão.'}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Título</Label>
-                    <Input
-                      className="mt-1.5"
-                      disabled={travado}
-                      value={f.titulo || ''}
-                      onChange={(e) => setF((v) => ({ ...v, titulo: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Elaboradores</Label>
-                    <Input
-                      className="mt-1.5"
-                      disabled={travado}
-                      placeholder="Nome e registro profissional"
-                      value={f.elaboradores || ''}
-                      onChange={(e) => setF((v) => ({ ...v, elaboradores: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {secoes.map((secao, i) => (
-                    <div key={secao.id} className="rounded-lg border p-3">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={secao.ativo}
-                          disabled={travado}
-                          onCheckedChange={(v) => atualizarSecao(secao.id, { ativo: v })}
-                        />
-                        <Input
-                          className="flex-1 font-medium"
-                          disabled={travado}
-                          value={secao.titulo}
-                          onChange={(e) => atualizarSecao(secao.id, { titulo: e.target.value })}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled={travado || i === 0}
-                          onClick={() => moverSecao(secao.id, -1)}
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled={travado || i === secoes.length - 1}
-                          onClick={() => moverSecao(secao.id, 1)}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled={travado}
-                          onClick={() => removerSecao(secao.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {secao.ativo && (
-                        <div className="mt-3">
-                          {travado ? (
-                            <div
-                              className="prose prose-sm max-w-none rounded border bg-muted/30 p-3"
-                              dangerouslySetInnerHTML={{
-                                __html: secao.texto || '<p><em>Vazio</em></p>',
-                              }}
-                            />
-                          ) : (
-                            <RichTextEditor
-                              value={secao.texto}
-                              onChange={(html) => atualizarSecao(secao.id, { texto: html })}
-                              placeholder="Texto desta seção..."
-                              minHeight="120px"
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {!travado && (
-                    <Button variant="outline" size="sm" onClick={adicionarSecao}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar seção
-                    </Button>
-                  )}
-                </div>
-
-                {selecionado.status === 'emitido' && urlPdf && (
-                  <a
-                    href={urlPdf}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-primary underline"
+            ) : (
+              <div className="space-y-2">
+                {documentos.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => setSelecionadoId(d.id)}
+                    className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
+                      d.id === selecionadoId ? 'border-primary bg-primary/5' : 'hover:bg-muted'
+                    }`}
                   >
-                    Baixar PDF emitido (versão {selecionado.versao})
-                  </a>
-                )}
-                <div className="flex justify-end gap-2">
-                  {selecionado.status === 'emitido' && (
-                    <Button variant="outline" onClick={() => setDialogRevisao(true)}>
-                      Nova revisão
-                    </Button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{d.titulo}</span>
+                      <Badge variant={STATUS_VARIANTE[d.status]}>{STATUS_LABEL[d.status]}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {d.versao ? `Versão ${d.versao}` : 'Sem versão emitida'}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            {!selecionado ? (
+              <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Crie um novo {TIPO_DOCUMENTO_LABEL[tipo]} ou escolha um existente na lista ao
+                  lado. O documento já nasce com o texto normativo e a metodologia básica
+                  preenchidos — só é preciso completar as partes específicas desta empresa.
+                </p>
+              </div>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      {f.titulo}
+                      <Badge variant={STATUS_VARIANTE[selecionado.status]}>
+                        {STATUS_LABEL[selecionado.status]}
+                      </Badge>
+                    </CardTitle>
+                    {!travado && (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {autosalvando ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...
+                          </>
+                        ) : ultimoAutosalvamento ? (
+                          <>
+                            <Check className="h-3.5 w-3.5" /> Salvo automaticamente às{' '}
+                            {ultimoAutosalvamento.toLocaleTimeString('pt-BR')}
+                          </>
+                        ) : null}
+                      </span>
+                    )}
+                  </div>
+                  {travado && (
+                    <p className="text-sm text-muted-foreground">
+                      Este documento está {STATUS_LABEL[selecionado.status].toLowerCase()} e não
+                      pode mais ser editado.{' '}
+                      {selecionado.status === 'emitido' &&
+                        'Para mudar algo, crie uma nova revisão.'}
+                    </p>
                   )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Título</Label>
+                      <Input
+                        className="mt-1.5"
+                        disabled={travado}
+                        value={f.titulo || ''}
+                        onChange={(e) => setF((v) => ({ ...v, titulo: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Elaboradores</Label>
+                      <Input
+                        className="mt-1.5"
+                        disabled={travado}
+                        placeholder="Nome e registro profissional"
+                        value={f.elaboradores || ''}
+                        onChange={(e) => setF((v) => ({ ...v, elaboradores: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {secoes.map((secao, i) => (
+                      <div key={secao.id} className="rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={secao.ativo}
+                            disabled={travado}
+                            onCheckedChange={(v) => atualizarSecao(secao.id, { ativo: v })}
+                          />
+                          <Input
+                            className="flex-1 font-medium"
+                            disabled={travado}
+                            value={secao.titulo}
+                            onChange={(e) => atualizarSecao(secao.id, { titulo: e.target.value })}
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={travado || i === 0}
+                            onClick={() => moverSecao(secao.id, -1)}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={travado || i === secoes.length - 1}
+                            onClick={() => moverSecao(secao.id, 1)}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={travado}
+                            onClick={() => removerSecao(secao.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {secao.ativo && (
+                          <div className="mt-3">
+                            {travado ? (
+                              <div
+                                className="prose prose-sm max-w-none rounded border bg-muted/30 p-3"
+                                dangerouslySetInnerHTML={{
+                                  __html: secao.texto || '<p><em>Vazio</em></p>',
+                                }}
+                              />
+                            ) : (
+                              <RichTextEditor
+                                value={secao.texto}
+                                onChange={(html) => atualizarSecao(secao.id, { texto: html })}
+                                placeholder="Texto desta seção..."
+                                minHeight="120px"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {!travado && (
+                      <Button variant="outline" size="sm" onClick={adicionarSecao}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Adicionar seção
+                      </Button>
+                    )}
+                  </div>
+
+                  {selecionado.status === 'emitido' && urlPdf && (
+                    <a
+                      href={urlPdf}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-primary underline"
+                    >
+                      Baixar PDF emitido (versão {selecionado.versao})
+                    </a>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    {selecionado.status === 'emitido' && (
+                      <Button variant="outline" onClick={() => setDialogRevisao(true)}>
+                        Nova revisão
+                      </Button>
+                    )}
+                    {!travado && (
+                      <>
+                        <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
+                          Salvar rascunho
+                        </Button>
+                        <Button onClick={abrirDialogEmissao} disabled={salvando || emitindo}>
+                          {emitindo ? 'Emitindo...' : 'Emitir PDF'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                   {!travado && (
-                    <>
-                      <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
-                        Salvar rascunho
-                      </Button>
-                      <Button onClick={abrirDialogEmissao} disabled={salvando || emitindo}>
-                        {emitindo ? 'Emitindo...' : 'Emitir PDF'}
-                      </Button>
-                    </>
+                    <p className="text-xs text-muted-foreground">
+                      O rascunho é salvo automaticamente enquanto você edita. Emitir gera o PDF a
+                      partir das seções e dos dados atuais de estrutura, inventário e plano de ação,
+                      e trava esta versão — se você alterar algo depois, será preciso gerar o
+                      documento de novo (criando uma nova revisão) para que a mudança valha
+                      oficialmente.
+                    </p>
                   )}
-                </div>
-                {!travado && (
-                  <p className="text-xs text-muted-foreground">
-                    O rascunho é salvo automaticamente enquanto você edita. Emitir gera o PDF a
-                    partir das seções e dos dados atuais de estrutura, inventário e plano de ação, e
-                    trava esta versão — se você alterar algo depois, será preciso gerar o documento
-                    de novo (criando uma nova revisão) para que a mudança valha oficialmente.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <Dialog open={dialogRevisao} onOpenChange={setDialogRevisao}>
         <DialogContent>

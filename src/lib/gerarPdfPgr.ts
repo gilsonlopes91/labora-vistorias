@@ -79,6 +79,15 @@ export interface AssinaturaEletronica {
   linkVerificacao: string
 }
 
+export interface LinhaConclusaoLaudo {
+  funcao: string
+  agente: string
+  regua: string
+  dadoUsado: string
+  conclusao: string
+  justificativa: string
+}
+
 export interface DadosRelatorioPgr {
   organizacaoNome: string
   logoUrl?: string | null
@@ -95,6 +104,10 @@ export interface DadosRelatorioPgr {
   inventario: LinhaInventarioPgr[]
   planoAcao: LinhaPlanoAcaoPgr[]
   assinatura?: AssinaturaEletronica
+  /** Só para laudos derivados (insalubridade/periculosidade/LTCAT): a
+   *  conclusão por função, com a régua e o dado técnico usados (NR-1, item
+   *  1.5.2 — não é a classificação do PGR). */
+  conclusoesFuncao?: LinhaConclusaoLaudo[]
 }
 
 const htmlParaTexto = (html: string) =>
@@ -250,6 +263,36 @@ export async function gerarPdfPgr(dados: DadosRelatorioPgr): Promise<jsPDF> {
     headStyles: { fillColor: primaria },
     margin: { left: margin, right: margin },
   })
+
+  if (dados.conclusoesFuncao && dados.conclusoesFuncao.length > 0) {
+    y = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y
+    y += 20
+    if (y > pageHeight - 140) {
+      doc.addPage()
+      y = margin
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
+    doc.text('Conclusões por função', margin, y)
+    y += 10
+    executarAutoTable(doc, {
+      startY: y,
+      theme: 'grid',
+      styles: { fontSize: 7.5 },
+      head: [['Função', 'Agente/perigo', 'Régua', 'Dado usado', 'Conclusão', 'Justificativa']],
+      body: dados.conclusoesFuncao.map((l) => [
+        l.funcao,
+        l.agente,
+        l.regua,
+        l.dadoUsado,
+        l.conclusao,
+        l.justificativa || '—',
+      ]),
+      headStyles: { fillColor: primaria },
+      margin: { left: margin, right: margin },
+    })
+  }
 
   if (dados.assinatura) {
     y = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y
