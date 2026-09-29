@@ -4,10 +4,19 @@
    empresa cair direto no lugar certo. Acima das abas, um painel de saúde do
    cadastro resume o quanto já foi levantado (estrutura, efetivo, riscos),
    no mesmo espírito do painel que a Labora já usava no site anterior. */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { AlertCircle, Building2, CheckCircle2, HardHat, ShieldCheck, Users2 } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  CheckCircle2,
+  HardHat,
+  Search,
+  ShieldCheck,
+  Users2,
+} from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresas, type Empresa } from '@/services/empresas'
@@ -22,16 +31,18 @@ import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 import { PlanejamentoPgrTab } from '@/components/PlanejamentoPgrTab'
 import { DocumentosSstTab } from '@/components/DocumentosSstTab'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const SUBS = ['planejamento', 'estrutura', 'inventario', 'plano', 'documentos'] as const
 type Sub = (typeof SUBS)[number]
@@ -60,6 +71,38 @@ const SAUDE_VAZIA: SaudeCadastro = {
   pendencia: null,
 }
 
+// Busca os dados de uma empresa e monta a "saúde do cadastro" dela — usada
+// tanto no painel de detalhe (uma empresa) quanto na lista geral (todas).
+async function buscarSaudeCadastro(empresaId: string): Promise<SaudeCadastro> {
+  const [setores, ghes, funcoes, acoes] = await Promise.all([
+    getSetores(empresaId),
+    getGhes(empresaId),
+    getFuncoesSst(empresaId),
+    getAcoesPlano(empresaId),
+  ])
+  const avaliacoes = await getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id))
+  const passos: Array<[boolean, string]> = [
+    [setores.length > 0 || ghes.length > 0, 'Cadastre ao menos um ambiente ou GHE'],
+    [funcoes.length > 0, 'Cadastre as funções da empresa'],
+    [avaliacoes.length > 0, 'Preencha o inventário de riscos'],
+    [acoes.length > 0, 'Crie o plano de ação'],
+  ]
+  const concluidos = passos.filter(([ok]) => ok).length
+  const pendencia = passos.find(([ok]) => !ok)?.[1] || null
+  return {
+    carregando: false,
+    ambientes: setores.length,
+    ghes: ghes.length,
+    funcoes: funcoes.length,
+    avaliacoes: avaliacoes.length,
+    acoesPendentes: acoes.filter((a) => a.status !== 'Concluída' && a.status !== 'Cancelada')
+      .length,
+    acoesTotal: acoes.length,
+    percentual: Math.round((concluidos / passos.length) * 100),
+    pendencia,
+  }
+}
+
 function useSaudeCadastro(empresaId: string) {
   const [saude, setSaude] = useState<SaudeCadastro>(SAUDE_VAZIA)
 
@@ -70,35 +113,9 @@ function useSaudeCadastro(empresaId: string) {
     }
     let cancelado = false
     setSaude((v) => ({ ...v, carregando: true }))
-    Promise.all([
-      getSetores(empresaId),
-      getGhes(empresaId),
-      getFuncoesSst(empresaId),
-      getAcoesPlano(empresaId),
-    ])
-      .then(async ([setores, ghes, funcoes, acoes]) => {
-        const avaliacoes = await getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id))
-        if (cancelado) return
-        const passos: Array<[boolean, string]> = [
-          [setores.length > 0 || ghes.length > 0, 'Cadastre ao menos um ambiente ou GHE'],
-          [funcoes.length > 0, 'Cadastre as funções da empresa'],
-          [avaliacoes.length > 0, 'Preencha o inventário de riscos'],
-          [acoes.length > 0, 'Crie o plano de ação'],
-        ]
-        const concluidos = passos.filter(([ok]) => ok).length
-        const pendencia = passos.find(([ok]) => !ok)?.[1] || null
-        setSaude({
-          carregando: false,
-          ambientes: setores.length,
-          ghes: ghes.length,
-          funcoes: funcoes.length,
-          avaliacoes: avaliacoes.length,
-          acoesPendentes: acoes.filter((a) => a.status !== 'Concluída' && a.status !== 'Cancelada')
-            .length,
-          acoesTotal: acoes.length,
-          percentual: Math.round((concluidos / passos.length) * 100),
-          pendencia,
-        })
+    buscarSaudeCadastro(empresaId)
+      .then((resultado) => {
+        if (!cancelado) setSaude(resultado)
       })
       .catch((error) =>
         toast.error('Não foi possível calcular a saúde do cadastro', {
@@ -111,6 +128,42 @@ function useSaudeCadastro(empresaId: string) {
   }, [empresaId])
 
   return saude
+}
+
+// Mesma "saúde do cadastro", mas calculada para várias empresas de uma vez —
+// alimenta a lista inicial de empresas do levantamento (aba fechada por
+// padrão, o técnico entra na empresa que quiser continuar).
+function useSaudeVariasEmpresas(empresaIds: string[]) {
+  const [mapa, setMapa] = useState<Record<string, number>>({})
+  const [carregando, setCarregando] = useState(true)
+  const chave = empresaIds.join(',')
+
+  useEffect(() => {
+    if (empresaIds.length === 0) {
+      setMapa({})
+      setCarregando(false)
+      return
+    }
+    let cancelado = false
+    setCarregando(true)
+    Promise.all(
+      empresaIds.map((id) =>
+        buscarSaudeCadastro(id)
+          .then((saude) => [id, saude.percentual] as const)
+          .catch(() => [id, 0] as const),
+      ),
+    ).then((resultados) => {
+      if (cancelado) return
+      setMapa(Object.fromEntries(resultados))
+      setCarregando(false)
+    })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave])
+
+  return { mapa, carregando }
 }
 
 function PainelSaude({ saude }: { saude: SaudeCadastro }) {
@@ -191,6 +244,134 @@ function PainelSaude({ saude }: { saude: SaudeCadastro }) {
   )
 }
 
+// Status textual a partir do percentual de saúde do cadastro, para a lista.
+function statusPorPercentual(percentual: number): {
+  texto: string
+  variante: 'secondary' | 'outline' | 'default'
+} {
+  if (percentual >= 100) return { texto: 'Completo', variante: 'default' }
+  if (percentual <= 0) return { texto: 'Não iniciado', variante: 'secondary' }
+  return { texto: 'Em andamento', variante: 'outline' }
+}
+
+function BarraProgresso({ percentual }: { percentual: number }) {
+  const cor =
+    percentual >= 100
+      ? 'bg-emerald-600'
+      : percentual > 0
+        ? 'bg-orange-500'
+        : 'bg-muted-foreground/30'
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full ${cor} transition-all`}
+          style={{ width: `${percentual}%` }}
+        />
+      </div>
+      <span className="w-9 shrink-0 text-xs font-medium text-muted-foreground">{percentual}%</span>
+    </div>
+  )
+}
+
+// Lista inicial: as empresas cadastradas e quanto já foi levantado de cada
+// uma, para o técnico bater o olho e continuar de onde parou. Sem coluna de
+// funcionários por enquanto — o foco é simplicidade.
+function ListaEmpresasLevantamento({
+  empresas,
+  carregando,
+  onEscolher,
+}: {
+  empresas: Empresa[]
+  carregando: boolean
+  onEscolher: (id: string) => void
+}) {
+  const [busca, setBusca] = useState('')
+  const { mapa: saudePorEmpresa } = useSaudeVariasEmpresas(empresas.map((e) => e.id))
+
+  const filtradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    if (!termo) return empresas
+    return empresas.filter((e) =>
+      [e.razao_social, e.nome_fantasia, e.cnpj]
+        .filter(Boolean)
+        .some((c) => String(c).toLowerCase().includes(termo)),
+    )
+  }, [empresas, busca])
+
+  if (empresas.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
+        <p className="text-sm text-muted-foreground">
+          Nenhuma empresa cadastrada.{' '}
+          <Link to="/empresas" className="underline">
+            Cadastre uma empresa
+          </Link>{' '}
+          para começar o levantamento.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4">
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou CNPJ..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Empresa</TableHead>
+              <TableHead>CNPJ</TableHead>
+              <TableHead>Saúde do cadastro</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtradas.map((empresa) => {
+              const percentual = saudePorEmpresa[empresa.id] ?? 0
+              const status = statusPorPercentual(percentual)
+              return (
+                <TableRow
+                  key={empresa.id}
+                  className="cursor-pointer"
+                  onClick={() => onEscolher(empresa.id)}
+                >
+                  <TableCell>
+                    <p className="font-medium leading-snug">
+                      {empresa.nome_fantasia || empresa.razao_social}
+                    </p>
+                    {empresa.nome_fantasia && (
+                      <p className="text-xs text-muted-foreground">{empresa.razao_social}</p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {empresa.cnpj || '—'}
+                  </TableCell>
+                  <TableCell>
+                    <BarraProgresso percentual={carregando ? 0 : percentual} />
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={status.variante}>{status.texto}</Badge>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function LevantamentoSstTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -219,55 +400,46 @@ export function LevantamentoSstTab() {
     setSearchParams(proximo)
   }
 
+  const voltarParaLista = () => {
+    setSearchParams({ aba: 'levantamento' })
+  }
+
   const empresa = empresas.find((e) => e.id === empresaId)
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-72 flex-1">
-          <Label>Empresa</Label>
-          <Select value={empresaId} onValueChange={(v) => mudarParam('empresa', v)}>
-            <SelectTrigger className="mt-1.5">
-              <SelectValue
-                placeholder={carregando ? 'Carregando empresas...' : 'Escolha a empresa'}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {empresas.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.nome_fantasia || e.razao_social}
-                  {e.cnpj ? ` · ${e.cnpj}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {empresa && (
+      {empresaId && empresa && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-2 mb-1 h-7 px-2 text-muted-foreground"
+              onClick={voltarParaLista}
+            >
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              Voltar à lista de empresas
+            </Button>
+            <h2 className="text-lg font-semibold leading-tight">
+              {empresa.nome_fantasia || empresa.razao_social}
+            </h2>
+            {empresa.cnpj && <p className="text-xs text-muted-foreground">{empresa.cnpj}</p>}
+          </div>
           <Button asChild variant="outline">
             <Link to={`/empresas/${empresa.id}`}>
               <Building2 className="mr-2 h-4 w-4" />
               Abrir ficha da empresa
             </Link>
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {!carregando && empresas.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            Nenhuma empresa cadastrada.{' '}
-            <Link to="/empresas" className="underline">
-              Cadastre uma empresa
-            </Link>{' '}
-            para começar o levantamento.
-          </p>
-        </div>
-      ) : !empresaId ? (
-        <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            Escolha uma empresa acima para ver a estrutura, o inventário e o plano de ação dela.
-          </p>
-        </div>
+      {!empresaId ? (
+        <ListaEmpresasLevantamento
+          empresas={empresas}
+          carregando={carregando}
+          onEscolher={(id) => mudarParam('empresa', id)}
+        />
       ) : (
         <>
           <PainelSaude saude={saude} />
