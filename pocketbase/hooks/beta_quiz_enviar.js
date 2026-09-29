@@ -60,7 +60,9 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
     if (!marcada) return e.badRequestError('Responda todas as questões antes de enviar.')
     let alternativas = []
     try {
-      alternativas = JSON.parse(JSON.stringify(q.get('alternativas'))) || []
+      const bruto = q.get('alternativas')
+      alternativas =
+        (typeof bruto === 'string' ? JSON.parse(bruto) : JSON.parse(JSON.stringify(bruto))) || []
     } catch (_) {
       alternativas = []
     }

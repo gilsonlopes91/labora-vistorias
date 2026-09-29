@@ -7,7 +7,9 @@ routerAdd('GET', '/backend/v1/public/beta-quiz/perguntas', (e) => {
   for (const r of regs) {
     let alternativas = []
     try {
-      alternativas = JSON.parse(JSON.stringify(r.get('alternativas'))) || []
+      const bruto = r.get('alternativas')
+      alternativas =
+        (typeof bruto === 'string' ? JSON.parse(bruto) : JSON.parse(JSON.stringify(bruto))) || []
     } catch (_) {
       alternativas = []
     }

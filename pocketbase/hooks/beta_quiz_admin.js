@@ -36,7 +36,10 @@ routerAdd(
       for (const r of regs) {
         let acertos = {}
         try {
-          acertos = JSON.parse(JSON.stringify(r.get('acertos'))) || {}
+          const bruto = r.get('acertos')
+          acertos =
+            (typeof bruto === 'string' ? JSON.parse(bruto) : JSON.parse(JSON.stringify(bruto))) ||
+            {}
         } catch (_) {
           acertos = {}
         }
