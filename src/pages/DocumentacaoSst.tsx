@@ -8,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DocumentacaoComoFunciona } from '@/components/DocumentacaoComoFunciona'
 import { LevantamentoSstTab } from '@/components/LevantamentoSstTab'
 import { CatalogoAgentesTab } from '@/components/CatalogoAgentesTab'
+import { CatalogoEpisTab } from '@/components/CatalogoEpisTab'
 import { MatrizesRiscoTab } from '@/components/MatrizesRiscoTab'
 
-const ABAS = ['levantamento', 'catalogo', 'matrizes', 'como-funciona'] as const
+const ABAS = ['levantamento', 'catalogo', 'epis', 'matrizes', 'como-funciona'] as const
 type Aba = (typeof ABAS)[number]
 
 export default function DocumentacaoSst() {
@@ -37,6 +38,7 @@ export default function DocumentacaoSst() {
         <TabsList>
           <TabsTrigger value="levantamento">Levantamento</TabsTrigger>
           <TabsTrigger value="catalogo">Catálogo de agentes</TabsTrigger>
+          <TabsTrigger value="epis">Catálogo de EPIs</TabsTrigger>
           <TabsTrigger value="matrizes">Matrizes de risco</TabsTrigger>
           <TabsTrigger value="como-funciona">Como funciona</TabsTrigger>
         </TabsList>
@@ -46,6 +48,9 @@ export default function DocumentacaoSst() {
         </TabsContent>
         <TabsContent value="catalogo" className="mt-0 focus-visible:outline-none">
           <CatalogoAgentesTab />
+        </TabsContent>
+        <TabsContent value="epis" className="mt-0 focus-visible:outline-none">
+          <CatalogoEpisTab />
         </TabsContent>
         <TabsContent value="matrizes" className="mt-0 focus-visible:outline-none">
           <MatrizesRiscoTab />
