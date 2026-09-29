@@ -62,3 +62,7 @@ export async function obterResumoQuizAdmin(): Promise<ResumoQuizAdmin> {
 export async function marcarConvidadoQuiz(id: string, convidado: boolean) {
   return pb.collection('beta_quiz_respostas').update(id, { convidado })
 }
+
+export async function apagarRespostaQuiz(id: string) {
+  return pb.collection('beta_quiz_respostas').delete(id)
+}

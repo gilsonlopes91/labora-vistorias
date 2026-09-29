@@ -1,10 +1,11 @@
 /* Console de contas — ranking do questionário de seleção do beta. */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Copy, Download, ExternalLink } from 'lucide-react'
+import { Copy, Download, ExternalLink, Trash2 } from 'lucide-react'
 import AdminNav from '@/components/admin/AdminNav'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
+  apagarRespostaQuiz,
   marcarConvidadoQuiz,
   obterResumoQuizAdmin,
   type ResumoQuizAdmin,
@@ -12,10 +13,21 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function AdminQuizBeta() {
   const [dados, setDados] = useState<ResumoQuizAdmin | null>(null)
   const [carregando, setCarregando] = useState(true)
+  const [apagar, setApagar] = useState<{ id: string; nome: string } | null>(null)
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -47,6 +59,18 @@ export default function AdminQuizBeta() {
       )
     } catch (error) {
       toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
+    }
+  }
+
+  const confirmarApagar = async () => {
+    if (!apagar) return
+    try {
+      await apagarRespostaQuiz(apagar.id)
+      toast.success(`Resposta de ${apagar.nome} apagada`)
+      setApagar(null)
+      await carregar()
+    } catch (error) {
+      toast.error('Não foi possível apagar', { description: getErrorMessage(error) })
     }
   }
 
@@ -183,6 +207,9 @@ export default function AdminQuizBeta() {
                       <th className="px-4 py-3">Enviado em</th>
                       <th className="px-4 py-3">E-mail</th>
                       <th className="px-4 py-3">Convidado</th>
+                      <th className="px-4 py-3">
+                        <span className="sr-only">Apagar</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -209,6 +236,17 @@ export default function AdminQuizBeta() {
                             aria-label={`Marcar ${r.nome} como convidado`}
                           />
                         </td>
+                        <td className="px-4 py-3">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => setApagar({ id: r.id, nome: r.nome })}
+                            aria-label={`Apagar resposta de ${r.nome}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -218,6 +256,22 @@ export default function AdminQuizBeta() {
           )}
         </>
       )}
+
+      <AlertDialog open={!!apagar} onOpenChange={(o) => !o && setApagar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar a resposta de {apagar?.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Não dá para desfazer. A nota sai do ranking e esse e-mail poderá responder o
+              questionário de novo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarApagar}>Apagar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
