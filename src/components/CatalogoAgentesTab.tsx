@@ -18,6 +18,7 @@ import {
   createAgenteCatalogo,
   deleteAgenteCatalogo,
   duplicarAgenteParaOrganizacao,
+  ESCOPOS_PADRAO,
   getAgentesCatalogo,
   updateAgenteCatalogo,
   type AgenteCatalogo,
@@ -76,11 +77,15 @@ const TIPOS: TipoAgente[] = [
 const AGENTE_VAZIO: AgenteCatalogoInput = {
   nome: '',
   tipo: 'Físico',
+  escopo: 'Geral',
   codigo_esocial: '',
   fonte_geradora_tipica: '',
   danos_saude_tipicos: '',
   medidas_controle_tipicas: '',
 }
+
+// Sentinela pro select do escopo cair em "digitar outro valor".
+const ESCOPO_OUTRO = '__outro__'
 
 export function CatalogoAgentesTab() {
   const { user } = useAuth()
@@ -91,10 +96,12 @@ export function CatalogoAgentesTab() {
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
   const [tipo, setTipo] = useState('todos')
+  const [escopoFiltro, setEscopoFiltro] = useState('todos')
 
   const [dialogAberto, setDialogAberto] = useState(false)
   const [editando, setEditando] = useState<AgenteCatalogo | null>(null)
   const [form, setForm] = useState<AgenteCatalogoInput>(AGENTE_VAZIO)
+  const [escopoCustom, setEscopoCustom] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [excluir, setExcluir] = useState<AgenteCatalogo | null>(null)
 
@@ -113,6 +120,7 @@ export function CatalogoAgentesTab() {
     const termo = busca.trim().toLowerCase()
     return agentes.filter((a) => {
       if (tipo !== 'todos' && a.tipo !== tipo) return false
+      if (escopoFiltro !== 'todos' && (a.escopo || 'Geral') !== escopoFiltro) return false
       if (!termo) return true
       return (
         a.nome.toLowerCase().includes(termo) ||
@@ -121,7 +129,23 @@ export function CatalogoAgentesTab() {
         (a.codigo_esocial || '').includes(termo)
       )
     })
-  }, [agentes, busca, tipo])
+  }, [agentes, busca, tipo, escopoFiltro])
+
+  // Opções do filtro de escopo: os presets primeiro, depois qualquer valor
+  // customizado que já exista nos dados (a pessoa pode ter digitado outro).
+  const opcoesEscopo = useMemo(() => {
+    const customizados = Array.from(
+      new Set(
+        agentes
+          .map((a) => a.escopo)
+          .filter(
+            (e): e is string =>
+              !!e && !ESCOPOS_PADRAO.includes(e as (typeof ESCOPOS_PADRAO)[number]),
+          ),
+      ),
+    ).sort()
+    return [...ESCOPOS_PADRAO, ...customizados]
+  }, [agentes])
 
   const limite = (a: AgenteCatalogo) =>
     a.limite_tolerancia_valor != null
@@ -133,14 +157,17 @@ export function CatalogoAgentesTab() {
   const abrirNovo = () => {
     setEditando(null)
     setForm(AGENTE_VAZIO)
+    setEscopoCustom(false)
     setDialogAberto(true)
   }
 
   const abrirEdicao = (a: AgenteCatalogo) => {
     setEditando(a)
+    const escopo = a.escopo || 'Geral'
     setForm({
       nome: a.nome,
       tipo: a.tipo,
+      escopo,
       cas: a.cas || '',
       sinonimos: a.sinonimos || '',
       codigo_esocial: a.codigo_esocial || '',
@@ -149,6 +176,7 @@ export function CatalogoAgentesTab() {
       danos_saude_tipicos: a.danos_saude_tipicos || '',
       medidas_controle_tipicas: a.medidas_controle_tipicas || '',
     })
+    setEscopoCustom(!ESCOPOS_PADRAO.includes(escopo as (typeof ESCOPOS_PADRAO)[number]))
     setDialogAberto(true)
   }
 
@@ -243,6 +271,19 @@ export function CatalogoAgentesTab() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={escopoFiltro} onValueChange={setEscopoFiltro}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os escopos</SelectItem>
+            {opcoesEscopo.map((e) => (
+              <SelectItem key={e} value={e}>
+                {e}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {carregando ? (
@@ -258,6 +299,7 @@ export function CatalogoAgentesTab() {
               <TableRow>
                 <TableHead>Agente / fator de risco</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Escopo</TableHead>
                 <TableHead>eSocial</TableHead>
                 <TableHead>Fonte geradora</TableHead>
                 <TableHead>Danos à saúde</TableHead>
@@ -282,6 +324,9 @@ export function CatalogoAgentesTab() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{a.tipo}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{a.escopo || 'Geral'}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{a.codigo_esocial || '—'}</TableCell>
                   <TableCell className="max-w-56 text-sm text-muted-foreground">
@@ -357,7 +402,58 @@ export function CatalogoAgentesTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Escopo</Label>
+                {escopoCustom ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.escopo || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, escopo: e.target.value }))}
+                      placeholder="Digite o escopo (ex.: Periculosidade)"
+                      autoFocus
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setEscopoCustom(false)
+                        setForm((f) => ({ ...f, escopo: 'Geral' }))
+                      }}
+                    >
+                      Usar lista
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={form.escopo || 'Geral'}
+                    onValueChange={(v) => {
+                      if (v === ESCOPO_OUTRO) {
+                        setEscopoCustom(true)
+                        setForm((f) => ({ ...f, escopo: '' }))
+                      } else {
+                        setForm((f) => ({ ...f, escopo: v }))
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ESCOPOS_PADRAO.map((e) => (
+                        <SelectItem key={e} value={e}>
+                          {e}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={ESCOPO_OUTRO}>Outro (digitar)...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Para que serve esse agente no catálogo — além dos 3 padrões, você pode digitar
+                  qualquer outro valor.
+                </p>
+              </div>
+              <div className="col-span-2 space-y-1.5">
                 <Label>Código eSocial (Tabela 24)</Label>
                 <Input
                   value={form.codigo_esocial || ''}

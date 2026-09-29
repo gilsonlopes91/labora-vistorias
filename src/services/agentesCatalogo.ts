@@ -9,11 +9,16 @@ export type TipoAgente =
   | 'Acidente'
   | 'Psicossocial'
 
+// Presets sugeridos para o campo `escopo` — a pessoa também pode digitar
+// qualquer outro valor (não é uma lista fechada, é texto livre).
+export const ESCOPOS_PADRAO = ['Geral', 'Aposentadoria Especial', 'Insalubridade'] as const
+
 export interface AgenteCatalogo extends RecordModel {
   id: string
   organizacao_id?: string
   nome: string
   tipo: TipoAgente
+  escopo?: string
   cas?: string
   sinonimos?: string
   codigo_esocial?: string
