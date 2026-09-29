@@ -494,8 +494,17 @@ export function EstruturaSstTab({
       </Dialog>
 
       {/* Diálogo: GHE */}
-      <Dialog open={gheDialog} onOpenChange={(o) => { if (!o) tentarFecharGhe(); else setGheDialog(true) }}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+      <Dialog
+        open={gheDialog}
+        onOpenChange={(o) => {
+          if (!o) tentarFecharGhe()
+          else setGheDialog(true)
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] max-w-3xl overflow-y-auto"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{gheEdit ? 'Editar unidade' : 'Nova unidade de avaliação'}</DialogTitle>
           </DialogHeader>
@@ -637,8 +646,17 @@ export function EstruturaSstTab({
       </Dialog>
 
       {/* Diálogo: Função */}
-      <Dialog open={funcaoDialog} onOpenChange={(o) => { if (!o) tentarFecharFuncao(); else setFuncaoDialog(true) }}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+      <Dialog
+        open={funcaoDialog}
+        onOpenChange={(o) => {
+          if (!o) tentarFecharFuncao()
+          else setFuncaoDialog(true)
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] max-w-3xl overflow-y-auto"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{funcaoEdit ? 'Editar função' : 'Nova função'}</DialogTitle>
           </DialogHeader>
@@ -748,7 +766,12 @@ export function EstruturaSstTab({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setGheDescartarDialog(false); setGheDialog(false) }}>
+            <AlertDialogAction
+              onClick={() => {
+                setGheDescartarDialog(false)
+                setGheDialog(false)
+              }}
+            >
               Descartar
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -765,7 +788,12 @@ export function EstruturaSstTab({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setFuncaoDescartarDialog(false); setFuncaoDialog(false) }}>
+            <AlertDialogAction
+              onClick={() => {
+                setFuncaoDescartarDialog(false)
+                setFuncaoDialog(false)
+              }}
+            >
               Descartar
             </AlertDialogAction>
           </AlertDialogFooter>

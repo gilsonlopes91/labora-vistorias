@@ -9,12 +9,14 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "prebuild": "node scripts/check-image.js",
     "lint": "oxlint src",
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "check-img": "node scripts/check-image.js",
     "preview": "vite preview",
-    "test": "echo \"there are no tests for this project\" && exit 0",
+    "test": "node scripts/check-image.js",
     "test:watch": "echo \"there are no tests for this project\" && exit 0"
   },
   "dependencies": {

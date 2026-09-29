@@ -214,7 +214,9 @@ export function RiscosOcupacionaisPainel({
 
   const abrir = (a: AvaliacaoRisco | null) => {
     setEmEdicao(a)
-    const novoF = a ? { ...a } : { trilha_probabilidade: 'Qualitativa (controle)', ativo: true }
+    const novoF: Partial<AvaliacaoRiscoInput> = a
+      ? { ...a }
+      : { trilha_probabilidade: 'Qualitativa (controle)' as TrilhaProbabilidade, ativo: true }
     setF(novoF)
     inicialRef.current = JSON.stringify(novoF)
     setMedicoes([])
@@ -478,8 +480,17 @@ export function RiscosOcupacionaisPainel({
         </div>
       )}
 
-      <Dialog open={dialogAberto} onOpenChange={(o) => { if (!o) tentarFechar(); else setDialogAberto(true) }}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+      <Dialog
+        open={dialogAberto}
+        onOpenChange={(o) => {
+          if (!o) tentarFechar()
+          else setDialogAberto(true)
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] max-w-2xl overflow-y-auto"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{emEdicao ? 'Editar risco' : 'Adicionar risco'}</DialogTitle>
           </DialogHeader>
@@ -1127,7 +1138,12 @@ export function RiscosOcupacionaisPainel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setDescartarDialog(false); setDialogAberto(false) }}>
+            <AlertDialogAction
+              onClick={() => {
+                setDescartarDialog(false)
+                setDialogAberto(false)
+              }}
+            >
               Descartar
             </AlertDialogAction>
           </AlertDialogFooter>

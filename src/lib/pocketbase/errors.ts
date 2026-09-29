@@ -22,29 +22,35 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  if (msgs.length > 0) return msgs.join(' ')
-  // Mensagem personalizada enviada pelo hook (e.json(409, { error: '...' }))
-  const custom = (error.response as { error?: unknown })?.error
-  if (typeof custom === 'string' && custom) return custom
-  return error.message || 'Ocorreu um erro inesperado.'
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isErroTemporario(error: unknown): boolean {
-  if (isErroDeConexao(error)) return true
-  if (error instanceof ClientResponseError && error.status === 429) return true
-  return false
-}
-
+/** Retorna true quando o erro é de rede/conexão (offline, timeout, CORS). */
 export function isErroDeConexao(error: unknown): boolean {
-  if (!error) return false
   if (error instanceof ClientResponseError) {
+    // status 0 = falha de rede; sem resposta do servidor
     return error.status === 0
   }
-  if (error instanceof TypeError && /failed to fetch|networkerror/i.test(error.message)) {
-    return true
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    return (
+      msg.includes('failed to fetch') ||
+      msg.includes('network') ||
+      msg.includes('conexão') ||
+      msg.includes('offline')
+    )
   }
   return false
+}
+
+/** Retorna true quando o erro é possivelmente temporário e vale tentar novamente. */
+export function isErroTemporario(error: unknown): boolean {
+  if (error instanceof ClientResponseError) {
+    // 0 = sem rede; 429 = rate-limit; 503 = serviço indisponível
+    return error.status === 0 || error.status === 429 || error.status === 503
+  }
+  return isErroDeConexao(error)
 }

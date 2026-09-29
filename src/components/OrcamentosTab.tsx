@@ -26,7 +26,12 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatarDataCalendario, formatLocalDate } from '@/lib/date'
 import { getMinhaOrganizacao, urlLogoOrganizacao } from '@/services/organizacoes'
 import { getModelosProposta, type ModeloProposta } from '@/services/modelosProposta'
-import { criarRecebimento, excluirRecebimento, getRecebimentos, type Recebimento } from '@/services/recebimentos'
+import {
+  criarRecebimento,
+  excluirRecebimento,
+  getRecebimentos,
+  type Recebimento,
+} from '@/services/recebimentos'
 import { gerarPdfProposta, type PdfGerado } from '@/lib/propostaPdf'
 import {
   calcularIndicadores,
@@ -96,7 +101,12 @@ const VARIANTE_STATUS: Record<StatusOrcamento, 'default' | 'secondary' | 'destru
 }
 
 // Estados que abrem o Dialog de recebimento em vez de gravar direto.
-const FINANCEIRO_ABRE_DIALOG = new Set(['recebido', 'parcial', 'aguardando_pagamento', 'nao_faturado'])
+const FINANCEIRO_ABRE_DIALOG = new Set([
+  'recebido',
+  'parcial',
+  'aguardando_pagamento',
+  'nao_faturado',
+])
 
 export function OrcamentosTab({
   empresaId,
