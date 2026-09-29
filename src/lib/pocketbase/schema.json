@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T00:21:52.342Z",
+  "generatedAt": "2026-09-29T00:37:16.680Z",
   "collections": [
     {
       "name": "users",
@@ -4311,12 +4311,38 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "plano_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "planos_acao"
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "local",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "como",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_acoes_plano_organizacao ON acoes_plano (organizacao_id)",
         "CREATE INDEX idx_acoes_plano_empresa ON acoes_plano (empresa_id)",
-        "CREATE INDEX idx_acoes_plano_avaliacao ON acoes_plano (avaliacao_id)"
+        "CREATE INDEX idx_acoes_plano_avaliacao ON acoes_plano (avaliacao_id)",
+        "CREATE INDEX idx_acoes_plano_plano ON acoes_plano (plano_id)"
       ]
     },
     {
@@ -4619,6 +4645,13 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "planos_acao_ids",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "planos_acao"
         }
       ],
       "indexes": [
@@ -4897,6 +4930,79 @@
       ],
       "indexes": [
         "CREATE INDEX idx_site_versoes_chave ON site_versoes (chave, created)"
+      ]
+    },
+    {
+      "name": "planos_acao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "view": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "create": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "update": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma')",
+        "delete": "@request.auth.id != '' && ((organizacao_id = @request.auth.organizacao_id || organizacao_id.staff_ids.id ?= @request.auth.id) || @request.auth.papel = 'admin_plataforma') && @request.auth.papel != 'executor'"
+      },
+      "fields": [
+        {
+          "name": "organizacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizacoes"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Ativo",
+            "Concluído",
+            "Arquivado"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_planos_acao_organizacao ON planos_acao (organizacao_id)",
+        "CREATE INDEX idx_planos_acao_empresa ON planos_acao (empresa_id)"
       ]
     }
   ]

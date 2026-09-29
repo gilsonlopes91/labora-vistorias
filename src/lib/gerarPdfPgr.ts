@@ -63,11 +63,26 @@ export interface LinhaInventarioPgr {
 }
 
 export interface LinhaPlanoAcaoPgr {
+  /** O quê. */
   medida: string
+  /** Por quê / Onde / Como / Quanto custa, já formatados em linhas prontas
+   *  para exibir numa única célula da tabela (5W2H compacto). */
+  detalhes: string
+  /** Quem. */
   responsavel: string
+  /** Quando. */
   prazo: string
   status: string
   prioridade: string
+}
+
+/** Um plano de ação nomeado e as ações (5W2H) dentro dele — o técnico
+ *  escolhe, na hora de editar o documento, quais planos entram no PDF
+ *  (src/components/DocumentosSstTab.tsx). */
+export interface GrupoPlanoAcaoPgr {
+  nome: string
+  descricao?: string
+  itens: LinhaPlanoAcaoPgr[]
 }
 
 /** Carimbo de assinatura eletrônica nível 1 (reautenticação por senha, sem
@@ -111,7 +126,7 @@ export interface DadosRelatorioPgr {
   secoes: SecaoDocumento[]
   unidadesAvaliacao: string[]
   inventario: LinhaInventarioPgr[]
-  planoAcao: LinhaPlanoAcaoPgr[]
+  planoAcao: GrupoPlanoAcaoPgr[]
   assinatura?: AssinaturaEletronica
   /** Só para laudos derivados (insalubridade/periculosidade/LTCAT): a
    *  conclusão por função, com a régua e o dado técnico usados (NR-1, item
@@ -405,20 +420,63 @@ export async function gerarPdfPgr(dados: DadosRelatorioPgr): Promise<jsPDF> {
   doc.setFontSize(12)
   doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
   doc.text('Plano de ação', margin, y)
-  y += 10
-  executarAutoTable(doc, {
-    startY: y,
-    theme: 'grid',
-    styles: { fontSize: 8 },
-    head: [['Medida', 'Responsável', 'Prazo', 'Status', 'Prioridade']],
-    body: dados.planoAcao.map((a) => [a.medida, a.responsavel, a.prazo, a.status, a.prioridade]),
-    headStyles: { fillColor: primaria },
-    margin: { left: margin, right: margin },
-  })
+  y += 16
+  if (dados.planoAcao.length === 0) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.text('Nenhuma ação cadastrada.', margin, y)
+    doc.setTextColor(0, 0, 0)
+    y += 10
+  }
+  for (const grupo of dados.planoAcao) {
+    if (y > pageHeight - 130) {
+      doc.addPage()
+      y = margin
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(primaria[0], primaria[1], primaria[2])
+    doc.text(grupo.nome, margin, y)
+    y += 13
+    if (grupo.descricao) {
+      doc.setFont('helvetica', 'italic')
+      doc.setFontSize(9)
+      doc.setTextColor(80, 80, 80)
+      const linhasDescricao = doc.splitTextToSize(grupo.descricao, larguraUtil)
+      for (const linha of linhasDescricao) {
+        doc.text(linha, margin, y)
+        y += 11
+      }
+      doc.setTextColor(0, 0, 0)
+      y += 2
+    }
+    y =
+      executarAutoTable(doc, {
+        startY: y,
+        theme: 'grid',
+        styles: { fontSize: 7.5, cellPadding: 4, valign: 'top' },
+        columnStyles: { 1: { cellWidth: larguraUtil * 0.3 } },
+        head: [
+          ['O quê', 'Por quê / Onde / Como / Quanto', 'Quem', 'Quando', 'Prioridade', 'Status'],
+        ],
+        body: grupo.itens.map((a) => [
+          a.medida,
+          a.detalhes || '—',
+          a.responsavel,
+          a.prazo,
+          a.prioridade,
+          a.status,
+        ]),
+        headStyles: { fillColor: primaria },
+        margin: { left: margin, right: margin },
+      }) + 20
+  }
 
   if (dados.conclusoesFuncao && dados.conclusoesFuncao.length > 0) {
-    y = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y
-    y += 20
+    const finalYAnterior = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable
+      ?.finalY
+    y = Math.max(y, finalYAnterior != null ? finalYAnterior + 20 : y)
     if (y > pageHeight - 140) {
       doc.addPage()
       y = margin
@@ -447,8 +505,9 @@ export async function gerarPdfPgr(dados: DadosRelatorioPgr): Promise<jsPDF> {
   }
 
   if (dados.assinatura) {
-    y = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y
-    y += 30
+    const finalYAnterior = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable
+      ?.finalY
+    y = Math.max(y, finalYAnterior != null ? finalYAnterior + 30 : y)
     if (y > pageHeight - 90) {
       doc.addPage()
       y = margin

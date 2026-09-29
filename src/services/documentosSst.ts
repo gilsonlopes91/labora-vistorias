@@ -35,6 +35,9 @@ export interface DocumentoSst extends RecordModel {
   proxima_revisao?: string
   secoes?: SecaoDocumento[]
   abrangencia_ghe_ids?: string[]
+  /** Planos de ação escolhidos para entrar neste documento (vazio/ausente =
+   *  entram todas as ações da empresa, comportamento anterior). */
+  planos_acao_ids?: string[]
   pdf?: string
   pdf_hash_sha256?: string
   dados_emissao?: Record<string, unknown>

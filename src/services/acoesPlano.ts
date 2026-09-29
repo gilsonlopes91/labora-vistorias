@@ -16,7 +16,15 @@ export interface AcaoPlano extends RecordModel {
   empresa_id: string
   avaliacao_id?: string
   resposta_vistoria_origem_id?: string
+  /** Plano de ação nomeado ao qual esta ação pertence (opcional —
+   *  compatibilidade com ações cadastradas antes de existir "planos_acao"). */
+  plano_id?: string
   medida: string
+  /** 5W2H — o quê (medida), por quê (justificativa), onde (local), quando
+   *  (prazo), quem (responsavel), como (como), quanto custa (custo_estimado). */
+  justificativa?: string
+  local?: string
+  como?: string
   nivel_hierarquia?: 'Eliminação' | 'Substituição' | 'Engenharia' | 'Administrativa' | 'EPI'
   responsavel?: string
   prazo?: string
@@ -62,6 +70,28 @@ export const getAcoesPlano = async (empresaId: string) => {
     if (pa !== pb2) return pa - pb2
     return (b.numero_expostos || 0) - (a.numero_expostos || 0)
   })
+}
+
+/** Só as ações de um ou mais planos (usado na emissão de documentos, quando
+ *  o técnico escolhe quais planos de ação entram naquele PDF). */
+export const getAcoesDosPlanos = (empresaId: string, planoIds: string[]) => {
+  if (planoIds.length === 0) return getAcoesPlano(empresaId)
+  const filtroPlanos = planoIds.map((id) => `plano_id = "${id}"`).join(' || ')
+  return pb
+    .collection('acoes_plano')
+    .getFullList<AcaoPlano>({
+      filter: `empresa_id = "${empresaId}" && (${filtroPlanos})`,
+      sort: '-created',
+      expand: 'avaliacao_id',
+    })
+    .then((acoes) =>
+      acoes.sort((a, b) => {
+        const pa = PRIORIDADE_ORDEM[a.prioridade || ''] ?? 9
+        const pb2 = PRIORIDADE_ORDEM[b.prioridade || ''] ?? 9
+        if (pa !== pb2) return pa - pb2
+        return (b.numero_expostos || 0) - (a.numero_expostos || 0)
+      }),
+    )
 }
 
 export const createAcaoPlano = (data: AcaoPlanoInput) =>

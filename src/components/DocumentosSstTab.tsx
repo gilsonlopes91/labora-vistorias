@@ -14,20 +14,35 @@
  * cargo ∪ herdados do GHE, quando houver. Ver src/lib/riscoFuncao.ts. */
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { FileText, Plus, ChevronUp, ChevronDown, Trash2, Check, Loader2 } from 'lucide-react'
+import {
+  FileText,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  Trash2,
+  Check,
+  Loader2,
+  ClipboardList,
+} from 'lucide-react'
 
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { carregarIdentidade } from '@/lib/identidadeVisual'
 import { resolverCelula } from '@/lib/matrizRisco'
-import { gerarPdfPgr, nomeArquivoDocumentoSst, hashSha256 } from '@/lib/gerarPdfPgr'
+import {
+  gerarPdfPgr,
+  nomeArquivoDocumentoSst,
+  hashSha256,
+  type GrupoPlanoAcaoPgr,
+} from '@/lib/gerarPdfPgr'
 import { getEmpresa, urlLogoEmpresa } from '@/services/empresas'
 import { getGhes } from '@/services/ghes'
 import { getFuncoesSst } from '@/services/funcoesSst'
 import { getAvaliacoesRiscoDaEmpresa } from '@/services/avaliacoesRisco'
 import { avaliacoesDaFuncao } from '@/lib/riscoFuncao'
-import { getAcoesPlano } from '@/services/acoesPlano'
+import { getAcoesPlano, getAcoesDosPlanos, type AcaoPlano } from '@/services/acoesPlano'
+import { getPlanosAcao, type PlanoAcao } from '@/services/planosAcao'
 import { getMatrizOficial } from '@/services/matrizesRisco'
 import { buscarResponsavelDoUsuario, formatarRegistroRT } from '@/services/responsaveisTecnicos'
 import {
@@ -52,6 +67,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { RichTextEditor } from '@/components/RichTextEditor'
 import { ConclusoesPorFuncaoTab } from '@/components/ConclusoesPorFuncaoTab'
@@ -115,6 +131,15 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   // LTCAT: o checklist do art. 276 da IN 128/2022 trava a emissão enquanto
   // não estiver completo (ConclusoesPorFuncaoTab calcula e avisa aqui).
   const [checklistLtcatCompleto, setChecklistLtcatCompleto] = useState(true)
+  // Planos de ação da empresa, para o técnico escolher quais entram neste
+  // documento (vazio = entram todos, comportamento anterior).
+  const [planosDisponiveis, setPlanosDisponiveis] = useState<PlanoAcao[]>([])
+
+  useEffect(() => {
+    getPlanosAcao(empresaId)
+      .then(setPlanosDisponiveis)
+      .catch(() => setPlanosDisponiveis([]))
+  }, [empresaId])
 
   useEffect(() => {
     let cancelado = false
@@ -180,6 +205,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
           titulo: f.titulo,
           elaboradores: f.elaboradores,
           secoes: f.secoes,
+          planos_acao_ids: f.planos_acao_ids,
         })
         setDocumentos((v) => v.map((d) => (d.id === atualizado.id ? atualizado : d)))
         setUltimoAutosalvamento(new Date())
@@ -194,7 +220,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     }, AUTOSAVE_DEBOUNCE_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [f.titulo, f.elaboradores, f.secoes])
+  }, [f.titulo, f.elaboradores, f.secoes, f.planos_acao_ids])
 
   useEffect(() => {
     setUrlPdf(null)
@@ -256,7 +282,17 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         ghes.map((g) => g.id),
         funcoes.map((fn) => fn.id),
       )
-      const acoes = await getAcoesPlano(empresaId)
+      // Planos de ação: se o documento tem planos_acao_ids selecionados,
+      // só essas ações entram no PDF; vazio = entram todas as ações da
+      // empresa (planos + ações avulsas sem plano).
+      const planosSelecionadosIds =
+        f.planos_acao_ids && f.planos_acao_ids.length > 0 ? f.planos_acao_ids : null
+      const [acoes, planosAcaoTodos] = await Promise.all([
+        planosSelecionadosIds
+          ? getAcoesDosPlanos(empresaId, planosSelecionadosIds)
+          : getAcoesPlano(empresaId),
+        getPlanosAcao(empresaId),
+      ])
       const dimensao = (Number(empresa.pgr_matriz_padrao_dimensao) || 5) as 3 | 5
       const metodologia = empresa.pgr_matriz_padrao_metodologia || 'AIHA'
       const matriz = await getMatrizOficial(dimensao, metodologia)
@@ -279,13 +315,45 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
           categoria: celula?.categoria || '—',
         }
       })
-      const planoAcao = acoes.map((a) => ({
-        medida: a.medida,
-        responsavel: a.responsavel || '—',
-        prazo: a.prazo ? new Date(a.prazo).toLocaleDateString('pt-BR') : '—',
-        status: a.status,
-        prioridade: a.prioridade || '—',
-      }))
+      // Cada ação vira uma linha 5W2H — o quê (medida), quem (responsavel),
+      // quando (prazo) e status/prioridade em colunas próprias; por quê,
+      // onde, como e quanto custa entram compactados numa coluna "Detalhes"
+      // (ver src/lib/gerarPdfPgr.ts).
+      const linhaDaAcao = (a: AcaoPlano) => {
+        const detalhes = [
+          a.justificativa ? `Por quê: ${a.justificativa}` : null,
+          a.local ? `Onde: ${a.local}` : null,
+          a.como ? `Como: ${a.como}` : null,
+          a.custo_estimado != null
+            ? `Custo estimado: R$ ${a.custo_estimado.toLocaleString('pt-BR')}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('\n')
+        return {
+          medida: a.medida,
+          detalhes,
+          responsavel: a.responsavel || '—',
+          prazo: a.prazo ? new Date(a.prazo).toLocaleDateString('pt-BR') : '—',
+          status: a.status,
+          prioridade: a.prioridade || '—',
+        }
+      }
+      const planosParaExibir = planosSelecionadosIds
+        ? planosAcaoTodos.filter((p) => planosSelecionadosIds.includes(p.id))
+        : planosAcaoTodos
+      const planoAcao: GrupoPlanoAcaoPgr[] = []
+      for (const plano of planosParaExibir) {
+        const itens = acoes.filter((a) => a.plano_id === plano.id).map(linhaDaAcao)
+        planoAcao.push({ nome: plano.nome, descricao: plano.descricao, itens })
+      }
+      const acoesSemPlano = acoes.filter((a) => !a.plano_id)
+      if (acoesSemPlano.length > 0) {
+        planoAcao.push({
+          nome: 'Ações gerais (sem plano)',
+          itens: acoesSemPlano.map(linhaDaAcao),
+        })
+      }
 
       // Laudos derivados (insalubridade/periculosidade/LTCAT): a conclusão
       // por função, já confirmada ou ajustada na aba "Conclusões por
@@ -449,6 +517,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         titulo: f.titulo,
         elaboradores: f.elaboradores,
         secoes: f.secoes,
+        planos_acao_ids: f.planos_acao_ids,
       })
       setDocumentos((v) => v.map((d) => (d.id === atualizado.id ? atualizado : d)))
       setUltimoAutosalvamento(new Date())
@@ -710,6 +779,55 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                         <Plus className="mr-2 h-4 w-4" />
                         Adicionar seção
                       </Button>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border p-3">
+                    <Label className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                      Planos de ação neste documento
+                    </Label>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Escolha quais planos de ação (aba Plano de ação) entram no PDF. Nenhum marcado
+                      = entram todos os planos e as ações avulsas da empresa.
+                    </p>
+                    {planosDisponiveis.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum plano de ação cadastrado ainda para esta empresa.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {planosDisponiveis.map((p) => {
+                          const marcado = (f.planos_acao_ids || []).includes(p.id)
+                          return (
+                            <label
+                              key={p.id}
+                              className="flex items-center gap-2 text-sm"
+                              aria-disabled={travado}
+                            >
+                              <Checkbox
+                                checked={marcado}
+                                disabled={travado}
+                                onCheckedChange={(c) =>
+                                  setF((v) => {
+                                    const atuais = v.planos_acao_ids || []
+                                    return {
+                                      ...v,
+                                      planos_acao_ids: c
+                                        ? [...atuais, p.id]
+                                        : atuais.filter((id) => id !== p.id),
+                                    }
+                                  })
+                                }
+                              />
+                              {p.nome}
+                              <Badge variant="outline" className="text-[10px]">
+                                {p.status}
+                              </Badge>
+                            </label>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
 
