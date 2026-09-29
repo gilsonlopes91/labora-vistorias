@@ -13,6 +13,7 @@ export interface EpiCatalogo extends RecordModel {
   fabricante?: string
   especificacoes?: string
   agentes_protegidos_ids?: string[]
+  epis_nr06?: string[]
   funcoes_ids?: string[]
   ativo?: boolean
   expand?: { agentes_protegidos_ids?: AgenteCatalogo[]; funcoes_ids?: FuncaoSst[] }

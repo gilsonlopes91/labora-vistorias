@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T01:04:57.846Z",
+  "generatedAt": "2026-09-29T11:54:40.189Z",
   "collections": [
     {
       "name": "users",
@@ -4665,6 +4665,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "epis_nr06",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

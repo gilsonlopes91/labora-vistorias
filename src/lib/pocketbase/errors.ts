@@ -29,20 +29,12 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isErroDeConexao(error: unknown): boolean {
-  if (!navigator.onLine) return true
+  if (!error) return false
   if (error instanceof ClientResponseError) {
-    return (
-      error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504
-    )
+    return error.status === 0
   }
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    return (
-      msg.includes('network') ||
-      msg.includes('failed to fetch') ||
-      msg.includes('conexão') ||
-      msg.includes('offline')
-    )
+  if (error instanceof TypeError && /failed to fetch|networkerror/i.test(error.message)) {
+    return true
   }
   return false
 }

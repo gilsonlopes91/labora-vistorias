@@ -13,11 +13,7 @@ import { Pencil, Plus, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresas, type Empresa } from '@/services/empresas'
-import {
-  getAgentesCatalogo,
-  type AgenteCatalogo,
-  type TipoAgente,
-} from '@/services/agentesCatalogo'
+import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
 import { getFuncoesSst, type FuncaoSst } from '@/services/funcoesSst'
 import {
   consultarCa,
@@ -29,6 +25,8 @@ import {
   type EpiCatalogo,
   type EpiCatalogoInput,
 } from '@/services/episCatalogo'
+import { VincularEpisNr06Combobox } from '@/components/VincularEpisNr06Combobox'
+import { listarTodosItensNr06 } from '@/lib/episNr06'
 
 import {
   AlertDialog,
@@ -72,15 +70,6 @@ import { Textarea } from '@/components/ui/textarea'
 
 const GLOBAL = 'global'
 
-const TIPOS: TipoAgente[] = [
-  'Físico',
-  'Químico',
-  'Biológico',
-  'Ergonômico',
-  'Acidente',
-  'Psicossocial',
-]
-
 const EPI_VAZIO: EpiCatalogoInput = {
   organizacao_id: '',
   empresa_id: '',
@@ -89,6 +78,7 @@ const EPI_VAZIO: EpiCatalogoInput = {
   fabricante: '',
   especificacoes: '',
   agentes_protegidos_ids: [],
+  epis_nr06: [],
   funcoes_ids: [],
 }
 
@@ -100,6 +90,14 @@ export function CatalogoEpisTab() {
   const [epis, setEpis] = useState<EpiCatalogo[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [agentes, setAgentes] = useState<AgenteCatalogo[]>([])
+  const itensNr06 = useMemo(() => listarTodosItensNr06(), [])
+  const mapaItensNr06 = useMemo(() => {
+    const mapa = new Map<string, string>()
+    for (const item of itensNr06) {
+      mapa.set(item.id, `${item.categoriaCodigo} · ${item.nome}`)
+    }
+    return mapa
+  }, [itensNr06])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
   const [filtroEmpresa, setFiltroEmpresa] = useState('todas')
@@ -128,6 +126,15 @@ export function CatalogoEpisTab() {
       )
       .finally(() => setCarregando(false))
   }
+
+  // Mapa de agentes para exibição de fallback de itens legados
+  const mapaAgentesLegado = useMemo(() => {
+    const mapa = new Map<string, string>()
+    for (const a of agentes) {
+      mapa.set(a.id, a.nome)
+    }
+    return mapa
+  }, [agentes])
 
   useEffect(carregar, [])
 
@@ -184,21 +191,10 @@ export function CatalogoEpisTab() {
       fabricante: ep.fabricante || '',
       especificacoes: ep.especificacoes || '',
       agentes_protegidos_ids: ep.agentes_protegidos_ids || [],
+      epis_nr06: ep.epis_nr06 || [],
       funcoes_ids: ep.funcoes_ids || [],
     })
     setDialogAberto(true)
-  }
-
-  const alternarAgente = (id: string) => {
-    setForm((f) => {
-      const atuais = f.agentes_protegidos_ids || []
-      return {
-        ...f,
-        agentes_protegidos_ids: atuais.includes(id)
-          ? atuais.filter((a) => a !== id)
-          : [...atuais, id],
-      }
-    })
   }
 
   const alternarFuncao = (id: string) => {
@@ -372,13 +368,33 @@ export function CatalogoEpisTab() {
                   </TableCell>
                   <TableCell className="max-w-64">
                     <div className="flex flex-wrap gap-1">
-                      {(ep.expand?.agentes_protegidos_ids || []).length === 0
-                        ? '—'
-                        : (ep.expand?.agentes_protegidos_ids || []).map((a) => (
-                            <Badge key={a.id} variant="outline" className="text-[10px]">
-                              {a.nome}
+                      {(ep.epis_nr06 || []).length === 0 &&
+                      (ep.expand?.agentes_protegidos_ids || []).length === 0 ? (
+                        '—'
+                      ) : (
+                        <>
+                          {(ep.epis_nr06 || []).map((id) => (
+                            <Badge key={id} variant="outline" className="text-[10px] font-normal">
+                              {mapaItensNr06.get(id) || id}
                             </Badge>
                           ))}
+                          {(ep.agentes_protegidos_ids || []).map((aid) => {
+                            const nome =
+                              ep.expand?.agentes_protegidos_ids?.find((a) => a.id === aid)?.nome ||
+                              mapaAgentesLegado.get(aid) ||
+                              aid
+                            return (
+                              <Badge
+                                key={aid}
+                                variant="secondary"
+                                className="text-[10px] font-normal"
+                              >
+                                {nome}
+                              </Badge>
+                            )
+                          })}
+                        </>
+                      )}
                     </div>
                   </TableCell>
                   {podeEditar && (
@@ -484,39 +500,29 @@ export function CatalogoEpisTab() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                   Vincular para proteção contra riscos
                 </Label>
-                <div className="max-h-52 space-y-3 overflow-y-auto rounded-md border p-3">
-                  {TIPOS.map((tipo) => {
-                    const doTipo = agentes.filter((a) => a.tipo === tipo)
-                    if (doTipo.length === 0) return null
-                    return (
-                      <div key={tipo} className="space-y-1.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {tipo}
-                        </p>
-                        {doTipo.map((a) => (
-                          <label key={a.id} className="flex items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={(form.agentes_protegidos_ids || []).includes(a.id)}
-                              onCheckedChange={() => alternarAgente(a.id)}
-                            />
-                            {a.nome}
-                          </label>
-                        ))}
-                      </div>
-                    )
-                  })}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Selecione os equipamentos pela classificação oficial da NR-06 (Anexo I — grupos A
+                  a I).
+                </p>
+                <VincularEpisNr06Combobox
+                  selecionados={form.epis_nr06 || []}
+                  onChange={(novos) => setForm((f) => ({ ...f, epis_nr06: novos }))}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <Label>Vincular a funções específicas</Label>
-                <div className="flex max-h-52 flex-col overflow-y-auto rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Vínculo com cargos da empresa selecionada (opcional).
+                </p>
+                <div className="flex min-h-10 max-h-52 flex-col overflow-y-auto rounded-md border p-3">
                   {!form.empresa_id ? (
-                    <p className="m-auto max-w-40 text-center text-xs text-muted-foreground">
-                      Para vincular a funções, o EPI deve ser associado a uma empresa específica.
+                    <p className="m-auto max-w-48 text-center text-xs text-muted-foreground">
+                      Para vincular a funções, o EPI deve ser associado a uma empresa específica
+                      acima.
                     </p>
                   ) : carregandoFuncoes ? (
                     <p className="text-xs text-muted-foreground">Carregando funções...</p>

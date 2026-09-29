@@ -92,7 +92,10 @@ export function sugerirProbabilidade(
     return dimensao
   }
   if (trilha === 'Quantitativa (medição)') {
-    if (avaliacao.categoria_aiha_exposicao == null || avaliacao.categoria_aiha_exposicao === '')
+    if (
+      avaliacao.categoria_aiha_exposicao == null ||
+      (avaliacao.categoria_aiha_exposicao as string) === ''
+    )
       return null
     return probabilidadePorCategoriaAiha(Number(avaliacao.categoria_aiha_exposicao), dimensao)
   }

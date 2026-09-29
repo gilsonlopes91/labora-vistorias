@@ -24,6 +24,7 @@ import {
 import {
   getResponsaveisTecnicos,
   criarResponsavelTecnico,
+  atualizarResponsavelTecnico,
   excluirResponsavelTecnico,
   definirComoPadrao,
   enviarAssinaturaRT,
