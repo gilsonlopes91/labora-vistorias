@@ -202,7 +202,13 @@ export function PlanoDialog({
               id="plano-select"
               className="h-9 w-full rounded-md border bg-background px-3 text-sm"
               value={plano}
-              onChange={(e) => setPlano(e.target.value as PlanoOrg)}
+              onChange={(e) => {
+                const p = e.target.value as PlanoOrg
+                setPlano(p)
+                if (p === 'individual') setLimite('0')
+                else if (p === 'equipe') setLimite('3')
+                else if (p === 'escritorio') setLimite('8')
+              }}
             >
               {PLANOS.map((p) => (
                 <option key={p.value} value={p.value}>

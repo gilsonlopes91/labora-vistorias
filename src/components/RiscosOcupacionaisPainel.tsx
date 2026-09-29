@@ -7,7 +7,7 @@
    sugestão de P/S, insalubridade/periculosidade) é a mesma de
    InventarioRiscosTab.tsx — só a navegação/layout mudou (lista em cards,
    sem seletor de unidade). */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AlertTriangle, Pencil, Plus, ShieldAlert, Trash2 } from 'lucide-react'
 
@@ -200,6 +200,8 @@ export function RiscosOcupacionaisPainel({
   const [medicaoEdit, setMedicaoEdit] = useState<Medicao | null>(null)
   const [medicaoExcluir, setMedicaoExcluir] = useState<Medicao | null>(null)
   const [fMedicao, setFMedicao] = useState<Partial<MedicaoInput>>({})
+  const inicialRef = useRef('')
+  const [descartarDialog, setDescartarDialog] = useState(false)
 
   const carregarMedicoes = (avaliacaoId: string) =>
     getMedicoesPorAvaliacao(avaliacaoId)
@@ -212,7 +214,9 @@ export function RiscosOcupacionaisPainel({
 
   const abrir = (a: AvaliacaoRisco | null) => {
     setEmEdicao(a)
-    setF(a ? { ...a } : { trilha_probabilidade: 'Qualitativa (controle)', ativo: true })
+    const novoF = a ? { ...a } : { trilha_probabilidade: 'Qualitativa (controle)', ativo: true }
+    setF(novoF)
+    inicialRef.current = JSON.stringify(novoF)
     setMedicoes([])
     if (a) carregarMedicoes(a.id)
     setDialogAberto(true)
@@ -334,6 +338,12 @@ export function RiscosOcupacionaisPainel({
     } catch (error) {
       toast.error('Não foi possível remover', { description: getErrorMessage(error) })
     }
+  }
+
+  const sujo = dialogAberto && JSON.stringify(f) !== inicialRef.current
+  const tentarFechar = () => {
+    if (sujo) setDescartarDialog(true)
+    else setDialogAberto(false)
   }
 
   if (carregando) {
@@ -468,8 +478,8 @@ export function RiscosOcupacionaisPainel({
         </div>
       )}
 
-      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <Dialog open={dialogAberto} onOpenChange={(o) => { if (!o) tentarFechar(); else setDialogAberto(true) }}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{emEdicao ? 'Editar risco' : 'Adicionar risco'}</DialogTitle>
           </DialogHeader>
@@ -1099,13 +1109,30 @@ export function RiscosOcupacionaisPainel({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogAberto(false)}>
+            <Button variant="outline" onClick={tentarFechar}>
               Cancelar
             </Button>
             <Button onClick={salvar}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={descartarDialog} onOpenChange={setDescartarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações feitas no formulário não foram salvas e serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setDescartarDialog(false); setDialogAberto(false) }}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!paraExcluir} onOpenChange={(o) => !o && setParaExcluir(null)}>
         <AlertDialogContent>

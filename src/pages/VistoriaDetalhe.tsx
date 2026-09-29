@@ -21,7 +21,7 @@ import {
 
 import { formatBrazilianDate, formatLocalDate, toPocketBaseDate } from '@/lib/date'
 import { rotuloCurtoNorma, rotuloItemRef } from '@/lib/normas'
-import { getErrorMessage, isErroDeConexao } from '@/lib/pocketbase/errors'
+import { getErrorMessage, isErroDeConexao, isErroTemporario } from '@/lib/pocketbase/errors'
 import {
   listarPendencias,
   enfileirarAlteracao,
@@ -282,6 +282,11 @@ export default function VistoriaDetalhe() {
   const [pendencias, setPendencias] = useState<Record<string, PendenciaResposta>>({})
   const [sincronizando, setSincronizando] = useState(false)
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine)
+  // Fila serial de envios em voo: impede que cliques rápidos lancem vários POSTs simultâneos,
+  // o que estourava o rate limit do Skip Cloud (~100 criações/janela) e causava duplicatas.
+  const filaEnvioRef = useRef<Promise<void>>(Promise.resolve())
+  // Itens com envio em andamento: 'salvando' | 'erro' por item_checklist_id.
+  const [salvandoItem, setSalvandoItem] = useState<Record<string, 'salvando' | 'erro'>>({})
   const sincronizandoRef = useRef(false)
   const avisoOfflineRef = useRef(0)
   const respostasRef = useRef<Record<string, RespostaVistoria>>({})
@@ -448,34 +453,55 @@ export default function VistoriaDetalhe() {
   // ordem), a alteração vai direto para a fila do aparelho.
   const deveGuardarNoAparelho = (item: ItemChecklist) => !navigator.onLine || !!pendencias[item.id]
 
-  const handleSituacaoChange = async (item: ItemChecklist, situacao: Situacao) => {
+  const handleSituacaoChange = (item: ItemChecklist, situacao: Situacao) => {
     if (!vistoria || travada) return
     if (deveGuardarNoAparelho(item)) {
-      await guardarNoAparelho(item, { situacao })
+      guardarNoAparelho(item, { situacao })
       return
     }
-    const existing = respostas[item.id]
-    try {
-      const updated = existing
-        ? await updateResposta(existing.id, { situacao })
-        : await createResposta({
-            vistoria_id: vistoria.id,
-            item_checklist_id: item.id,
-            situacao,
-            client_uuid: crypto.randomUUID(),
+    // Enfileira o envio em série: cada clique espera o anterior terminar, evitando
+    // POSTs simultâneos que estouram o rate limit do Skip Cloud (HTTP 429) e
+    // criam respostas duplicadas para o mesmo item.
+    setSalvandoItem((prev) => ({ ...prev, [item.id]: 'salvando' }))
+    filaEnvioRef.current = filaEnvioRef.current.then(async () => {
+      if (!vistoria) return
+      // Lê o ref — não o estado — para pegar o valor confirmado pelo servidor
+      // (evita criar duplicata quando dois cliques chegam antes do 1º POST voltar).
+      const existing = respostasRef.current[item.id]
+      try {
+        const updated = existing
+          ? await updateResposta(existing.id, { situacao })
+          : await createResposta({
+              vistoria_id: vistoria.id,
+              item_checklist_id: item.id,
+              situacao,
+              client_uuid: crypto.randomUUID(),
+            })
+        setRespostas((prev) => ({ ...prev, [item.id]: updated }))
+        setSalvandoItem((prev) => {
+          const n = { ...prev }
+          delete n[item.id]
+          return n
+        })
+        // O servidor passa a vistoria para "em andamento" na primeira resposta.
+        if (vistoria.status === 'agendada') {
+          setVistoria((prev) => (prev ? { ...prev, status: 'em_andamento' } : prev))
+        }
+      } catch (error) {
+        // 429 (rate limit) ou sem conexão: guardar no aparelho e tentar depois.
+        if (isErroTemporario(error)) {
+          await guardarNoAparelho(item, { situacao })
+          setSalvandoItem((prev) => {
+            const n = { ...prev }
+            delete n[item.id]
+            return n
           })
-      setRespostas((prev) => ({ ...prev, [item.id]: updated }))
-      // O servidor passa a vistoria para "em andamento" na primeira resposta.
-      if (vistoria.status === 'agendada') {
-        setVistoria((prev) => (prev ? { ...prev, status: 'em_andamento' } : prev))
+          return
+        }
+        setSalvandoItem((prev) => ({ ...prev, [item.id]: 'erro' }))
+        toast.error('Não foi possível salvar a resposta', { description: getErrorMessage(error) })
       }
-    } catch (error) {
-      if (isErroDeConexao(error)) {
-        await guardarNoAparelho(item, { situacao })
-        return
-      }
-      toast.error('Não foi possível salvar a resposta', { description: getErrorMessage(error) })
-    }
+    })
   }
 
   const handleIrregularesBlur = async (item: ItemChecklist, valor: string) => {
@@ -1811,10 +1837,16 @@ export default function VistoriaDetalhe() {
           <span>
             {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
             respondidos ({progressoPct}%)
+            {Object.keys(salvandoItem).length > 0 && (
+              <span className="ml-2 inline-flex items-center gap-1 text-muted-foreground">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Salvando…
+              </span>
+            )}
             {totalPendencias > 0 && (
               <span className="ml-2 inline-flex items-center gap-1 text-amber-700">
                 <CloudOff className="h-3 w-3" />
-                {totalPendencias} no aparelho
+                {totalPendencias} aguardando envio
               </span>
             )}
           </span>
@@ -2154,7 +2186,7 @@ export default function VistoriaDetalhe() {
                         </div>
                         <ToggleGroup
                           type="single"
-                          value={resposta?.situacao}
+                          value={resposta?.situacao ?? ''}
                           onValueChange={(v) => v && handleSituacaoChange(item, v as Situacao)}
                           disabled={travada}
                           className="grid w-full shrink-0 grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-1"

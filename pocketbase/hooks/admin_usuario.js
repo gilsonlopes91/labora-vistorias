@@ -75,7 +75,11 @@ routerAdd(
       if (['individual', 'equipe', 'escritorio', 'empresa'].indexOf(plano) < 0) {
         return e.badRequestError('plano inválido')
       }
-      const limite = parseInt(String(body.limite_usuarios || '0'), 10) || 0
+      // Limite padrão por plano; sobrescreve o que o front enviou para evitar erro de digitação.
+      let limite = parseInt(String(body.limite_usuarios || '0'), 10) || 0
+      if (plano === 'individual') limite = 0
+      else if (plano === 'equipe') limite = 3
+      else if (plano === 'escritorio') limite = 8
       const venc = body.vencimento ? String(body.vencimento) : ''
       org.set('plano', plano)
       org.set('limite_usuarios', limite)

@@ -5,7 +5,7 @@
    de um GHE do ambiente, ou os dois — ver src/lib/riscoFuncao.ts. Lista
    simples com diálogos de criação/edição, seguindo o mesmo padrão de
    OrcamentosTab. */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Building, Layers, Pencil, Plus, Trash2, Users2 } from 'lucide-react'
 
@@ -178,7 +178,9 @@ export function EstruturaSstTab({
 
   const abrirGhe = (g: Ghe | null) => {
     setGheEdit(g)
-    setFGhe(g ? { ...g } : { tipo_agrupamento: 'GHE' })
+    const novoF = g ? { ...g } : { tipo_agrupamento: 'GHE' }
+    setFGhe(novoF)
+    gheInicialRef.current = JSON.stringify(novoF)
     setGheDialog(true)
   }
   const salvarGhe = async () => {
@@ -217,10 +219,16 @@ export function EstruturaSstTab({
   const [funcaoEdit, setFuncaoEdit] = useState<FuncaoSst | null>(null)
   const [funcaoExcluir, setFuncaoExcluir] = useState<FuncaoSst | null>(null)
   const [fFuncao, setFFuncao] = useState<Partial<FuncaoSstInput>>({})
+  const gheInicialRef = useRef('')
+  const [gheDescartarDialog, setGheDescartarDialog] = useState(false)
+  const funcaoInicialRef = useRef('')
+  const [funcaoDescartarDialog, setFuncaoDescartarDialog] = useState(false)
 
   const abrirFuncao = (f: FuncaoSst | null) => {
     setFuncaoEdit(f)
-    setFFuncao(f ? { ...f } : {})
+    const novoF = f ? { ...f } : {}
+    setFFuncao(novoF)
+    funcaoInicialRef.current = JSON.stringify(novoF)
     setFuncaoDialog(true)
   }
   const salvarFuncao = async () => {
@@ -250,6 +258,17 @@ export function EstruturaSstTab({
     } catch (error) {
       toast.error('Não foi possível excluir', { description: getErrorMessage(error) })
     }
+  }
+
+  const sujoGhe = gheDialog && JSON.stringify(fGhe) !== gheInicialRef.current
+  const tentarFecharGhe = () => {
+    if (sujoGhe) setGheDescartarDialog(true)
+    else setGheDialog(false)
+  }
+  const sujoFuncao = funcaoDialog && JSON.stringify(fFuncao) !== funcaoInicialRef.current
+  const tentarFecharFuncao = () => {
+    if (sujoFuncao) setFuncaoDescartarDialog(true)
+    else setFuncaoDialog(false)
   }
 
   if (carregando) {
@@ -475,8 +494,8 @@ export function EstruturaSstTab({
       </Dialog>
 
       {/* Diálogo: GHE */}
-      <Dialog open={gheDialog} onOpenChange={setGheDialog}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <Dialog open={gheDialog} onOpenChange={(o) => { if (!o) tentarFecharGhe(); else setGheDialog(true) }}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{gheEdit ? 'Editar unidade' : 'Nova unidade de avaliação'}</DialogTitle>
           </DialogHeader>
@@ -609,7 +628,7 @@ export function EstruturaSstTab({
             </TabsContent>
           </Tabs>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGheDialog(false)}>
+            <Button variant="outline" onClick={tentarFecharGhe}>
               Cancelar
             </Button>
             <Button onClick={salvarGhe}>Salvar</Button>
@@ -618,8 +637,8 @@ export function EstruturaSstTab({
       </Dialog>
 
       {/* Diálogo: Função */}
-      <Dialog open={funcaoDialog} onOpenChange={setFuncaoDialog}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <Dialog open={funcaoDialog} onOpenChange={(o) => { if (!o) tentarFecharFuncao(); else setFuncaoDialog(true) }}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{funcaoEdit ? 'Editar função' : 'Nova função'}</DialogTitle>
           </DialogHeader>
@@ -711,13 +730,47 @@ export function EstruturaSstTab({
             </TabsContent>
           </Tabs>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFuncaoDialog(false)}>
+            <Button variant="outline" onClick={tentarFecharFuncao}>
               Cancelar
             </Button>
             <Button onClick={salvarFuncao}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={gheDescartarDialog} onOpenChange={setGheDescartarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações feitas no formulário não foram salvas e serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setGheDescartarDialog(false); setGheDialog(false) }}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={funcaoDescartarDialog} onOpenChange={setFuncaoDescartarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações feitas no formulário não foram salvas e serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setFuncaoDescartarDialog(false); setFuncaoDialog(false) }}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!setorExcluir} onOpenChange={(o) => !o && setSetorExcluir(null)}>
         <AlertDialogContent>

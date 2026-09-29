@@ -26,7 +26,7 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatarDataCalendario, formatLocalDate } from '@/lib/date'
 import { getMinhaOrganizacao, urlLogoOrganizacao } from '@/services/organizacoes'
 import { getModelosProposta, type ModeloProposta } from '@/services/modelosProposta'
-import { criarRecebimento } from '@/services/recebimentos'
+import { criarRecebimento, excluirRecebimento, getRecebimentos, type Recebimento } from '@/services/recebimentos'
 import { gerarPdfProposta, type PdfGerado } from '@/lib/propostaPdf'
 import {
   calcularIndicadores,
@@ -95,6 +95,9 @@ const VARIANTE_STATUS: Record<StatusOrcamento, 'default' | 'secondary' | 'destru
   concluido: 'default',
 }
 
+// Estados que abrem o Dialog de recebimento em vez de gravar direto.
+const FINANCEIRO_ABRE_DIALOG = new Set(['recebido', 'parcial', 'aguardando_pagamento', 'nao_faturado'])
+
 export function OrcamentosTab({
   empresaId,
   titulo = 'Gestão de orçamentos',
@@ -119,6 +122,8 @@ export function OrcamentosTab({
   const [valorRecebimento, setValorRecebimento] = useState('')
   const [formaRecebimento, setFormaRecebimento] = useState('PIX')
   const [dataRecebimento, setDataRecebimento] = useState('')
+  const [parcelasLancadas, setParcelasLancadas] = useState<Recebimento[]>([])
+  const [excluindoParcela, setExcluindoParcela] = useState<string | null>(null)
   const [gerandoPdf, setGerandoPdf] = useState('')
   // PDF aberto na tela (sem baixar); o download fica dentro da janela.
   const [pdfNaTela, setPdfNaTela] = useState<{ pdf: PdfGerado; titulo: string } | null>(null)
@@ -176,7 +181,30 @@ export function OrcamentosTab({
     }
   }
 
-  const trocarFinanceiro = async (orcamento: Orcamento, status_financeiro: StatusFinanceiro) => {
+  const abrirRecebimento = (orcamento: Orcamento, valorInicial?: number) => {
+    setParaReceber(orcamento)
+    const pendente = Math.max((orcamento.valor_total || 0) - (orcamento.valor_recebido || 0), 0)
+    setValorRecebimento(String(valorInicial !== undefined ? valorInicial : pendente || ''))
+    setDataRecebimento(formatLocalDate(new Date()))
+    setParcelasLancadas([])
+    getRecebimentos(orcamento.id)
+      .then(setParcelasLancadas)
+      .catch(() => {})
+  }
+
+  const trocarFinanceiro = async (orcamento: Orcamento, valor: string) => {
+    // Estados que derivam das parcelas de recebimento: abre o Dialog.
+    if (valor === 'recebido') {
+      const pendente = Math.max((orcamento.valor_total || 0) - (orcamento.valor_recebido || 0), 0)
+      abrirRecebimento(orcamento, pendente)
+      return
+    }
+    if (FINANCEIRO_ABRE_DIALOG.has(valor)) {
+      abrirRecebimento(orcamento, undefined)
+      return
+    }
+    // em_atraso e cancelado: gravar direto.
+    const status_financeiro = valor as StatusFinanceiro
     try {
       await updateOrcamento(orcamento.id, { status_financeiro })
       atualizarLocal(orcamento.id, { status_financeiro })
@@ -184,6 +212,19 @@ export function OrcamentosTab({
       toast.error('Não foi possível atualizar o financeiro', {
         description: getErrorMessage(error),
       })
+    }
+  }
+
+  const excluirParcela = async (parcelaId: string) => {
+    setExcluindoParcela(parcelaId)
+    try {
+      await excluirRecebimento(parcelaId)
+      setParcelasLancadas((l) => l.filter((p) => p.id !== parcelaId))
+      carregar()
+    } catch (error) {
+      toast.error('Não foi possível excluir a parcela', { description: getErrorMessage(error) })
+    } finally {
+      setExcluindoParcela(null)
     }
   }
 
@@ -268,6 +309,7 @@ export function OrcamentosTab({
       toast.success('Recebimento registrado')
       setParaReceber(null)
       setValorRecebimento('')
+      setParcelasLancadas([])
       carregar()
     } catch (error) {
       toast.error('Não foi possível registrar', { description: getErrorMessage(error) })
@@ -434,32 +476,21 @@ export function OrcamentosTab({
                     <div className="text-[11px] tabular-nums text-muted-foreground">
                       recebido {brl.format(recebido)}
                     </div>
-                    <div
-                      className={`text-[11px] tabular-nums ${estaEmAtraso(orcamento) ? 'font-semibold text-rose-700' : 'text-amber-700'}`}
+                    {/* Clicável: abre o dialog de recebimento direto */}
+                    <button
+                      type="button"
+                      className={`text-[11px] tabular-nums underline-offset-2 hover:underline ${estaEmAtraso(orcamento) ? 'font-semibold text-rose-700' : 'text-amber-700'}`}
+                      onClick={() => abrirRecebimento(orcamento)}
+                      title="Registrar recebimento"
                     >
                       {estaEmAtraso(orcamento) ? 'em atraso' : 'pendente'} {brl.format(pendente)}
-                    </div>
+                    </button>
                   </div>
 
                   <div className="flex flex-col gap-1">
                     <Select
-                      value={orcamento.status}
-                      onValueChange={(v) => trocarStatus(orcamento, v as StatusOrcamento)}
-                    >
-                      <SelectTrigger className="h-8 w-44 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_ORDEM.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {STATUS_LABEL[s]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
                       value={orcamento.status_financeiro || 'nao_faturado'}
-                      onValueChange={(v) => trocarFinanceiro(orcamento, v as StatusFinanceiro)}
+                      onValueChange={(v) => trocarFinanceiro(orcamento, v)}
                     >
                       <SelectTrigger className="h-8 w-44 text-xs">
                         <SelectValue />
@@ -468,6 +499,7 @@ export function OrcamentosTab({
                         {STATUS_FINANCEIRO_ORDEM.map((s) => (
                           <SelectItem key={s} value={s}>
                             {STATUS_FINANCEIRO_LABEL[s]}
+                            {FINANCEIRO_ABRE_DIALOG.has(s) ? ' →' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -502,11 +534,7 @@ export function OrcamentosTab({
                       variant="ghost"
                       size="icon"
                       title="Registrar recebimento"
-                      onClick={() => {
-                        setParaReceber(orcamento)
-                        setValorRecebimento(String(pendente || ''))
-                        setDataRecebimento(formatLocalDate(new Date()))
-                      }}
+                      onClick={() => abrirRecebimento(orcamento)}
                     >
                       <Wallet className="h-4 w-4" />
                     </Button>
@@ -588,8 +616,36 @@ export function OrcamentosTab({
               {paraReceber?.numero} · {brl.format(paraReceber?.valor_total || 0)} no total, com{' '}
               {brl.format(paraReceber?.valor_recebido || 0)} já recebido.
             </p>
+
+            {parcelasLancadas.length > 0 && (
+              <div className="rounded-md border bg-muted/30 p-3">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Parcelas lançadas</p>
+                <div className="space-y-1">
+                  {parcelasLancadas.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2">
+                      <span className="text-xs">
+                        {brl.format(p.valor)}
+                        {p.data_recebimento ? ` · ${formatarData(p.data_recebimento)}` : ''}
+                        {p.forma_pagamento ? ` · ${p.forma_pagamento}` : ''}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        disabled={excluindoParcela === p.id}
+                        onClick={() => excluirParcela(p.id)}
+                        title="Excluir esta parcela"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
-              <Label htmlFor="valorrec">Valor recebido agora</Label>
+              <Label htmlFor="valorrec">Novo valor recebido</Label>
               <Input
                 id="valorrec"
                 type="number"
@@ -624,9 +680,14 @@ export function OrcamentosTab({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setParaReceber(null)}>
-              Cancelar
+              Fechar
             </Button>
-            <Button onClick={registrarRecebimento}>Registrar</Button>
+            <Button
+              onClick={registrarRecebimento}
+              disabled={!valorRecebimento || Number(valorRecebimento) <= 0}
+            >
+              Registrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

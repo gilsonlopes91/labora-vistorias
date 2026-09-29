@@ -263,8 +263,9 @@ export default function Equipe() {
             {vagas && vagas.limite > 0 && (
               <>
                 {' '}
-                Vagas do plano {vagas.plano}: {Math.max(membros.length - 1, 0)} de {vagas.limite} em
-                uso.
+                Plano {vagas.plano}: {Math.max(membros.length - 1, 0)} de {vagas.limite}{' '}
+                {vagas.limite === 1 ? 'vaga adicional' : 'vagas adicionais'} em uso (titular não
+                conta).
               </>
             )}
           </CardDescription>
