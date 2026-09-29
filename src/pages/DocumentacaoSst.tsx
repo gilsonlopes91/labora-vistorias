@@ -9,9 +9,8 @@ import { DocumentacaoComoFunciona } from '@/components/DocumentacaoComoFunciona'
 import { LevantamentoSstTab } from '@/components/LevantamentoSstTab'
 import { CatalogoAgentesTab } from '@/components/CatalogoAgentesTab'
 import { CatalogoEpisTab } from '@/components/CatalogoEpisTab'
-import { MatrizesRiscoTab } from '@/components/MatrizesRiscoTab'
 
-const ABAS = ['levantamento', 'catalogo', 'epis', 'matrizes', 'como-funciona'] as const
+const ABAS = ['levantamento', 'catalogo', 'epis', 'como-funciona'] as const
 type Aba = (typeof ABAS)[number]
 
 export default function DocumentacaoSst() {
@@ -39,7 +38,6 @@ export default function DocumentacaoSst() {
           <TabsTrigger value="levantamento">Levantamento</TabsTrigger>
           <TabsTrigger value="catalogo">Catálogo de agentes</TabsTrigger>
           <TabsTrigger value="epis">Catálogo de EPIs</TabsTrigger>
-          <TabsTrigger value="matrizes">Matrizes de risco</TabsTrigger>
           <TabsTrigger value="como-funciona">Como funciona</TabsTrigger>
         </TabsList>
 
@@ -51,9 +49,6 @@ export default function DocumentacaoSst() {
         </TabsContent>
         <TabsContent value="epis" className="mt-0 focus-visible:outline-none">
           <CatalogoEpisTab />
-        </TabsContent>
-        <TabsContent value="matrizes" className="mt-0 focus-visible:outline-none">
-          <MatrizesRiscoTab />
         </TabsContent>
         <TabsContent value="como-funciona" className="mt-0 focus-visible:outline-none">
           <DocumentacaoComoFunciona />

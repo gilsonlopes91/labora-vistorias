@@ -43,7 +43,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-const SUBS = ['planejamento', 'estrutura', 'plano', 'documentos'] as const
+const SUBS = ['planejamento', 'ambiente', 'ghe', 'funcao', 'plano', 'documentos'] as const
 type Sub = (typeof SUBS)[number]
 
 interface SaudeCadastro {
@@ -444,12 +444,14 @@ export function LevantamentoSstTab() {
           <PainelSaude saude={saude} />
 
           <Tabs value={sub} onValueChange={(v) => mudarParam('sub', v)} className="space-y-6">
-            <TabsList className="flex-wrap h-auto">
+            <TabsList>
               <TabsTrigger value="planejamento">
                 <HardHat className="mr-2 h-4 w-4 opacity-70" />
                 Planejamento
               </TabsTrigger>
-              <TabsTrigger value="estrutura">Estrutura SST</TabsTrigger>
+              <TabsTrigger value="ambiente">Ambiente</TabsTrigger>
+              <TabsTrigger value="ghe">GHE</TabsTrigger>
+              <TabsTrigger value="funcao">Função</TabsTrigger>
               <TabsTrigger value="plano">
                 Plano de ação
                 {saude.acoesPendentes > 0 && (
@@ -463,8 +465,14 @@ export function LevantamentoSstTab() {
             <TabsContent value="planejamento" className="mt-0 focus-visible:outline-none">
               <PlanejamentoPgrTab key={empresaId} empresaId={empresaId} />
             </TabsContent>
-            <TabsContent value="estrutura" className="mt-0 focus-visible:outline-none">
-              <EstruturaSstTab key={empresaId} empresaId={empresaId} />
+            <TabsContent value="ambiente" className="mt-0 focus-visible:outline-none">
+              <EstruturaSstTab key={empresaId} empresaId={empresaId} secao="ambientes" />
+            </TabsContent>
+            <TabsContent value="ghe" className="mt-0 focus-visible:outline-none">
+              <EstruturaSstTab key={empresaId} empresaId={empresaId} secao="ghes" />
+            </TabsContent>
+            <TabsContent value="funcao" className="mt-0 focus-visible:outline-none">
+              <EstruturaSstTab key={empresaId} empresaId={empresaId} secao="funcoes" />
             </TabsContent>
             <TabsContent value="plano" className="mt-0 focus-visible:outline-none">
               <PlanoAcaoTab key={empresaId} empresaId={empresaId} />

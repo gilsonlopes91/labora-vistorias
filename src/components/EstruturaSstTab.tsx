@@ -97,7 +97,13 @@ function Secao({
   )
 }
 
-export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
+export function EstruturaSstTab({
+  empresaId,
+  secao,
+}: {
+  empresaId: string
+  secao: 'ambientes' | 'ghes' | 'funcoes'
+}) {
   const { user } = useAuth()
   const organizacaoId = (user?.organizacao_id as string) || ''
 
@@ -251,14 +257,8 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
   }
 
   return (
-    <Tabs defaultValue="ambientes" className="space-y-4">
-      <TabsList className="flex-wrap h-auto">
-        <TabsTrigger value="ambientes">Ambientes ({setores.length})</TabsTrigger>
-        <TabsTrigger value="ghes">GHEs ({ghes.length})</TabsTrigger>
-        <TabsTrigger value="funcoes">Funções ({funcoes.length})</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="ambientes" className="mt-0 space-y-6 focus-visible:outline-none">
+    <div className="space-y-6">
+      {secao === 'ambientes' && (
         <Secao
           titulo={`Setores (${setores.length})`}
           icone={Building}
@@ -299,9 +299,9 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
             </div>
           )}
         </Secao>
-      </TabsContent>
+      )}
 
-      <TabsContent value="ghes" className="mt-0 space-y-6 focus-visible:outline-none">
+      {secao === 'ghes' && (
         <Secao
           titulo={`Unidades de avaliação (${ghes.length})`}
           icone={Layers}
@@ -355,9 +355,9 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
             </div>
           )}
         </Secao>
-      </TabsContent>
+      )}
 
-      <TabsContent value="funcoes" className="mt-0 space-y-6 focus-visible:outline-none">
+      {secao === 'funcoes' && (
         <Secao
           titulo={`Funções (${funcoes.length})`}
           icone={Users2}
@@ -397,7 +397,7 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
             </div>
           )}
         </Secao>
-      </TabsContent>
+      )}
 
       {/* Diálogo: Setor */}
       <Dialog open={setorDialog} onOpenChange={setSetorDialog}>
@@ -765,7 +765,7 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Tabs>
+    </div>
   )
 }
 

@@ -11,6 +11,7 @@ import { ClipboardList } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresa, updateEmpresa, type Empresa } from '@/services/empresas'
+import { MatrizesRiscoTab } from '@/components/MatrizesRiscoTab'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Scale } from 'lucide-react'
 
 const MODOS_ORGANIZACAO = ['GHE/GES', 'Atividade, posto, função ou setor', 'Misto'] as const
 
@@ -31,6 +34,7 @@ export function PlanejamentoPgrTab({ empresaId }: { empresaId: string }) {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [f, setF] = useState<Partial<Empresa>>({})
+  const [verMatriz, setVerMatriz] = useState(false)
 
   useEffect(() => {
     setCarregando(true)
@@ -175,6 +179,13 @@ export function PlanejamentoPgrTab({ empresaId }: { empresaId: string }) {
         </div>
 
         <div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setVerMatriz(true)}>
+            <Scale className="mr-1.5 h-3.5 w-3.5" />
+            Ver critérios da matriz
+          </Button>
+        </div>
+
+        <div>
           <Label>Participantes do levantamento</Label>
           <Textarea
             className="mt-1.5"
@@ -199,6 +210,15 @@ export function PlanejamentoPgrTab({ empresaId }: { empresaId: string }) {
           </Button>
         </div>
       </CardContent>
+
+      <Dialog open={verMatriz} onOpenChange={setVerMatriz}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Critérios da matriz de risco</DialogTitle>
+          </DialogHeader>
+          <MatrizesRiscoTab />
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
