@@ -26,7 +26,6 @@ import { getFuncoesSst } from '@/services/funcoesSst'
 import { getAcoesPlano } from '@/services/acoesPlano'
 import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
 import { EstruturaSstTab } from '@/components/EstruturaSstTab'
-import { InventarioRiscosTab } from '@/components/InventarioRiscosTab'
 import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 import { PlanejamentoPgrTab } from '@/components/PlanejamentoPgrTab'
 import { DocumentosSstTab } from '@/components/DocumentosSstTab'
@@ -44,7 +43,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-const SUBS = ['planejamento', 'estrutura', 'inventario', 'plano', 'documentos'] as const
+const SUBS = ['planejamento', 'estrutura', 'plano', 'documentos'] as const
 type Sub = (typeof SUBS)[number]
 
 interface SaudeCadastro {
@@ -451,7 +450,6 @@ export function LevantamentoSstTab() {
                 Planejamento
               </TabsTrigger>
               <TabsTrigger value="estrutura">Estrutura SST</TabsTrigger>
-              <TabsTrigger value="inventario">Inventário de riscos</TabsTrigger>
               <TabsTrigger value="plano">
                 Plano de ação
                 {saude.acoesPendentes > 0 && (
@@ -467,9 +465,6 @@ export function LevantamentoSstTab() {
             </TabsContent>
             <TabsContent value="estrutura" className="mt-0 focus-visible:outline-none">
               <EstruturaSstTab key={empresaId} empresaId={empresaId} />
-            </TabsContent>
-            <TabsContent value="inventario" className="mt-0 focus-visible:outline-none">
-              <InventarioRiscosTab key={empresaId} empresaId={empresaId} />
             </TabsContent>
             <TabsContent value="plano" className="mt-0 focus-visible:outline-none">
               <PlanoAcaoTab key={empresaId} empresaId={empresaId} />

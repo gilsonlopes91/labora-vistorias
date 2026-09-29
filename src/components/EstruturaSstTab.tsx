@@ -36,6 +36,7 @@ import {
   type FuncaoSst,
   type FuncaoSstInput,
 } from '@/services/funcoesSst'
+import { RiscosOcupacionaisPainel } from '@/components/RiscosOcupacionaisPainel'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -475,117 +476,138 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
 
       {/* Diálogo: GHE */}
       <Dialog open={gheDialog} onOpenChange={setGheDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{gheEdit ? 'Editar unidade' : 'Nova unidade de avaliação'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Tipo de agrupamento</Label>
-              <Select
-                value={fGhe.tipo_agrupamento || 'GHE'}
-                onValueChange={(v) =>
-                  setFGhe((s) => ({ ...s, tipo_agrupamento: v as Ghe['tipo_agrupamento'] }))
-                }
-              >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_AGRUPAMENTO.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                GHE/GES é a ferramenta da NR-09; as demais opções (NR-1, 13.3.1) evitam criar um GHE
-                quando a atividade, o posto, a função ou o setor já bastam para descrever a
-                exposição.
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Código</Label>
-                <Input
-                  className="mt-1.5"
-                  value={fGhe.codigo || ''}
-                  onChange={(e) => setFGhe((v) => ({ ...v, codigo: e.target.value }))}
-                />
+          <Tabs defaultValue="dados-gerais" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="dados-gerais">Dados Gerais</TabsTrigger>
+              <TabsTrigger value="riscos">Riscos Ocupacionais</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dados-gerais" className="mt-0 focus-visible:outline-none">
+              <div className="space-y-3">
+                <div>
+                  <Label>Tipo de agrupamento</Label>
+                  <Select
+                    value={fGhe.tipo_agrupamento || 'GHE'}
+                    onValueChange={(v) =>
+                      setFGhe((s) => ({ ...s, tipo_agrupamento: v as Ghe['tipo_agrupamento'] }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_AGRUPAMENTO.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    GHE/GES é a ferramenta da NR-09; as demais opções (NR-1, 13.3.1) evitam criar um
+                    GHE quando a atividade, o posto, a função ou o setor já bastam para descrever a
+                    exposição.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Código</Label>
+                    <Input
+                      className="mt-1.5"
+                      value={fGhe.codigo || ''}
+                      onChange={(e) => setFGhe((v) => ({ ...v, codigo: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Nome</Label>
+                    <Input
+                      className="mt-1.5"
+                      value={fGhe.nome || ''}
+                      onChange={(e) => setFGhe((v) => ({ ...v, nome: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Setor</Label>
+                  <Select
+                    value={fGhe.setor_id || '__nenhum'}
+                    onValueChange={(v) =>
+                      setFGhe((s) => ({ ...s, setor_id: v === '__nenhum' ? undefined : v }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhum">Sem setor vinculado</SelectItem>
+                      {setores.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Nº de expostos</Label>
+                    <Input
+                      className="mt-1.5"
+                      type="number"
+                      value={fGhe.numero_expostos ?? ''}
+                      onChange={(e) =>
+                        setFGhe((v) => ({
+                          ...v,
+                          numero_expostos: Number(e.target.value) || undefined,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Turno</Label>
+                    <Input
+                      className="mt-1.5"
+                      value={fGhe.turno || ''}
+                      onChange={(e) => setFGhe((v) => ({ ...v, turno: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Critério de agrupamento</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    placeholder="Por que estes trabalhadores foram agrupados: mesma função, mesmo posto, mesma exposição..."
+                    value={fGhe.criterio_agrupamento || ''}
+                    onChange={(e) =>
+                      setFGhe((v) => ({ ...v, criterio_agrupamento: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Descrição das atividades</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    value={fGhe.descricao_atividades || ''}
+                    onChange={(e) =>
+                      setFGhe((v) => ({ ...v, descricao_atividades: e.target.value }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="col-span-2">
-                <Label>Nome</Label>
-                <Input
-                  className="mt-1.5"
-                  value={fGhe.nome || ''}
-                  onChange={(e) => setFGhe((v) => ({ ...v, nome: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Setor</Label>
-              <Select
-                value={fGhe.setor_id || '__nenhum'}
-                onValueChange={(v) =>
-                  setFGhe((s) => ({ ...s, setor_id: v === '__nenhum' ? undefined : v }))
-                }
-              >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__nenhum">Sem setor vinculado</SelectItem>
-                  {setores.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Nº de expostos</Label>
-                <Input
-                  className="mt-1.5"
-                  type="number"
-                  value={fGhe.numero_expostos ?? ''}
-                  onChange={(e) =>
-                    setFGhe((v) => ({
-                      ...v,
-                      numero_expostos: Number(e.target.value) || undefined,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Turno</Label>
-                <Input
-                  className="mt-1.5"
-                  value={fGhe.turno || ''}
-                  onChange={(e) => setFGhe((v) => ({ ...v, turno: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Critério de agrupamento</Label>
-              <Textarea
-                className="mt-1.5"
-                placeholder="Por que estes trabalhadores foram agrupados: mesma função, mesmo posto, mesma exposição..."
-                value={fGhe.criterio_agrupamento || ''}
-                onChange={(e) => setFGhe((v) => ({ ...v, criterio_agrupamento: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Descrição das atividades</Label>
-              <Textarea
-                className="mt-1.5"
-                value={fGhe.descricao_atividades || ''}
-                onChange={(e) => setFGhe((v) => ({ ...v, descricao_atividades: e.target.value }))}
-              />
-            </div>
-          </div>
+            </TabsContent>
+            <TabsContent value="riscos" className="mt-0 focus-visible:outline-none">
+              {gheEdit ? (
+                <RiscosOcupacionaisPainel empresaId={empresaId} gheId={gheEdit.id} />
+              ) : (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Salve a unidade primeiro para adicionar riscos.
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGheDialog(false)}>
               Cancelar
@@ -597,79 +619,97 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
 
       {/* Diálogo: Função */}
       <Dialog open={funcaoDialog} onOpenChange={setFuncaoDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{funcaoEdit ? 'Editar função' : 'Nova função'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Nome da função</Label>
-              <Input
-                className="mt-1.5"
-                value={fFuncao.nome || ''}
-                onChange={(e) => setFFuncao((v) => ({ ...v, nome: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>GHE (opcional)</Label>
-              <Select
-                value={fFuncao.ghe_id || '__nenhum'}
-                onValueChange={(v) =>
-                  setFFuncao((s) => ({ ...s, ghe_id: v === '__nenhum' ? undefined : v }))
-                }
-              >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Sem GHE — só risco direto do cargo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__nenhum">Nenhum (risco direto do cargo)</SelectItem>
-                  {ghes.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Sem GHE, a função entra na aba Inventário de riscos vinculando as avaliações
-                diretamente a ela.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>CBO</Label>
-                <Input
-                  className="mt-1.5"
-                  value={fFuncao.cbo || ''}
-                  onChange={(e) => setFFuncao((v) => ({ ...v, cbo: e.target.value }))}
-                />
+          <Tabs defaultValue="dados-gerais" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="dados-gerais">Dados Gerais</TabsTrigger>
+              <TabsTrigger value="riscos">Riscos Ocupacionais</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dados-gerais" className="mt-0 focus-visible:outline-none">
+              <div className="space-y-3">
+                <div>
+                  <Label>Nome da função</Label>
+                  <Input
+                    className="mt-1.5"
+                    value={fFuncao.nome || ''}
+                    onChange={(e) => setFFuncao((v) => ({ ...v, nome: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>GHE (opcional)</Label>
+                  <Select
+                    value={fFuncao.ghe_id || '__nenhum'}
+                    onValueChange={(v) =>
+                      setFFuncao((s) => ({ ...s, ghe_id: v === '__nenhum' ? undefined : v }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Sem GHE — só risco direto do cargo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhum">Nenhum (risco direto do cargo)</SelectItem>
+                      {ghes.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ao selecionar um GHE, esta função herdará automaticamente todos os riscos
+                    associados a ele. Sem GHE, os riscos cadastrados na aba "Riscos Ocupacionais"
+                    ficam vinculados diretamente à função.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>CBO</Label>
+                    <Input
+                      className="mt-1.5"
+                      value={fFuncao.cbo || ''}
+                      onChange={(e) => setFFuncao((v) => ({ ...v, cbo: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Nº de empregados</Label>
+                    <Input
+                      className="mt-1.5"
+                      type="number"
+                      value={fFuncao.numero_empregados ?? ''}
+                      onChange={(e) =>
+                        setFFuncao((v) => ({
+                          ...v,
+                          numero_empregados: Number(e.target.value) || undefined,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Descrição das atividades</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    value={fFuncao.descricao_atividades || ''}
+                    onChange={(e) =>
+                      setFFuncao((v) => ({ ...v, descricao_atividades: e.target.value }))
+                    }
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Nº de empregados</Label>
-                <Input
-                  className="mt-1.5"
-                  type="number"
-                  value={fFuncao.numero_empregados ?? ''}
-                  onChange={(e) =>
-                    setFFuncao((v) => ({
-                      ...v,
-                      numero_empregados: Number(e.target.value) || undefined,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Descrição das atividades</Label>
-              <Textarea
-                className="mt-1.5"
-                value={fFuncao.descricao_atividades || ''}
-                onChange={(e) =>
-                  setFFuncao((v) => ({ ...v, descricao_atividades: e.target.value }))
-                }
-              />
-            </div>
-          </div>
+            </TabsContent>
+            <TabsContent value="riscos" className="mt-0 focus-visible:outline-none">
+              {funcaoEdit ? (
+                <RiscosOcupacionaisPainel empresaId={empresaId} funcaoId={funcaoEdit.id} />
+              ) : (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Salve a função primeiro para adicionar riscos.
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFuncaoDialog(false)}>
               Cancelar

@@ -1,20 +1,19 @@
-/* Inventário de riscos: uma linha por unidade x perigo/agente, onde a
-   unidade é um GHE (risco ambiental) OU uma função direta (risco próprio do
-   cargo, Ponto 1 do plano — GHE deixa de ser obrigatório). Permite escolher
-   a dimensão da matriz (3x3 ou 5x5, metodologia AIHA) e mostra, para cada
-   avaliação, a sugestão de P/S calculada a partir do dado bruto e a célula
-   resultante (categoria, cor, ação, prazo) — o técnico confirma ou ajusta.
-   Ver src/lib/matrizRisco.ts para a lógica de conversão e
-   src/lib/riscoFuncao.ts para o cálculo do risco efetivo por função. */
+/* Painel de "Riscos Ocupacionais" embutido no diálogo de uma Função ou de um
+   GHE (Estrutura SST) — extraído de InventarioRiscosTab.tsx para eliminar a
+   navegação em separado: o técnico já está dentro do contexto (a função ou
+   o GHE que está editando), então o formulário de avaliação de risco não
+   precisa mais perguntar "qual unidade" — ela já é dada por `funcaoId` ou
+   `gheId` (mutuamente exclusivos). Toda a lógica de cálculo (matriz,
+   sugestão de P/S, insalubridade/periculosidade) é a mesma de
+   InventarioRiscosTab.tsx — só a navegação/layout mudou (lista em cards,
+   sem seletor de unidade). */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Pencil, Plus, ShieldAlert, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
-import { getGhes, type Ghe } from '@/services/ghes'
-import { getFuncoesSst, type FuncaoSst } from '@/services/funcoesSst'
 import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
 import { getMatrizOficial, type MatrizRisco } from '@/services/matrizesRisco'
 import {
@@ -131,12 +130,30 @@ const CATEGORIA_AIHA_LABEL: Record<string, string> = {
   '4': '4 — > 500% do LEO',
 }
 
-export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
+/** Percentual entre parênteses de um rótulo tipo "Máximo (40%)" -> "40%". */
+function percentualDoRotulo(rotulo?: string): string | null {
+  if (!rotulo) return null
+  const m = rotulo.match(/\((\d+%)\)/)
+  return m ? m[1] : null
+}
+
+interface RiscosOcupacionaisPainelProps {
+  empresaId: string
+  /** Informe exatamente um dos dois: a função OU o GHE sendo editado. */
+  funcaoId?: string
+  gheId?: string
+}
+
+export function RiscosOcupacionaisPainel({
+  empresaId,
+  funcaoId,
+  gheId,
+}: RiscosOcupacionaisPainelProps) {
+  void empresaId
   const { user } = useAuth()
   const organizacaoId = (user?.organizacao_id as string) || ''
+  const contextoBadge = funcaoId ? 'Específico da Função' : 'Geral'
 
-  const [ghes, setGhes] = useState<Ghe[]>([])
-  const [funcoes, setFuncoes] = useState<FuncaoSst[]>([])
   const [agentes, setAgentes] = useState<AgenteCatalogo[]>([])
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoRisco[]>([])
   const [dimensao, setDimensao] = useState<Dimensao>(5)
@@ -144,29 +161,22 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   const [matriz, setMatriz] = useState<MatrizRisco | null>(null)
   const [carregando, setCarregando] = useState(true)
 
-  const carregarBase = () =>
-    Promise.all([getGhes(empresaId), getFuncoesSst(empresaId), getAgentesCatalogo()]).then(
-      ([g, fs, a]) => {
-        setGhes(g)
-        setFuncoes(fs)
-        setAgentes(a)
-        return getAvaliacoesRiscoDaEmpresa(
-          g.map((x) => x.id),
-          fs.map((x) => x.id),
-        ).then(setAvaliacoes)
-      },
+  const recarregarAvaliacoes = () =>
+    getAvaliacoesRiscoDaEmpresa(gheId ? [gheId] : [], funcaoId ? [funcaoId] : []).then(
+      setAvaliacoes,
     )
 
   useEffect(() => {
-    carregarBase()
+    Promise.all([getAgentesCatalogo(), recarregarAvaliacoes()])
+      .then(([a]) => setAgentes(a))
       .catch((error) =>
-        toast.error('Não foi possível carregar o inventário', {
+        toast.error('Não foi possível carregar os riscos', {
           description: getErrorMessage(error),
         }),
       )
       .finally(() => setCarregando(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresaId])
+  }, [funcaoId, gheId])
 
   useEffect(() => {
     getMatrizOficial(dimensao, metodologia)
@@ -177,12 +187,6 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
         }),
       )
   }, [dimensao, metodologia])
-
-  const recarregarAvaliacoes = () =>
-    getAvaliacoesRiscoDaEmpresa(
-      ghes.map((g) => g.id),
-      funcoes.map((f) => f.id),
-    ).then(setAvaliacoes)
 
   // ---- Diálogo de avaliação ----
   const [dialogAberto, setDialogAberto] = useState(false)
@@ -294,11 +298,11 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   }, [f, dimensao, matriz])
 
   const salvar = async () => {
-    if (!f.ghe_id && !f.funcao_id)
-      return toast.error('Selecione um GHE ou uma função para vincular a avaliação')
     if (!f.trilha_probabilidade) return toast.error('Selecione a trilha de probabilidade')
     const dados: Partial<AvaliacaoRiscoInput> = {
       ...f,
+      ghe_id: gheId || undefined,
+      funcao_id: funcaoId || undefined,
       probabilidade_sugerida: sugestao.p ?? undefined,
       severidade_sugerida: sugestao.s ?? undefined,
       probabilidade_final: f.probabilidade_final ?? sugestao.p ?? undefined,
@@ -312,11 +316,11 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
           organizacao_id: organizacaoId,
           ativo: true,
         } as AvaliacaoRiscoInput)
-      toast.success('Avaliação salva')
+      toast.success('Risco salvo')
       setDialogAberto(false)
       recarregarAvaliacoes()
     } catch (error) {
-      toast.error('Não foi possível salvar a avaliação', { description: getErrorMessage(error) })
+      toast.error('Não foi possível salvar o risco', { description: getErrorMessage(error) })
     }
   }
 
@@ -324,7 +328,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
     if (!paraExcluir) return
     try {
       await deleteAvaliacaoRisco(paraExcluir.id)
-      toast.success('Avaliação removida')
+      toast.success('Risco removido')
       setParaExcluir(null)
       recarregarAvaliacoes()
     } catch (error) {
@@ -333,21 +337,16 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   }
 
   if (carregando) {
-    return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
+    return <div className="py-10 text-center text-sm text-muted-foreground">Carregando...</div>
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold">Inventário de riscos ({avaliacoes.length})</h3>
-          <p className="text-sm text-muted-foreground">
-            Cada linha é um GHE avaliado para um agente/perigo. A matriz escolhida abaixo é só de
-            visualização aqui — a matriz usada no PGR emitido é escolhida no documento.
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Cadastre os riscos baseados no Catálogo Mestre.
+        </p>
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground">Metodologia</Label>
           <Select
             value={metodologia}
             onValueChange={(v) => {
@@ -355,7 +354,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               if (v === 'ISO45002') setDimensao(5)
             }}
           >
-            <SelectTrigger className="w-56">
+            <SelectTrigger className="h-8 w-48 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -366,12 +365,11 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               ))}
             </SelectContent>
           </Select>
-          <Label className="text-xs text-muted-foreground">Dimensão</Label>
           <Select
             value={String(dimensao)}
             onValueChange={(v) => setDimensao(Number(v) as Dimensao)}
           >
-            <SelectTrigger className="w-28">
+            <SelectTrigger className="h-8 w-20 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -381,138 +379,116 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               </SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            size="sm"
-            disabled={ghes.length === 0 && funcoes.length === 0}
-            onClick={() => abrir(null)}
-          >
+          <Button type="button" size="sm" onClick={() => abrir(null)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nova avaliação
+            Adicionar Risco
           </Button>
         </div>
       </div>
 
-      {ghes.length === 0 && funcoes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Cadastre pelo menos um GHE (atividade, posto, função ou setor) ou uma função na aba
-          "Estrutura SST" antes de iniciar o inventário.
-        </p>
-      ) : avaliacoes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
-          <ListChecks className="mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Nenhuma avaliação de risco ainda.</p>
+      {avaliacoes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-10 text-center">
+          <ShieldAlert className="mb-3 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Nenhum risco cadastrado ainda.</p>
         </div>
       ) : (
-        <Card className="overflow-hidden">
-          <div className="divide-y">
-            {avaliacoes.map((a) => {
-              const p = a.probabilidade_final ?? a.probabilidade_sugerida
-              const s = a.severidade_final ?? a.severidade_sugerida
-              const celula = matriz && p != null && s != null ? resolverCelula(matriz, p, s) : null
-              return (
-                <div key={a.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
+        <div className="space-y-2">
+          {avaliacoes.map((a) => {
+            const p = a.probabilidade_final ?? a.probabilidade_sugerida
+            const s = a.severidade_final ?? a.severidade_sugerida
+            const celula = matriz && p != null && s != null ? resolverCelula(matriz, p, s) : null
+            const celulaDados =
+              matriz && p != null && s != null
+                ? matriz.celulas.find((c) => c.p === p && c.s === s)
+                : null
+            const percentualInsalubridade = percentualDoRotulo(a.insalubridade_final)
+            return (
+              <Card key={a.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px]">
+                        {contextoBadge}
+                      </Badge>
                       <span className="font-medium">
-                        {a.perigo_descricao || a.expand?.agente_id?.nome || 'Perigo sem descrição'}
+                        {a.expand?.agente_id?.nome || 'Agente não informado'}
                       </span>
-                      {a.expand?.agente_id?.tipo && (
+                      {a.frequencia_exposicao && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          {a.frequencia_exposicao}
+                        </Badge>
+                      )}
+                      {celula && p != null && s != null && (
+                        <Badge style={{ backgroundColor: celula.cor, color: '#fff' }}>
+                          {celulaDados?.pontuacao ?? p * s} - {celula.categoria} (P:{p} x S:{s})
+                        </Badge>
+                      )}
+                      {a.trilha_probabilidade === 'Quantitativa (medição)' && (
                         <Badge variant="outline" className="text-[10px]">
-                          {a.expand.agente_id.tipo}
+                          Quantitativo
+                        </Badge>
+                      )}
+                      {(a.trilha_probabilidade === 'Qualitativa (controle)' ||
+                        a.trilha_probabilidade === 'Acidente/mecânico') && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Qualitativo
+                        </Badge>
+                      )}
+                      {a.insalubridade_final && a.insalubridade_final !== 'Não caracteriza' && (
+                        <Badge variant="outline" className="text-[10px] text-amber-700">
+                          Insalubridade: Sim
+                          {percentualInsalubridade ? ` – ${percentualInsalubridade}` : ''}
+                        </Badge>
+                      )}
+                      {a.periculosidade_final && (
+                        <Badge variant="outline" className="text-[10px] text-red-700">
+                          Periculosidade
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {a.ghe_id
-                        ? a.expand?.ghe_id?.nome || 'GHE removido'
-                        : a.funcao_id
-                          ? `${a.expand?.funcao_id?.nome || 'Função removida'} (direto)`
-                          : 'sem vínculo'}{' '}
-                      · {a.trilha_probabilidade}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {celula ? (
-                      <Badge style={{ backgroundColor: celula.cor, color: '#fff' }}>
-                        P{p} × S{s} — {celula.categoria}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">sem P/S</Badge>
+                    {(a.perigo_descricao || a.expand?.agente_id?.nome) && (
+                      <p className="text-sm text-muted-foreground">{a.perigo_descricao}</p>
                     )}
-                    <div className="flex gap-0.5">
-                      <Button variant="ghost" size="icon" onClick={() => abrir(a)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setParaExcluir(a)}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </div>
+                    {a.fonte_geradora && (
+                      <p className="text-xs text-muted-foreground">Fonte: {a.fonte_geradora}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    <Button variant="ghost" size="icon" onClick={() => abrir(a)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setParaExcluir(a)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        </Card>
+              </Card>
+            )
+          })}
+        </div>
       )}
 
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{emEdicao ? 'Editar avaliação' : 'Nova avaliação de risco'}</DialogTitle>
+            <DialogTitle>{emEdicao ? 'Editar risco' : 'Adicionar risco'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Unidade de avaliação</Label>
-                <Select
-                  value={f.ghe_id ? `ghe:${f.ghe_id}` : f.funcao_id ? `funcao:${f.funcao_id}` : ''}
-                  onValueChange={(v) => {
-                    const [tipo, id] = v.split(':')
-                    setF((s) => ({
-                      ...s,
-                      ghe_id: tipo === 'ghe' ? id : undefined,
-                      funcao_id: tipo === 'funcao' ? id : undefined,
-                    }))
-                  }}
-                >
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Selecione um GHE ou uma função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ghes.map((g) => (
-                      <SelectItem key={`ghe:${g.id}`} value={`ghe:${g.id}`}>
-                        [{g.tipo_agrupamento || 'GHE'}] {g.nome}
-                      </SelectItem>
-                    ))}
-                    {funcoes.map((fn) => (
-                      <SelectItem key={`funcao:${fn.id}`} value={`funcao:${fn.id}`}>
-                        [Função — risco direto] {fn.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Escolha um GHE para um risco ambiental (afeta todo mundo exposto), ou uma função
-                  diretamente para um risco próprio do cargo (ex.: um risco mecânico específico de
-                  um operador, diferente do resto do ambiente).
-                </p>
-              </div>
-              <div>
-                <Label>Agente do catálogo</Label>
-                <Select value={f.agente_id || '__nenhum'} onValueChange={escolherAgente}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Sem agente (perigo avulso)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__nenhum">Sem agente (perigo avulso)</SelectItem>
-                    {agentes.map((ag) => (
-                      <SelectItem key={ag.id} value={ag.id}>
-                        {ag.tipo} — {ag.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label>Agente do catálogo</Label>
+              <Select value={f.agente_id || '__nenhum'} onValueChange={escolherAgente}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Sem agente (perigo avulso)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__nenhum">Sem agente (perigo avulso)</SelectItem>
+                  {agentes.map((ag) => (
+                    <SelectItem key={ag.id} value={ag.id}>
+                      {ag.tipo} — {ag.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -708,7 +684,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
 
                   {!emEdicao ? (
                     <p className="text-xs text-muted-foreground">
-                      Salve a avaliação para poder lançar medições de campo.
+                      Salve o risco para poder lançar medições de campo.
                     </p>
                   ) : (
                     <div className="rounded-lg border p-3">
@@ -1134,9 +1110,9 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
       <AlertDialog open={!!paraExcluir} onOpenChange={(o) => !o && setParaExcluir(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover avaliação</AlertDialogTitle>
+            <AlertDialogTitle>Remover risco</AlertDialogTitle>
             <AlertDialogDescription>
-              A avaliação será marcada como inativa e sai do inventário. O histórico é mantido.
+              O risco será marcado como inativo e sai da lista. O histórico é mantido.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1342,4 +1318,4 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   )
 }
 
-export default InventarioRiscosTab
+export default RiscosOcupacionaisPainel
