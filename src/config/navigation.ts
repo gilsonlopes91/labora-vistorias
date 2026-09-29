@@ -19,6 +19,7 @@ import {
   FlaskConical,
   ShieldCheck,
   Video,
+  LayoutDashboard,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -100,6 +101,12 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: FileBadge,
     escondaAdministrativo: true,
     children: [
+      {
+        to: '/documentacao?aba=visao-geral',
+        label: 'Visão Geral',
+        icon: LayoutDashboard,
+        moduloKey: 'documentos',
+      },
       {
         to: '/documentacao?aba=levantamento',
         label: 'Levantamento',

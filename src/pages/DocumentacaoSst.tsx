@@ -1,59 +1,43 @@
 /* Documentação SST — módulo próprio (PGR, LTCAT, laudos de insalubridade e
-   periculosidade). Sub-abas pela URL (?aba=...), no mesmo padrão de
-   "Auditoria e Formulários": como funciona, levantamento por empresa,
-   catálogo de agentes e matrizes de risco. */
+   periculosidade). A navegação entre Visão Geral, Levantamento, Catálogo de
+   agentes, Catálogo de EPIs e Como funciona é feita pelo submenu lateral
+   ("Documentação SST" no menu principal) — não há mais uma barra de abas
+   própria aqui em cima, ela duplicava o menu lateral. A página só lê o
+   parâmetro ?aba= (definido pelos links do menu) e renderiza o conteúdo
+   correspondente direto. */
 import { useSearchParams } from 'react-router-dom'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { VisaoGeralDocumentacaoTab } from '@/components/VisaoGeralDocumentacaoTab'
 import { DocumentacaoComoFunciona } from '@/components/DocumentacaoComoFunciona'
 import { LevantamentoSstTab } from '@/components/LevantamentoSstTab'
 import { CatalogoAgentesTab } from '@/components/CatalogoAgentesTab'
 import { CatalogoEpisTab } from '@/components/CatalogoEpisTab'
 
-const ABAS = ['levantamento', 'catalogo', 'epis', 'como-funciona'] as const
+const ABAS = ['visao-geral', 'levantamento', 'catalogo', 'epis', 'como-funciona'] as const
 type Aba = (typeof ABAS)[number]
 
 export default function DocumentacaoSst() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const abaParam = searchParams.get('aba')
-  const abaAtiva: Aba = ABAS.includes(abaParam as Aba) ? (abaParam as Aba) : 'levantamento'
-
-  const trocarAba = (aba: string) => {
-    // Troca de aba limpa os parâmetros da aba anterior (empresa, sub).
-    setSearchParams({ aba })
-  }
+  const abaAtiva: Aba = ABAS.includes(abaParam as Aba) ? (abaParam as Aba) : 'visao-geral'
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Documentação SST</h1>
-        <p className="text-sm text-muted-foreground">
-          PGR, LTCAT e laudos de insalubridade e periculosidade a partir de um único levantamento de
-          campo.
-        </p>
-      </div>
+      {abaAtiva !== 'visao-geral' && (
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Documentação SST</h1>
+          <p className="text-sm text-muted-foreground">
+            PGR, LTCAT e laudos de insalubridade e periculosidade a partir de um único levantamento
+            de campo.
+          </p>
+        </div>
+      )}
 
-      <Tabs value={abaAtiva} onValueChange={trocarAba} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="levantamento">Levantamento</TabsTrigger>
-          <TabsTrigger value="catalogo">Catálogo de agentes</TabsTrigger>
-          <TabsTrigger value="epis">Catálogo de EPIs</TabsTrigger>
-          <TabsTrigger value="como-funciona">Como funciona</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="levantamento" className="mt-0 focus-visible:outline-none">
-          <LevantamentoSstTab />
-        </TabsContent>
-        <TabsContent value="catalogo" className="mt-0 focus-visible:outline-none">
-          <CatalogoAgentesTab />
-        </TabsContent>
-        <TabsContent value="epis" className="mt-0 focus-visible:outline-none">
-          <CatalogoEpisTab />
-        </TabsContent>
-        <TabsContent value="como-funciona" className="mt-0 focus-visible:outline-none">
-          <DocumentacaoComoFunciona />
-        </TabsContent>
-      </Tabs>
+      {abaAtiva === 'visao-geral' && <VisaoGeralDocumentacaoTab />}
+      {abaAtiva === 'levantamento' && <LevantamentoSstTab />}
+      {abaAtiva === 'catalogo' && <CatalogoAgentesTab />}
+      {abaAtiva === 'epis' && <CatalogoEpisTab />}
+      {abaAtiva === 'como-funciona' && <DocumentacaoComoFunciona />}
     </div>
   )
 }
