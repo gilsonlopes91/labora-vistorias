@@ -55,6 +55,8 @@ routerAdd(
           acertos: acertos,
           convidado: r.getBool('convidado'),
           email_enviado: r.getBool('email_enviado'),
+          saidas: r.getInt('saidas'),
+          segundos_fora: r.getInt('segundos_fora'),
           created: r.getString('created'),
         })
       }

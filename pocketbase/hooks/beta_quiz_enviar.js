@@ -98,6 +98,14 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
   rec.set('respostas', respostas)
   rec.set('acertos', acertos)
   rec.set('nota', nota)
+  // Saídas da página durante a prova (informado pelo navegador; serve só
+  // como indício para desempate, então apenas limitamos valores absurdos).
+  const limitar = (v, max) => {
+    const n = Math.floor(Number(v))
+    return isFinite(n) && n > 0 ? Math.min(n, max) : 0
+  }
+  rec.set('saidas', limitar(body.saidas, 999))
+  rec.set('segundos_fora', limitar(body.segundos_fora, 86400))
   rec.set('ip', ip)
   rec.set('aceite_lgpd', true)
   rec.set('convidado', false)

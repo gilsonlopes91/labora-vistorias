@@ -77,9 +77,16 @@ export default function AdminQuizBeta() {
   const exportarCsv = () => {
     if (!dados) return
     const esc = (v: string | number | boolean) => `"${String(v).replace(/"/g, '""')}"`
-    const cabecalho = ['nome', 'email', 'nota', 'convidado', 'email_enviado', 'data'].concat(
-      dados.questoes.map((q) => q.chave),
-    )
+    const cabecalho = [
+      'nome',
+      'email',
+      'nota',
+      'saidas',
+      'segundos_fora',
+      'convidado',
+      'email_enviado',
+      'data',
+    ].concat(dados.questoes.map((q) => q.chave))
     const linhas = [
       cabecalho.join(';'),
       ...dados.respostas.map((r) =>
@@ -87,6 +94,8 @@ export default function AdminQuizBeta() {
           esc(r.nome),
           esc(r.email),
           esc(r.nota),
+          esc(r.saidas || 0),
+          esc(r.segundos_fora || 0),
           esc(r.convidado ? 'sim' : 'não'),
           esc(r.email_enviado ? 'sim' : 'não'),
           esc(new Date(r.created).toLocaleString('pt-BR')),
@@ -204,6 +213,7 @@ export default function AdminQuizBeta() {
                       <th className="px-4 py-3">Nome</th>
                       <th className="px-4 py-3">E-mail</th>
                       <th className="px-4 py-3">Nota</th>
+                      <th className="px-4 py-3">Saídas da página</th>
                       <th className="px-4 py-3">Enviado em</th>
                       <th className="px-4 py-3">E-mail</th>
                       <th className="px-4 py-3">Convidado</th>
@@ -223,6 +233,19 @@ export default function AdminQuizBeta() {
                           </a>
                         </td>
                         <td className="px-4 py-3 font-semibold">{r.nota}/10</td>
+                        <td
+                          className={`px-4 py-3 ${
+                            r.saidas > 0 ? 'font-semibold text-amber-600' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {r.saidas > 0
+                            ? `${r.saidas}× · ${
+                                r.segundos_fora >= 60
+                                  ? `${Math.floor(r.segundos_fora / 60)} min ${r.segundos_fora % 60} s`
+                                  : `${r.segundos_fora} s`
+                              }`
+                            : '0'}
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {new Date(r.created).toLocaleString('pt-BR')}
                         </td>

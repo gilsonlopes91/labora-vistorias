@@ -20,6 +20,8 @@ export interface EnvioQuiz {
   aceite_lgpd: boolean
   respostas: Record<string, string>
   site?: string
+  saidas?: number
+  segundos_fora?: number
 }
 
 export interface RespostaQuizAdmin {
@@ -30,6 +32,8 @@ export interface RespostaQuizAdmin {
   acertos: Record<string, boolean>
   convidado: boolean
   email_enviado: boolean
+  saidas: number
+  segundos_fora: number
   created: string
 }
 

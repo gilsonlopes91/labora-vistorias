@@ -2,9 +2,9 @@
    informa nome e e-mail, responde as 10 questões e envia; a correção é feita
    no servidor e o resultado vai por e-mail. O botão só libera com tudo
    preenchido. */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, Send } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Send } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { enviarQuiz, listarPerguntasQuiz, type QuestaoQuiz } from '@/services/quizBeta'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+const respondidas0 = (r: Record<string, string>) => Object.keys(r).length
 
 export default function QuizBeta() {
   const [questoes, setQuestoes] = useState<QuestaoQuiz[]>([])
@@ -26,6 +27,52 @@ export default function QuizBeta() {
   const [respostas, setRespostas] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [saidas, setSaidas] = useState(0)
+
+  // Controle de saídas da página: conta cada vez que a pessoa troca de aba,
+  // minimiza ou muda de janela, e soma o tempo fora. Vai junto com o envio.
+  const saidasRef = useRef(0)
+  const segundosForaRef = useRef(0)
+  const inicioForaRef = useRef<number | null>(null)
+  const enviadoRef = useRef(false)
+  const iniciouRef = useRef(false)
+
+  useEffect(() => {
+    const sair = () => {
+      if (enviadoRef.current || inicioForaRef.current !== null) return
+      inicioForaRef.current = Date.now()
+    }
+    const voltar = () => {
+      if (inicioForaRef.current === null) return
+      const seg = Math.round((Date.now() - inicioForaRef.current) / 1000)
+      inicioForaRef.current = null
+      if (enviadoRef.current) return
+      saidasRef.current += 1
+      segundosForaRef.current += seg
+      setSaidas(saidasRef.current)
+    }
+    const aoMudarVisibilidade = () => (document.hidden ? sair() : voltar())
+    const aoSair = (e: BeforeUnloadEvent) => {
+      if (enviadoRef.current || !iniciouRef.current) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    document.addEventListener('visibilitychange', aoMudarVisibilidade)
+    window.addEventListener('blur', sair)
+    window.addEventListener('focus', voltar)
+    window.addEventListener('beforeunload', aoSair)
+    return () => {
+      document.removeEventListener('visibilitychange', aoMudarVisibilidade)
+      window.removeEventListener('blur', sair)
+      window.removeEventListener('focus', voltar)
+      window.removeEventListener('beforeunload', aoSair)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Só protege contra fechar a página depois que a pessoa começou.
+    iniciouRef.current = nome.trim() !== '' || email.trim() !== '' || respondidas0(respostas) > 0
+  }, [nome, email, respostas])
 
   useEffect(() => {
     listarPerguntasQuiz()
@@ -52,14 +99,22 @@ export default function QuizBeta() {
   const enviar = async () => {
     if (!completo) return
     setEnviando(true)
+    // Fecha uma eventual saída em andamento antes de contar.
+    if (inicioForaRef.current !== null) {
+      segundosForaRef.current += Math.round((Date.now() - inicioForaRef.current) / 1000)
+      inicioForaRef.current = null
+    }
     try {
       await enviarQuiz({
+        saidas: saidasRef.current,
+        segundos_fora: segundosForaRef.current,
         nome: nome.trim(),
         email: email.trim().toLowerCase(),
         aceite_lgpd: aceite,
         respostas,
         site,
       })
+      enviadoRef.current = true
       setEnviado(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
@@ -102,6 +157,27 @@ export default function QuizBeta() {
         para o seu e-mail.
       </p>
 
+      <Card className="mt-6 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 shadow-none dark:bg-amber-950/30 dark:text-amber-100">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Responda sem sair desta página. Trocar de aba, minimizar o navegador ou abrir outro
+            aplicativo é registrado (quantas vezes e por quanto tempo) e o resultado aparece para a
+            equipe na seleção. Não é permitido copiar as questões.
+          </p>
+        </div>
+      </Card>
+
+      {saidas > 0 && !enviado && (
+        <Card
+          role="alert"
+          className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive shadow-none"
+        >
+          Você saiu da página {saidas} {saidas === 1 ? 'vez' : 'vezes'}. Essa informação foi
+          registrada junto com as suas respostas.
+        </Card>
+      )}
+
       <Card className="mt-8 rounded-2xl border-none p-5 shadow-subtle">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -142,7 +218,13 @@ export default function QuizBeta() {
         </div>
       </Card>
 
-      <div className="mt-8 space-y-4">
+      <div
+        className="mt-8 select-none space-y-4"
+        onCopy={(e) => e.preventDefault()}
+        onCut={(e) => e.preventDefault()}
+        onContextMenu={(e) => e.preventDefault()}
+        onDragStart={(e) => e.preventDefault()}
+      >
         {carregando ? (
           <>
             <Skeleton className="h-40 w-full rounded-2xl" />
