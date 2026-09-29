@@ -7,7 +7,7 @@ export interface FuncaoSst extends RecordModel {
   id: string
   organizacao_id: string
   empresa_id: string
-  ghe_id: string
+  ghe_id?: string
   setor_id?: string
   nome: string
   cbo?: string
@@ -21,7 +21,6 @@ export interface FuncaoSst extends RecordModel {
 export type FuncaoSstInput = Partial<Omit<FuncaoSst, 'id' | 'created' | 'updated' | 'expand'>> & {
   organizacao_id: string
   empresa_id: string
-  ghe_id: string
   nome: string
 }
 

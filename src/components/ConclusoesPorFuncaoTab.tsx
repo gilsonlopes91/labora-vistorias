@@ -5,7 +5,11 @@
  * confirma ou muda com justificativa. Isso NUNCA conclui sozinho — grava a
  * sugestão em avaliacoes_risco (campo *_sugerida) e deixa o campo *_final +
  * justificativa em aberto até o técnico decidir. Ver NR-1, item 1.5.2: a
- * classificação do PGR não caracteriza estes laudos — a régua aqui é outra. */
+ * classificação do PGR não caracteriza estes laudos — a régua aqui é outra.
+ *
+ * Ponto 1 (risco direto no cargo, GHE opcional): o risco de cada função é o
+ * "risco efetivo" — diretos do cargo ∪ herdados do GHE do ambiente, quando
+ * houver. Ver src/lib/riscoFuncao.ts. */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { AlertTriangle, CheckCircle2, Loader2, XCircle } from 'lucide-react'
@@ -15,10 +19,11 @@ import { getEmpresa, type Empresa } from '@/services/empresas'
 import { getGhes, type Ghe } from '@/services/ghes'
 import { getFuncoesSst, type FuncaoSst } from '@/services/funcoesSst'
 import {
-  getAvaliacoesRiscoPorGhes,
+  getAvaliacoesRiscoDaEmpresa,
   updateAvaliacaoRisco,
   type AvaliacaoRisco,
 } from '@/services/avaliacoesRisco'
+import { avaliacoesDaFuncao } from '@/lib/riscoFuncao'
 import { getMedicoesPorAvaliacao, type Medicao } from '@/services/medicoes'
 import { buscarResponsavelDoUsuario } from '@/services/responsaveisTecnicos'
 import { useAuth } from '@/hooks/use-auth'
@@ -102,7 +107,10 @@ export function ConclusoesPorFuncaoTab({
         const mapGhes: Record<string, Ghe> = {}
         ghes.forEach((g) => (mapGhes[g.id] = g))
         setGhesMap(mapGhes)
-        const avals = await getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id))
+        const avals = await getAvaliacoesRiscoDaEmpresa(
+          ghes.map((g) => g.id),
+          funcs.map((f) => f.id),
+        )
         if (cancelado) return
         setAvaliacoes(avals)
         const relevantes = avals.filter((a) => !!a.agente_id)
@@ -133,9 +141,9 @@ export function ConclusoesPorFuncaoTab({
 
   const grupos: GrupoFuncao[] = useMemo(() => {
     return funcoes.map((funcao) => {
-      const avaliacoesDoGhe = avaliacoes.filter((a) => a.ghe_id === funcao.ghe_id)
+      const avaliacoesDaFuncaoAtual = avaliacoesDaFuncao(funcao, avaliacoes)
       const linhas: LinhaConclusao[] = []
-      for (const a of avaliacoesDoGhe) {
+      for (const a of avaliacoesDaFuncaoAtual) {
         const agente = a.expand?.agente_id
         if (!agente) continue
         const medicoes = medicoesPorAvaliacao[a.id] || []
@@ -190,7 +198,7 @@ export function ConclusoesPorFuncaoTab({
   const naoCumulacaoPorFuncao = useMemo(() => {
     const mapa: Record<string, boolean> = {}
     funcoes.forEach((f) => {
-      const avals = avaliacoes.filter((a) => a.ghe_id === f.ghe_id)
+      const avals = avaliacoesDaFuncao(f, avaliacoes)
       mapa[f.id] = temNaoCumulacao(avals)
     })
     return mapa
@@ -200,7 +208,7 @@ export function ConclusoesPorFuncaoTab({
     if (tipo !== 'ltcat') return null
     const avaliacoesPorFuncaoId: Record<string, AvaliacaoRisco[]> = {}
     funcoes.forEach((f) => {
-      avaliacoesPorFuncaoId[f.id] = avaliacoes.filter((a) => a.ghe_id === f.ghe_id && a.agente_id)
+      avaliacoesPorFuncaoId[f.id] = avaliacoesDaFuncao(f, avaliacoes).filter((a) => a.agente_id)
     })
     return checklistArt276({
       empresaRazaoSocial: empresa?.razao_social,
@@ -347,7 +355,9 @@ export function ConclusoesPorFuncaoTab({
             <CardTitle className="flex items-center gap-2 text-base">
               {grupo.funcao.nome}
               <span className="text-xs font-normal text-muted-foreground">
-                {ghesMap[grupo.funcao.ghe_id]?.nome}
+                {grupo.funcao.ghe_id
+                  ? ghesMap[grupo.funcao.ghe_id]?.nome
+                  : 'Sem GHE (risco direto do cargo)'}
               </span>
               {naoCumulacaoPorFuncao[grupo.funcao.id] && (
                 <Badge variant="destructive" className="ml-2 gap-1">

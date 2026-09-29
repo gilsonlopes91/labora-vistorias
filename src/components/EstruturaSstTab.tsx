@@ -1,8 +1,10 @@
 /* Estrutura SST da empresa: setores, GHEs (Grupos Homogêneos de Exposição) e
-   funções — a base sobre a qual o inventário de riscos é montado (cada
-   avaliação de risco pertence a um GHE; funções herdam as conclusões do seu
-   GHE). Lista simples com diálogos de criação/edição, seguindo o mesmo
-   padrão de OrcamentosTab. */
+   funções — a base sobre a qual o inventário de riscos é montado. Desde o
+   Ponto 1 do plano (risco direto no cargo), o GHE é opcional: uma função
+   pode ter risco próprio (avaliação vinculada direto a ela), risco herdado
+   de um GHE do ambiente, ou os dois — ver src/lib/riscoFuncao.ts. Lista
+   simples com diálogos de criação/edição, seguindo o mesmo padrão de
+   OrcamentosTab. */
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Building, Layers, Pencil, Plus, Trash2, Users2 } from 'lucide-react'
@@ -211,12 +213,11 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
 
   const abrirFuncao = (f: FuncaoSst | null) => {
     setFuncaoEdit(f)
-    setFFuncao(f ? { ...f } : { ghe_id: ghes[0]?.id })
+    setFFuncao(f ? { ...f } : {})
     setFuncaoDialog(true)
   }
   const salvarFuncao = async () => {
     if (!fFuncao.nome?.trim()) return toast.error('Informe o nome da função')
-    if (!fFuncao.ghe_id) return toast.error('Selecione o GHE desta função')
     try {
       if (funcaoEdit) await updateFuncaoSst(funcaoEdit.id, fFuncao)
       else
@@ -360,20 +361,13 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
           titulo={`Funções (${funcoes.length})`}
           icone={Users2}
           acao={
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={ghes.length === 0}
-              onClick={() => abrirFuncao(null)}
-            >
+            <Button size="sm" variant="outline" onClick={() => abrirFuncao(null)}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Nova função
             </Button>
           }
         >
-          {ghes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Cadastre um GHE antes das funções.</p>
-          ) : funcoes.length === 0 ? (
+          {funcoes.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma função cadastrada.</p>
           ) : (
             <div className="divide-y">
@@ -382,7 +376,9 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
                   <div className="min-w-0">
                     <div className="font-medium">{f.nome}</div>
                     <div className="text-xs text-muted-foreground">
-                      {f.expand?.ghe_id?.nome || 'GHE removido'}
+                      {f.ghe_id
+                        ? f.expand?.ghe_id?.nome || 'GHE removido'
+                        : 'Sem GHE (risco direto do cargo)'}
                       {f.cbo && ` · CBO ${f.cbo}`}
                       {f.numero_empregados ? ` · ${f.numero_empregados} empregados` : ''}
                     </div>
@@ -615,15 +611,18 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
               />
             </div>
             <div>
-              <Label>GHE</Label>
+              <Label>GHE (opcional)</Label>
               <Select
-                value={fFuncao.ghe_id || ''}
-                onValueChange={(v) => setFFuncao((s) => ({ ...s, ghe_id: v }))}
+                value={fFuncao.ghe_id || '__nenhum'}
+                onValueChange={(v) =>
+                  setFFuncao((s) => ({ ...s, ghe_id: v === '__nenhum' ? undefined : v }))
+                }
               >
                 <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Selecione o GHE" />
+                  <SelectValue placeholder="Sem GHE — só risco direto do cargo" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__nenhum">Nenhum (risco direto do cargo)</SelectItem>
                   {ghes.map((g) => (
                     <SelectItem key={g.id} value={g.id}>
                       {g.nome}
@@ -631,6 +630,10 @@ export function EstruturaSstTab({ empresaId }: { empresaId: string }) {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Sem GHE, a função entra na aba Inventário de riscos vinculando as avaliações
+                diretamente a ela.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -7,7 +7,11 @@
  * automaticamente enquanto a pessoa edita, sem precisar clicar em nada; o
  * botão "Salvar rascunho" continua existindo para quem quiser confirmar na
  * hora. A emissão em PDF (gerarPdfPgr.ts) trava a versão — documento
- * emitido não pode mais ser editado, só uma nova revisão. */
+ * emitido não pode mais ser editado, só uma nova revisão.
+ *
+ * Ponto 1 (risco direto no cargo, GHE opcional): o inventário e as
+ * conclusões por função usam o "risco efetivo" de cada função — diretos do
+ * cargo ∪ herdados do GHE, quando houver. Ver src/lib/riscoFuncao.ts. */
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { FileText, Plus, ChevronUp, ChevronDown, Trash2, Check, Loader2 } from 'lucide-react'
@@ -21,7 +25,8 @@ import { gerarPdfPgr, nomeArquivoDocumentoSst, hashSha256 } from '@/lib/gerarPdf
 import { getEmpresa, urlLogoEmpresa } from '@/services/empresas'
 import { getGhes } from '@/services/ghes'
 import { getFuncoesSst } from '@/services/funcoesSst'
-import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
+import { getAvaliacoesRiscoDaEmpresa } from '@/services/avaliacoesRisco'
+import { avaliacoesDaFuncao } from '@/lib/riscoFuncao'
 import { getAcoesPlano } from '@/services/acoesPlano'
 import { getMatrizOficial } from '@/services/matrizesRisco'
 import { buscarResponsavelDoUsuario, formatarRegistroRT } from '@/services/responsaveisTecnicos'
@@ -246,19 +251,27 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
       const empresa = await getEmpresa(empresaId)
       const nomeEmpresa = empresa.nome_fantasia || empresa.razao_social
       const ghes = await getGhes(empresaId)
-      const avaliacoes = await getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id))
+      const funcoes = await getFuncoesSst(empresaId)
+      const avaliacoes = await getAvaliacoesRiscoDaEmpresa(
+        ghes.map((g) => g.id),
+        funcoes.map((fn) => fn.id),
+      )
       const acoes = await getAcoesPlano(empresaId)
       const dimensao = (Number(empresa.pgr_matriz_padrao_dimensao) || 5) as 3 | 5
       const metodologia = empresa.pgr_matriz_padrao_metodologia || 'AIHA'
       const matriz = await getMatrizOficial(dimensao, metodologia)
       const identidade = await carregarIdentidade()
 
+      const funcoesMap: Record<string, string> = {}
+      funcoes.forEach((fn) => (funcoesMap[fn.id] = fn.nome))
+
       const inventario = avaliacoes.map((a) => {
         const s = a.severidade_final ?? a.severidade_sugerida
         const p = a.probabilidade_final ?? a.probabilidade_sugerida
         const celula = matriz && s != null && p != null ? resolverCelula(matriz, p, s) : null
         return {
-          unidade: a.expand?.ghe_id?.nome || '—',
+          unidade:
+            a.expand?.ghe_id?.nome || (a.funcao_id ? funcoesMap[a.funcao_id] : undefined) || '—',
           agente: a.expand?.agente_id?.nome || a.perigo_descricao || '—',
           trilha: a.trilha_probabilidade,
           severidade: s ?? '—',
@@ -276,16 +289,17 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
 
       // Laudos derivados (insalubridade/periculosidade/LTCAT): a conclusão
       // por função, já confirmada ou ajustada na aba "Conclusões por
-      // função" — nunca a classificação do PGR (NR-1, item 1.5.2).
+      // função" — nunca a classificação do PGR (NR-1, item 1.5.2). O
+      // "risco efetivo" da função é diretos do cargo ∪ herdados do GHE
+      // (src/lib/riscoFuncao.ts).
       let conclusoesFuncao: import('@/lib/gerarPdfPgr').LinhaConclusaoLaudo[] | undefined
       if (selecionado.tipo !== 'pgr') {
-        const funcoes = await getFuncoesSst(empresaId)
         conclusoesFuncao = []
         for (const funcao of funcoes) {
-          const avaliacoesDaFuncao = avaliacoes.filter(
-            (a) => a.ghe_id === funcao.ghe_id && a.agente_id,
+          const avaliacoesDaFuncaoAtual = avaliacoesDaFuncao(funcao, avaliacoes).filter(
+            (a) => a.agente_id,
           )
-          if (avaliacoesDaFuncao.length === 0 && selecionado.tipo === 'ltcat') {
+          if (avaliacoesDaFuncaoAtual.length === 0 && selecionado.tipo === 'ltcat') {
             conclusoesFuncao.push({
               funcao: funcao.nome,
               agente: '—',
@@ -296,7 +310,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
             })
             continue
           }
-          for (const a of avaliacoesDaFuncao) {
+          for (const a of avaliacoesDaFuncaoAtual) {
             const agenteNome = a.expand?.agente_id?.nome || a.perigo_descricao || '—'
             if (selecionado.tipo === 'insalubridade' && a.expand?.agente_id?.anexo_nr15) {
               conclusoesFuncao.push({

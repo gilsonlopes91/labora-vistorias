@@ -1,8 +1,11 @@
-/* Inventário de riscos: uma linha por GHE x perigo/agente. Permite escolher
+/* Inventário de riscos: uma linha por unidade x perigo/agente, onde a
+   unidade é um GHE (risco ambiental) OU uma função direta (risco próprio do
+   cargo, Ponto 1 do plano — GHE deixa de ser obrigatório). Permite escolher
    a dimensão da matriz (3x3 ou 5x5, metodologia AIHA) e mostra, para cada
    avaliação, a sugestão de P/S calculada a partir do dado bruto e a célula
    resultante (categoria, cor, ação, prazo) — o técnico confirma ou ajusta.
-   Ver src/lib/matrizRisco.ts para a lógica de conversão. */
+   Ver src/lib/matrizRisco.ts para a lógica de conversão e
+   src/lib/riscoFuncao.ts para o cálculo do risco efetivo por função. */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { AlertTriangle, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -11,12 +14,13 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
 import { getGhes, type Ghe } from '@/services/ghes'
+import { getFuncoesSst, type FuncaoSst } from '@/services/funcoesSst'
 import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
 import { getMatrizOficial, type MatrizRisco } from '@/services/matrizesRisco'
 import {
   createAvaliacaoRisco,
   deleteAvaliacaoRisco,
-  getAvaliacoesRiscoPorGhes,
+  getAvaliacoesRiscoDaEmpresa,
   updateAvaliacaoRisco,
   type AvaliacaoRisco,
   type AvaliacaoRiscoInput,
@@ -132,6 +136,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   const organizacaoId = (user?.organizacao_id as string) || ''
 
   const [ghes, setGhes] = useState<Ghe[]>([])
+  const [funcoes, setFuncoes] = useState<FuncaoSst[]>([])
   const [agentes, setAgentes] = useState<AgenteCatalogo[]>([])
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoRisco[]>([])
   const [dimensao, setDimensao] = useState<Dimensao>(5)
@@ -140,11 +145,17 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   const [carregando, setCarregando] = useState(true)
 
   const carregarBase = () =>
-    Promise.all([getGhes(empresaId), getAgentesCatalogo()]).then(([g, a]) => {
-      setGhes(g)
-      setAgentes(a)
-      return getAvaliacoesRiscoPorGhes(g.map((x) => x.id)).then(setAvaliacoes)
-    })
+    Promise.all([getGhes(empresaId), getFuncoesSst(empresaId), getAgentesCatalogo()]).then(
+      ([g, fs, a]) => {
+        setGhes(g)
+        setFuncoes(fs)
+        setAgentes(a)
+        return getAvaliacoesRiscoDaEmpresa(
+          g.map((x) => x.id),
+          fs.map((x) => x.id),
+        ).then(setAvaliacoes)
+      },
+    )
 
   useEffect(() => {
     carregarBase()
@@ -168,7 +179,10 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   }, [dimensao, metodologia])
 
   const recarregarAvaliacoes = () =>
-    getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id)).then(setAvaliacoes)
+    getAvaliacoesRiscoDaEmpresa(
+      ghes.map((g) => g.id),
+      funcoes.map((f) => f.id),
+    ).then(setAvaliacoes)
 
   // ---- Diálogo de avaliação ----
   const [dialogAberto, setDialogAberto] = useState(false)
@@ -194,11 +208,7 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
 
   const abrir = (a: AvaliacaoRisco | null) => {
     setEmEdicao(a)
-    setF(
-      a
-        ? { ...a }
-        : { ghe_id: ghes[0]?.id, trilha_probabilidade: 'Qualitativa (controle)', ativo: true },
-    )
+    setF(a ? { ...a } : { trilha_probabilidade: 'Qualitativa (controle)', ativo: true })
     setMedicoes([])
     if (a) carregarMedicoes(a.id)
     setDialogAberto(true)
@@ -284,7 +294,8 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
   }, [f, dimensao, matriz])
 
   const salvar = async () => {
-    if (!f.ghe_id) return toast.error('Selecione o GHE')
+    if (!f.ghe_id && !f.funcao_id)
+      return toast.error('Selecione um GHE ou uma função para vincular a avaliação')
     if (!f.trilha_probabilidade) return toast.error('Selecione a trilha de probabilidade')
     const dados: Partial<AvaliacaoRiscoInput> = {
       ...f,
@@ -370,17 +381,21 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               </SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" disabled={ghes.length === 0} onClick={() => abrir(null)}>
+          <Button
+            size="sm"
+            disabled={ghes.length === 0 && funcoes.length === 0}
+            onClick={() => abrir(null)}
+          >
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Nova avaliação
           </Button>
         </div>
       </div>
 
-      {ghes.length === 0 ? (
+      {ghes.length === 0 && funcoes.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Cadastre pelo menos uma unidade de avaliação (GHE, atividade, posto, função ou setor) na
-          aba "Estrutura SST" antes de iniciar o inventário.
+          Cadastre pelo menos um GHE (atividade, posto, função ou setor) ou uma função na aba
+          "Estrutura SST" antes de iniciar o inventário.
         </p>
       ) : avaliacoes.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
@@ -408,7 +423,12 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {a.expand?.ghe_id?.nome || 'GHE removido'} · {a.trilha_probabilidade}
+                      {a.ghe_id
+                        ? a.expand?.ghe_id?.nome || 'GHE removido'
+                        : a.funcao_id
+                          ? `${a.expand?.funcao_id?.nome || 'Função removida'} (direto)`
+                          : 'sem vínculo'}{' '}
+                      · {a.trilha_probabilidade}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -445,20 +465,37 @@ export function InventarioRiscosTab({ empresaId }: { empresaId: string }) {
               <div>
                 <Label>Unidade de avaliação</Label>
                 <Select
-                  value={f.ghe_id || ''}
-                  onValueChange={(v) => setF((s) => ({ ...s, ghe_id: v }))}
+                  value={f.ghe_id ? `ghe:${f.ghe_id}` : f.funcao_id ? `funcao:${f.funcao_id}` : ''}
+                  onValueChange={(v) => {
+                    const [tipo, id] = v.split(':')
+                    setF((s) => ({
+                      ...s,
+                      ghe_id: tipo === 'ghe' ? id : undefined,
+                      funcao_id: tipo === 'funcao' ? id : undefined,
+                    }))
+                  }}
                 >
                   <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder="Selecione um GHE ou uma função" />
                   </SelectTrigger>
                   <SelectContent>
                     {ghes.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
+                      <SelectItem key={`ghe:${g.id}`} value={`ghe:${g.id}`}>
                         [{g.tipo_agrupamento || 'GHE'}] {g.nome}
+                      </SelectItem>
+                    ))}
+                    {funcoes.map((fn) => (
+                      <SelectItem key={`funcao:${fn.id}`} value={`funcao:${fn.id}`}>
+                        [Função — risco direto] {fn.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Escolha um GHE para um risco ambiental (afeta todo mundo exposto), ou uma função
+                  diretamente para um risco próprio do cargo (ex.: um risco mecânico específico de
+                  um operador, diferente do resto do ambiente).
+                </p>
               </div>
               <div>
                 <Label>Agente do catálogo</Label>

@@ -2,6 +2,7 @@ import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import type { AgenteCatalogo } from '@/services/agentesCatalogo'
 import type { Ghe } from '@/services/ghes'
+import type { FuncaoSst } from '@/services/funcoesSst'
 
 export type TrilhaProbabilidade =
   | 'Quantitativa (medição)'
@@ -14,7 +15,8 @@ export type TrilhaProbabilidade =
 export interface AvaliacaoRisco extends RecordModel {
   id: string
   organizacao_id: string
-  ghe_id: string
+  ghe_id?: string
+  funcao_id?: string
   agente_id?: string
   perigo_descricao?: string
   fonte_geradora?: string
@@ -70,7 +72,7 @@ export interface AvaliacaoRisco extends RecordModel {
   nr_especifica_atendida?: boolean
   nr_especifica_justificativa?: string
   ativo?: boolean
-  expand?: { ghe_id?: Ghe; agente_id?: AgenteCatalogo }
+  expand?: { ghe_id?: Ghe; agente_id?: AgenteCatalogo; funcao_id?: FuncaoSst }
   created: string
   updated: string
 }
@@ -79,7 +81,6 @@ export type AvaliacaoRiscoInput = Partial<
   Omit<AvaliacaoRisco, 'id' | 'created' | 'updated' | 'expand'>
 > & {
   organizacao_id: string
-  ghe_id: string
   trilha_probabilidade: TrilhaProbabilidade
 }
 
@@ -90,7 +91,27 @@ export const getAvaliacoesRiscoPorGhes = (gheIds: string[]) => {
   return pb.collection('avaliacoes_risco').getFullList<AvaliacaoRisco>({
     filter: `(${filtro}) && ativo = true`,
     sort: '-created',
-    expand: 'ghe_id,agente_id',
+    expand: 'ghe_id,agente_id,funcao_id',
+  })
+}
+
+/**
+ * Todas as avaliações de risco de uma empresa: as vinculadas a algum dos GHE
+ * informados (risco ambiental) OU a alguma das funções informadas (risco
+ * direto do cargo, sem passar por GHE). Ver src/lib/riscoFuncao.ts para o
+ * cálculo do "risco efetivo" de cada função a partir desta lista.
+ */
+export const getAvaliacoesRiscoDaEmpresa = (gheIds: string[], funcaoIds: string[] = []) => {
+  if (gheIds.length === 0 && funcaoIds.length === 0) return Promise.resolve<AvaliacaoRisco[]>([])
+  const partes = [
+    ...gheIds.map((id) => `ghe_id = "${id}"`),
+    ...funcaoIds.map((id) => `funcao_id = "${id}"`),
+  ]
+  const filtro = partes.join(' || ')
+  return pb.collection('avaliacoes_risco').getFullList<AvaliacaoRisco>({
+    filter: `(${filtro}) && ativo = true`,
+    sort: '-created',
+    expand: 'ghe_id,agente_id,funcao_id',
   })
 }
 

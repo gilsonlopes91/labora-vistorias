@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T23:14:52.295Z",
+  "generatedAt": "2026-09-29T00:21:52.342Z",
   "collections": [
     {
       "name": "users",
@@ -3096,7 +3096,7 @@
         {
           "name": "ghe_id",
           "type": "relation",
-          "required": true,
+          "required": false,
           "system": false,
           "collectionRef": "ghes"
         },
@@ -3521,7 +3521,7 @@
         {
           "name": "ghe_id",
           "type": "relation",
-          "required": true,
+          "required": false,
           "system": false,
           "collectionRef": "ghes"
         },
@@ -3952,12 +3952,20 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "funcao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "funcoes_sst"
         }
       ],
       "indexes": [
         "CREATE INDEX idx_avaliacoes_risco_organizacao ON avaliacoes_risco (organizacao_id)",
         "CREATE INDEX idx_avaliacoes_risco_ghe ON avaliacoes_risco (ghe_id)",
-        "CREATE INDEX idx_avaliacoes_risco_agente ON avaliacoes_risco (agente_id)"
+        "CREATE INDEX idx_avaliacoes_risco_agente ON avaliacoes_risco (agente_id)",
+        "CREATE INDEX idx_avaliacoes_risco_funcao ON avaliacoes_risco (funcao_id)"
       ]
     },
     {
