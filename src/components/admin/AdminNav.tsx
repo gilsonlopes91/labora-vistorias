@@ -1,6 +1,14 @@
 /* Menu do console de contas — separa o que antes vivia numa página só. */
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Building2, Users, ListChecks, BookOpen, FileText } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  ListChecks,
+  BookOpen,
+  FileText,
+  GraduationCap,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 
@@ -12,6 +20,13 @@ const ITENS = [
     to: '/admin/lista-espera',
     label: 'Lista de espera',
     icon: ListChecks,
+    fim: false,
+    soAdmin: true,
+  },
+  {
+    to: '/admin/quiz-beta',
+    label: 'Questionário beta',
+    icon: GraduationCap,
     fim: false,
     soAdmin: true,
   },

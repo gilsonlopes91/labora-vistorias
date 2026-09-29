@@ -16,6 +16,7 @@ import VerificarDocumento from './pages/VerificarDocumento'
 import PublicLayout from './components/PublicLayout'
 import PublicHome from './pages/PublicHome'
 import CalculadoraPublica from './pages/CalculadoraPublica'
+import QuizBeta from './pages/QuizBeta'
 import Blog from './pages/Blog'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
 import EmBreve from './pages/EmBreve'
@@ -43,6 +44,7 @@ import AdminOrganizacoes from './pages/admin/AdminOrganizacoes'
 import AdminOrganizacaoDetalhe from './pages/admin/AdminOrganizacaoDetalhe'
 import AdminStaff from './pages/admin/AdminStaff'
 import AdminListaEspera from './pages/admin/AdminListaEspera'
+import AdminQuizBeta from './pages/admin/AdminQuizBeta'
 import AdminNormas from './pages/AdminNormas'
 import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
@@ -75,6 +77,7 @@ function PublicAnalyticsTracker() {
       '/',
       '/login',
       '/calculadora',
+      '/beta',
       '/blog',
       '/em-breve',
       '/termos',
@@ -105,6 +108,7 @@ const App = () => (
           <Route element={<PublicLayout />}>
             <Route path="/" element={<PublicHome />} />
             <Route path="/calculadora" element={<CalculadoraPublica />} />
+            <Route path="/beta" element={<QuizBeta />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<ArtigoDetalhe />} />
             <Route path="/em-breve" element={<EmBreve />} />
@@ -295,6 +299,14 @@ const App = () => (
               element={
                 <ProtectedRoute adminOnly>
                   <AdminListaEspera />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/quiz-beta"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminQuizBeta />
                 </ProtectedRoute>
               }
             />
