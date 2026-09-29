@@ -1,7 +1,7 @@
 /* Console de contas — ranking do questionário de seleção do beta. */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Download } from 'lucide-react'
+import { Copy, Download, ExternalLink } from 'lucide-react'
 import AdminNav from '@/components/admin/AdminNav'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
@@ -81,6 +81,16 @@ export default function AdminQuizBeta() {
   }
 
   const total = dados?.total || 0
+  const linkPublico = `${window.location.origin}/beta`
+
+  const copiarLink = async () => {
+    try {
+      await navigator.clipboard.writeText(linkPublico)
+      toast.success('Link copiado')
+    } catch {
+      toast.error('Não foi possível copiar. Selecione o link e copie manualmente.')
+    }
+  }
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -91,6 +101,28 @@ export default function AdminQuizBeta() {
         </p>
       </div>
       <AdminNav />
+
+      <Card className="mb-6 rounded-2xl border-none p-5 shadow-subtle">
+        <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Link para enviar aos alunos
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <code className="select-all rounded-lg bg-muted px-3 py-2 text-sm">{linkPublico}</code>
+          <Button variant="outline" size="sm" className="rounded-full" onClick={copiarLink}>
+            <Copy className="mr-1.5 h-4 w-4" />
+            Copiar link
+          </Button>
+          <Button variant="ghost" size="sm" className="rounded-full" asChild>
+            <a href={linkPublico} target="_blank" rel="noreferrer">
+              <ExternalLink className="mr-1.5 h-4 w-4" />
+              Abrir
+            </a>
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          A página é pública e não aparece no menu do site: só chega nela quem tiver o link.
+        </p>
+      </Card>
 
       {carregando || !dados ? (
         <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
