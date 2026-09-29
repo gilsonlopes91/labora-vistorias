@@ -8,8 +8,10 @@ routerAdd('GET', '/backend/v1/public/beta-quiz/perguntas', (e) => {
     let alternativas = []
     try {
       const bruto = r.get('alternativas')
-      alternativas =
-        (typeof bruto === 'string' ? JSON.parse(bruto) : JSON.parse(JSON.stringify(bruto))) || []
+      const txt = bruto ? toString(bruto) : ''
+      let lido = txt ? JSON.parse(txt) : []
+      if (typeof lido === 'string') lido = JSON.parse(lido)
+      alternativas = Array.isArray(lido) ? lido : []
     } catch (_) {
       alternativas = []
     }

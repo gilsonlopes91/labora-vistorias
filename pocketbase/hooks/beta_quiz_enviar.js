@@ -45,9 +45,11 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
         { ip: ip, limite: limite },
       )
       if (recentes.length >= 5) {
-        return e.tooManyRequestsError('Muitos envios deste endereço. Tente mais tarde.')
+        throw new TooManyRequestsError('Muitos envios deste endereço. Tente mais tarde.')
       }
-    } catch (_) {}
+    } catch (err) {
+      if (err && String(err).indexOf('Muitos envios') >= 0) throw err
+    }
   }
 
   const questoes = $app.findRecordsByFilter('beta_quiz_questoes', "id != ''", 'ordem', 50, 0)
@@ -61,8 +63,10 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
     let alternativas = []
     try {
       const bruto = q.get('alternativas')
-      alternativas =
-        (typeof bruto === 'string' ? JSON.parse(bruto) : JSON.parse(JSON.stringify(bruto))) || []
+      const txt = bruto ? toString(bruto) : ''
+      let lido = txt ? JSON.parse(txt) : []
+      if (typeof lido === 'string') lido = JSON.parse(lido)
+      alternativas = Array.isArray(lido) ? lido : []
     } catch (_) {
       alternativas = []
     }

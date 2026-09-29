@@ -37,9 +37,10 @@ routerAdd(
         let acertos = {}
         try {
           const bruto = r.get('acertos')
-          acertos =
-            (typeof bruto === 'string' ? JSON.parse(bruto) : JSON.parse(JSON.stringify(bruto))) ||
-            {}
+          const txt = bruto ? toString(bruto) : ''
+          let lido = txt ? JSON.parse(txt) : {}
+          if (typeof lido === 'string') lido = JSON.parse(lido)
+          acertos = lido && typeof lido === 'object' ? lido : {}
         } catch (_) {
           acertos = {}
         }
