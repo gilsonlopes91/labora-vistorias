@@ -10,13 +10,13 @@ import { LevantamentoSstTab } from '@/components/LevantamentoSstTab'
 import { CatalogoAgentesTab } from '@/components/CatalogoAgentesTab'
 import { MatrizesRiscoTab } from '@/components/MatrizesRiscoTab'
 
-const ABAS = ['como-funciona', 'levantamento', 'catalogo', 'matrizes'] as const
+const ABAS = ['levantamento', 'catalogo', 'matrizes', 'como-funciona'] as const
 type Aba = (typeof ABAS)[number]
 
 export default function DocumentacaoSst() {
   const [searchParams, setSearchParams] = useSearchParams()
   const abaParam = searchParams.get('aba')
-  const abaAtiva: Aba = ABAS.includes(abaParam as Aba) ? (abaParam as Aba) : 'como-funciona'
+  const abaAtiva: Aba = ABAS.includes(abaParam as Aba) ? (abaParam as Aba) : 'levantamento'
 
   const trocarAba = (aba: string) => {
     // Troca de aba limpa os parâmetros da aba anterior (empresa, sub).
@@ -35,15 +35,12 @@ export default function DocumentacaoSst() {
 
       <Tabs value={abaAtiva} onValueChange={trocarAba} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="como-funciona">Como funciona</TabsTrigger>
           <TabsTrigger value="levantamento">Levantamento</TabsTrigger>
           <TabsTrigger value="catalogo">Catálogo de agentes</TabsTrigger>
           <TabsTrigger value="matrizes">Matrizes de risco</TabsTrigger>
+          <TabsTrigger value="como-funciona">Como funciona</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="como-funciona" className="mt-0 focus-visible:outline-none">
-          <DocumentacaoComoFunciona />
-        </TabsContent>
         <TabsContent value="levantamento" className="mt-0 focus-visible:outline-none">
           <LevantamentoSstTab />
         </TabsContent>
@@ -52,6 +49,9 @@ export default function DocumentacaoSst() {
         </TabsContent>
         <TabsContent value="matrizes" className="mt-0 focus-visible:outline-none">
           <MatrizesRiscoTab />
+        </TabsContent>
+        <TabsContent value="como-funciona" className="mt-0 focus-visible:outline-none">
+          <DocumentacaoComoFunciona />
         </TabsContent>
       </Tabs>
     </div>

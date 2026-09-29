@@ -18,6 +18,7 @@ import {
   Layers,
   FlaskConical,
   Grid3x3,
+  Video,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -100,12 +101,6 @@ export const NAV_ITEMS: NavItemConfig[] = [
     escondaAdministrativo: true,
     children: [
       {
-        to: '/documentacao?aba=como-funciona',
-        label: 'Como funciona',
-        icon: HelpCircle,
-        moduloKey: 'documentos',
-      },
-      {
         to: '/documentacao?aba=levantamento',
         label: 'Levantamento',
         icon: Layers,
@@ -123,8 +118,17 @@ export const NAV_ITEMS: NavItemConfig[] = [
         icon: Grid3x3,
         moduloKey: 'documentos',
       },
+      {
+        to: '/documentacao?aba=como-funciona',
+        label: 'Como funciona',
+        icon: HelpCircle,
+        moduloKey: 'documentos',
+      },
     ],
   },
+  // Vídeos: item de nível único, de propósito próprio — não é uma aba de
+  // "Documentação SST" nem tem relação com levantamento/catálogo/matrizes.
+  { to: '/videos', label: 'Vídeos', icon: Video, escondaAdministrativo: true },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
   // Blog e Normas são ferramentas da administração da plataforma (Labora),
   // não da operação de uma organização cliente — nenhum gestor de cliente

@@ -36,6 +36,7 @@ import Orcamentos from './pages/Orcamentos'
 import ModelosProposta from './pages/ModelosProposta'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
+import Videos from './pages/Videos'
 import NotFound from './pages/NotFound'
 import AdminVisaoGeral from './pages/admin/AdminVisaoGeral'
 import AdminOrganizacoes from './pages/admin/AdminOrganizacoes'
@@ -322,6 +323,14 @@ const App = () => (
               }
             />
             <Route path="/conteudo" element={<Navigate to="/admin/conteudo" replace />} />
+            <Route
+              path="/videos"
+              element={
+                <ProtectedRoute>
+                  <Videos />
+                </ProtectedRoute>
+              }
+            />
             {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           </Route>
           {/* Portal do cliente (empresa vistoriada) — casca própria, sem o menu do app interno */}
