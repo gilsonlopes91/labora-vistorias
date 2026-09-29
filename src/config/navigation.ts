@@ -17,7 +17,7 @@ import {
   HelpCircle,
   Layers,
   FlaskConical,
-  Grid3x3,
+  ShieldCheck,
   Video,
 } from 'lucide-react'
 
@@ -113,9 +113,9 @@ export const NAV_ITEMS: NavItemConfig[] = [
         moduloKey: 'documentos',
       },
       {
-        to: '/documentacao?aba=matrizes',
-        label: 'Matrizes de risco',
-        icon: Grid3x3,
+        to: '/documentacao?aba=epis',
+        label: 'Catálogo de EPIs',
+        icon: ShieldCheck,
         moduloKey: 'documentos',
       },
       {
