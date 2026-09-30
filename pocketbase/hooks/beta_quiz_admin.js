@@ -51,6 +51,7 @@ routerAdd(
           id: r.id,
           nome: r.getString('nome'),
           email: r.getString('email'),
+          telefone: r.getString('telefone'),
           nota: r.getInt('nota'),
           acertos: acertos,
           convidado: r.getBool('convidado'),

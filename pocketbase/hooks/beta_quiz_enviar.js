@@ -9,6 +9,11 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
   const email = String(body.email || '')
     .trim()
     .toLowerCase()
+  // Telefone: só dígitos, com DDD (10 ou 11 dígitos); aceita prefixo 55.
+  let telefone = String(body.telefone || '').replace(/\D/g, '')
+  if ((telefone.length === 12 || telefone.length === 13) && telefone.indexOf('55') === 0) {
+    telefone = telefone.slice(2)
+  }
   const aceite = body.aceite_lgpd === true
   const respostas = body.respostas && typeof body.respostas === 'object' ? body.respostas : {}
   // Honeypot: campo oculto que pessoas não preenchem.
@@ -16,6 +21,9 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
 
   if (nome.length < 2) return e.badRequestError('Informe seu nome completo.')
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return e.badRequestError('E-mail inválido.')
+  if (telefone.length < 10 || telefone.length > 11) {
+    return e.badRequestError('Informe um telefone válido com DDD.')
+  }
   if (!aceite) return e.badRequestError('É preciso aceitar o uso dos dados para a seleção.')
 
   // Um envio por e-mail.
@@ -95,6 +103,7 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
   const rec = new Record(col)
   rec.set('nome', nome)
   rec.set('email', email)
+  rec.set('telefone', telefone)
   rec.set('respostas', respostas)
   rec.set('acertos', acertos)
   rec.set('nota', nota)

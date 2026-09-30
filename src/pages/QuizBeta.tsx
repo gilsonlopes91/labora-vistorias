@@ -15,6 +15,18 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+const soDigitos = (v: string) => v.replace(/\D/g, '').slice(0, 11)
+const mascaraTelefone = (v: string) => {
+  const d = soDigitos(v)
+  if (d.length <= 2) return d
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+const telefoneValido = (v: string) => {
+  const n = soDigitos(v).length
+  return n === 10 || n === 11
+}
 const respondidas0 = (r: Record<string, string>) => Object.keys(r).length
 
 export default function QuizBeta() {
@@ -22,6 +34,7 @@ export default function QuizBeta() {
   const [carregando, setCarregando] = useState(true)
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [aceite, setAceite] = useState(false)
   const [site, setSite] = useState('')
   const [respostas, setRespostas] = useState<Record<string, string>>({})
@@ -71,8 +84,12 @@ export default function QuizBeta() {
 
   useEffect(() => {
     // Só protege contra fechar a página depois que a pessoa começou.
-    iniciouRef.current = nome.trim() !== '' || email.trim() !== '' || respondidas0(respostas) > 0
-  }, [nome, email, respostas])
+    iniciouRef.current =
+      nome.trim() !== '' ||
+      email.trim() !== '' ||
+      telefone.trim() !== '' ||
+      respondidas0(respostas) > 0
+  }, [nome, email, telefone, respostas])
 
   useEffect(() => {
     listarPerguntasQuiz()
@@ -94,6 +111,7 @@ export default function QuizBeta() {
     respondidas === questoes.length &&
     nome.trim().length >= 2 &&
     emailValido(email) &&
+    telefoneValido(telefone) &&
     aceite
 
   const enviar = async () => {
@@ -110,6 +128,7 @@ export default function QuizBeta() {
         segundos_fora: segundosForaRef.current,
         nome: nome.trim(),
         email: email.trim().toLowerCase(),
+        telefone: soDigitos(telefone),
         aceite_lgpd: aceite,
         respostas,
         site,
@@ -153,8 +172,8 @@ export default function QuizBeta() {
       </h1>
       <p className="mt-4 text-lg text-muted-foreground">
         Dez questões sobre PGR, LTCAT, Laudo de Insalubridade e Laudo de Periculosidade. Responda
-        todas, informe seu nome e e-mail e envie. O resultado com a explicação de cada questão vai
-        para o seu e-mail.
+        todas, informe seu nome, e-mail e telefone e envie. O resultado com a explicação de cada
+        questão vai para o seu e-mail.
       </p>
 
       <Card className="mt-6 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 shadow-none dark:bg-amber-950/30 dark:text-amber-100">
@@ -201,6 +220,19 @@ export default function QuizBeta() {
               placeholder="voce@exemplo.com"
               className="mt-1.5"
               autoComplete="email"
+            />
+          </div>
+          <div className="sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
+            <Label htmlFor="quiz-telefone">Telefone / WhatsApp (com DDD)</Label>
+            <Input
+              id="quiz-telefone"
+              type="tel"
+              inputMode="tel"
+              value={telefone}
+              onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
+              placeholder="(86) 99999-9999"
+              className="mt-1.5"
+              autoComplete="tel"
             />
           </div>
         </div>
@@ -272,8 +304,8 @@ export default function QuizBeta() {
             className="mt-0.5"
           />
           <Label htmlFor="quiz-aceite" className="text-sm font-normal leading-snug">
-            Autorizo o uso do meu nome e e-mail apenas para a seleção e o contato sobre o beta do
-            Labora Vistorias.
+            Autorizo o uso do meu nome, e-mail e telefone apenas para a seleção e o contato sobre o
+            beta do Labora Vistorias.
           </Label>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -287,8 +319,8 @@ export default function QuizBeta() {
         </div>
         {!completo && !carregando && (
           <p className="mt-2 text-xs text-muted-foreground">
-            O envio libera quando nome, e-mail, aceite e as {questoes.length || 10} questões
-            estiverem preenchidos.
+            O envio libera quando nome, e-mail, telefone, aceite e as {questoes.length || 10}{' '}
+            questões estiverem preenchidos.
           </p>
         )}
       </Card>

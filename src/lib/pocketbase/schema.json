@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T21:11:32.273Z",
+  "generatedAt": "2026-09-30T12:56:22.751Z",
   "collections": [
     {
       "name": "users",
@@ -5266,6 +5266,12 @@
         {
           "name": "segundos_fora",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
           "required": false,
           "system": false
         }

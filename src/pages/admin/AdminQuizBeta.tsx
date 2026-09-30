@@ -24,6 +24,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+const formatarTelefone = (v: string) => {
+  const d = (v || '').replace(/\D/g, '')
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return v || '—'
+}
+
 export default function AdminQuizBeta() {
   const [dados, setDados] = useState<ResumoQuizAdmin | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -80,6 +87,7 @@ export default function AdminQuizBeta() {
     const cabecalho = [
       'nome',
       'email',
+      'telefone',
       'nota',
       'saidas',
       'segundos_fora',
@@ -93,6 +101,7 @@ export default function AdminQuizBeta() {
         [
           esc(r.nome),
           esc(r.email),
+          esc(formatarTelefone(r.telefone)),
           esc(r.nota),
           esc(r.saidas || 0),
           esc(r.segundos_fora || 0),
@@ -212,6 +221,7 @@ export default function AdminQuizBeta() {
                       <th className="px-4 py-3">#</th>
                       <th className="px-4 py-3">Nome</th>
                       <th className="px-4 py-3">E-mail</th>
+                      <th className="px-4 py-3">Telefone</th>
                       <th className="px-4 py-3">Nota</th>
                       <th className="px-4 py-3">Saídas da página</th>
                       <th className="px-4 py-3">Enviado em</th>
@@ -231,6 +241,21 @@ export default function AdminQuizBeta() {
                           <a href={`mailto:${r.email}`} className="hover:underline">
                             {r.email}
                           </a>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {r.telefone ? (
+                            <a
+                              href={`https://wa.me/55${r.telefone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:underline"
+                              title="Abrir no WhatsApp"
+                            >
+                              {formatarTelefone(r.telefone)}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 font-semibold">{r.nota}/10</td>
                         <td

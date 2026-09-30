@@ -17,6 +17,7 @@ export interface QuestaoQuiz {
 export interface EnvioQuiz {
   nome: string
   email: string
+  telefone: string
   aceite_lgpd: boolean
   respostas: Record<string, string>
   site?: string
@@ -28,6 +29,7 @@ export interface RespostaQuizAdmin {
   id: string
   nome: string
   email: string
+  telefone: string
   nota: number
   acertos: Record<string, boolean>
   convidado: boolean
