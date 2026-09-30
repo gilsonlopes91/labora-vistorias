@@ -295,7 +295,7 @@ export default function QuizBeta() {
         )}
       </div>
 
-      <Card className="sticky bottom-4 mt-8 rounded-2xl border-none p-5 shadow-subtle">
+      <Card className="mt-8 rounded-2xl border-none p-5 shadow-subtle">
         <div className="flex items-start gap-2">
           <Checkbox
             id="quiz-aceite"
