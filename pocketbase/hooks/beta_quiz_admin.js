@@ -63,8 +63,19 @@ routerAdd(
       }
     } catch (_) {}
 
+    let aceitando = true
+    try {
+      const p = $app.findFirstRecordByData(
+        'parametros_sistema',
+        'chave',
+        'beta_quiz_aceitando_respostas',
+      )
+      aceitando = p.getInt('valor_numero') !== 0
+    } catch (_) {}
+
     return e.json(200, {
       total: respostas.length,
+      aceitando_respostas: aceitando,
       questoes: questoes,
       acertos_por_questao: acertosPorQuestao,
       respostas: respostas,

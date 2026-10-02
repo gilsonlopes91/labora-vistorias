@@ -1,18 +1,40 @@
 /* Console de contas — ranking do questionário de seleção do beta. */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Copy, Download, ExternalLink, Trash2 } from 'lucide-react'
+import { Copy, Download, ExternalLink, Mail, Trash2 } from 'lucide-react'
 import AdminNav from '@/components/admin/AdminNav'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   apagarRespostaQuiz,
+  definirAceitandoRespostasQuiz,
+  enviarEmailRespondentesQuiz,
   marcarConvidadoQuiz,
   obterResumoQuizAdmin,
+  type DestinatariosQuiz,
   type ResumoQuizAdmin,
 } from '@/services/quizBeta'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +57,11 @@ export default function AdminQuizBeta() {
   const [dados, setDados] = useState<ResumoQuizAdmin | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [apagar, setApagar] = useState<{ id: string; nome: string } | null>(null)
+  const [emailAberto, setEmailAberto] = useState(false)
+  const [destinatarios, setDestinatarios] = useState<DestinatariosQuiz>('todos')
+  const [assunto, setAssunto] = useState('')
+  const [mensagem, setMensagem] = useState('Olá, {nome}.\n\n')
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -66,6 +93,46 @@ export default function AdminQuizBeta() {
       )
     } catch (error) {
       toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
+    }
+  }
+
+  const alternarAceitando = async (valor: boolean) => {
+    try {
+      await definirAceitandoRespostasQuiz(valor)
+      setDados((d) => (d ? { ...d, aceitando_respostas: valor } : d))
+      toast.success(valor ? 'Questionário reaberto' : 'Questionário encerrado')
+    } catch (error) {
+      toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
+    }
+  }
+
+  const qtdDestinatarios = (dados?.respostas || []).filter((r) =>
+    destinatarios === 'todos' ? true : destinatarios === 'convidados' ? r.convidado : !r.convidado,
+  ).length
+
+  const enviarEmail = async (teste: boolean) => {
+    setEnviandoEmail(true)
+    try {
+      const r = await enviarEmailRespondentesQuiz({
+        assunto: assunto.trim(),
+        mensagem: mensagem.trim(),
+        destinatarios,
+        teste,
+      })
+      if (teste) {
+        toast.success('Teste enviado para o seu e-mail')
+      } else if (r.falhas.length > 0) {
+        toast.warning(`${r.enviados} enviado(s), ${r.falhas.length} com falha`, {
+          description: r.falhas.join(', '),
+        })
+      } else {
+        toast.success(`E-mail enviado para ${r.enviados} pessoa${r.enviados === 1 ? '' : 's'}`)
+        setEmailAberto(false)
+      }
+    } catch (error) {
+      toast.error('Não foi possível enviar', { description: getErrorMessage(error) })
+    } finally {
+      setEnviandoEmail(false)
     }
   }
 
@@ -164,6 +231,19 @@ export default function AdminQuizBeta() {
         <p className="mt-2 text-xs text-muted-foreground">
           A página é pública e não aparece no menu do site: só chega nela quem tiver o link.
         </p>
+        <div className="mt-4 flex items-center gap-3 border-t pt-4">
+          <Switch
+            id="quiz-aceitando"
+            checked={dados?.aceitando_respostas ?? true}
+            onCheckedChange={alternarAceitando}
+            disabled={!dados}
+          />
+          <Label htmlFor="quiz-aceitando" className="text-sm font-normal">
+            {dados?.aceitando_respostas === false
+              ? 'Questionário encerrado: quem abrir o link vê o aviso de encerrado e ninguém consegue enviar.'
+              : 'Recebendo respostas. Desligue para encerrar o questionário.'}
+          </Label>
+        </div>
       </Card>
 
       {carregando || !dados ? (
@@ -196,7 +276,16 @@ export default function AdminQuizBeta() {
             </div>
           </Card>
 
-          <div className="mb-4 flex justify-end">
+          <div className="mb-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setEmailAberto(true)}
+              disabled={dados.respostas.length === 0}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Enviar e-mail
+            </Button>
             <Button
               variant="outline"
               className="rounded-full"
@@ -304,6 +393,74 @@ export default function AdminQuizBeta() {
           )}
         </>
       )}
+
+      <Dialog open={emailAberto} onOpenChange={setEmailAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar e-mail a quem respondeu</DialogTitle>
+            <DialogDescription>
+              Cada pessoa recebe um e-mail separado, sem ver o endereço das outras. Onde você
+              escrever {'{nome}'}, entra o primeiro nome de cada uma.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email-para">Para</Label>
+              <Select
+                value={destinatarios}
+                onValueChange={(v) => setDestinatarios(v as DestinatariosQuiz)}
+              >
+                <SelectTrigger id="email-para" className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos que responderam</SelectItem>
+                  <SelectItem value="convidados">Só os marcados como convidados</SelectItem>
+                  <SelectItem value="nao_convidados">Só os não convidados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="email-assunto">Assunto</Label>
+              <Input
+                id="email-assunto"
+                value={assunto}
+                onChange={(e) => setAssunto(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email-mensagem">Mensagem</Label>
+              <Textarea
+                id="email-mensagem"
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+                rows={10}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => enviarEmail(true)}
+              disabled={enviandoEmail || !assunto.trim() || !mensagem.trim()}
+            >
+              Enviar teste para mim
+            </Button>
+            <Button
+              onClick={() => enviarEmail(false)}
+              disabled={
+                enviandoEmail || !assunto.trim() || !mensagem.trim() || qtdDestinatarios === 0
+              }
+            >
+              {enviandoEmail
+                ? 'Enviando...'
+                : `Enviar para ${qtdDestinatarios} pessoa${qtdDestinatarios === 1 ? '' : 's'}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!apagar} onOpenChange={(o) => !o && setApagar(null)}>
         <AlertDialogContent>

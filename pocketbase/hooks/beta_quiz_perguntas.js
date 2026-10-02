@@ -2,6 +2,18 @@
 // SEM gabarito nem explicação, com as alternativas embaralhadas a cada
 // chamada. O gabarito só existe no servidor (coleção fechada).
 routerAdd('GET', '/backend/v1/public/beta-quiz/perguntas', (e) => {
+  // Questionário encerrado pelo admin: não entrega as questões.
+  let encerrado = false
+  try {
+    const p = $app.findFirstRecordByData(
+      'parametros_sistema',
+      'chave',
+      'beta_quiz_aceitando_respostas',
+    )
+    encerrado = p.getInt('valor_numero') === 0
+  } catch (_) {}
+  if (encerrado) return e.json(200, { encerrado: true, questoes: [] })
+
   const regs = $app.findRecordsByFilter('beta_quiz_questoes', "id != ''", 'ordem', 50, 0)
   const questoes = []
   for (const r of regs) {

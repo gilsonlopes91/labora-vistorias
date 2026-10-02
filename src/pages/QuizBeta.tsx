@@ -32,6 +32,7 @@ const respondidas0 = (r: Record<string, string>) => Object.keys(r).length
 export default function QuizBeta() {
   const [questoes, setQuestoes] = useState<QuestaoQuiz[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [encerrado, setEncerrado] = useState(false)
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [telefone, setTelefone] = useState('')
@@ -93,7 +94,10 @@ export default function QuizBeta() {
 
   useEffect(() => {
     listarPerguntasQuiz()
-      .then(setQuestoes)
+      .then((d) => {
+        setQuestoes(d.questoes)
+        setEncerrado(d.encerrado)
+      })
       .catch((error) =>
         toast.error('Não foi possível carregar as questões', {
           description: getErrorMessage(error),
@@ -156,6 +160,20 @@ export default function QuizBeta() {
           </p>
           <p className="mt-4 text-sm text-muted-foreground">
             Os selecionados para o beta serão avisados por e-mail.
+          </p>
+        </Card>
+      </div>
+    )
+  }
+
+  if (encerrado) {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 py-16 sm:px-6">
+        <Card className="rounded-2xl border-none p-8 text-center shadow-subtle">
+          <h1 className="text-2xl font-extrabold tracking-tight">Questionário encerrado</h1>
+          <p className="mt-2 text-muted-foreground">
+            Não estamos mais recebendo respostas para a seleção do beta do Labora Vistorias. Quem já
+            respondeu e for selecionado será avisado por e-mail.
           </p>
         </Card>
       </div>

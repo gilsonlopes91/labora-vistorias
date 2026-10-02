@@ -19,6 +19,20 @@ routerAdd('POST', '/backend/v1/public/beta-quiz/enviar', (e) => {
   // Honeypot: campo oculto que pessoas não preenchem.
   if (String(body.site || '').trim() !== '') return e.json(200, { ok: true })
 
+  // Questionário encerrado pelo admin: não aceita mais envios.
+  let encerrado = false
+  try {
+    const p = $app.findFirstRecordByData(
+      'parametros_sistema',
+      'chave',
+      'beta_quiz_aceitando_respostas',
+    )
+    encerrado = p.getInt('valor_numero') === 0
+  } catch (_) {}
+  if (encerrado) {
+    return e.badRequestError('O questionário foi encerrado e não recebe mais respostas.')
+  }
+
   if (nome.length < 2) return e.badRequestError('Informe seu nome completo.')
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return e.badRequestError('E-mail inválido.')
   if (telefone.length < 10 || telefone.length > 11) {

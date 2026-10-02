@@ -41,17 +41,21 @@ export interface RespostaQuizAdmin {
 
 export interface ResumoQuizAdmin {
   total: number
+  aceitando_respostas: boolean
   questoes: { chave: string; ordem: number; tema: string; enunciado: string }[]
   acertos_por_questao: Record<string, number>
   respostas: RespostaQuizAdmin[]
 }
 
-export async function listarPerguntasQuiz(): Promise<QuestaoQuiz[]> {
-  const data = await pb.send<{ questoes?: QuestaoQuiz[] }>(
+export async function listarPerguntasQuiz(): Promise<{
+  questoes: QuestaoQuiz[]
+  encerrado: boolean
+}> {
+  const data = await pb.send<{ questoes?: QuestaoQuiz[]; encerrado?: boolean }>(
     '/backend/v1/public/beta-quiz/perguntas',
     { method: 'GET' },
   )
-  return data.questoes || []
+  return { questoes: data.questoes || [], encerrado: data.encerrado === true }
 }
 
 export async function enviarQuiz(dados: EnvioQuiz): Promise<{ ok: boolean }> {
@@ -71,4 +75,25 @@ export async function marcarConvidadoQuiz(id: string, convidado: boolean) {
 
 export async function apagarRespostaQuiz(id: string) {
   return pb.collection('beta_quiz_respostas').delete(id)
+}
+
+export async function definirAceitandoRespostasQuiz(aceitando: boolean) {
+  return pb.send('/backend/v1/admin/beta-quiz/aceitando', {
+    method: 'POST',
+    body: JSON.stringify({ aceitando }),
+  })
+}
+
+export type DestinatariosQuiz = 'todos' | 'convidados' | 'nao_convidados'
+
+export async function enviarEmailRespondentesQuiz(dados: {
+  assunto: string
+  mensagem: string
+  destinatarios: DestinatariosQuiz
+  teste: boolean
+}): Promise<{ enviados: number; falhas: string[] }> {
+  return pb.send('/backend/v1/admin/beta-quiz/email', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
 }
