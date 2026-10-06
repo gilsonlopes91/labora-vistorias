@@ -38,6 +38,7 @@ import ModelosProposta from './pages/ModelosProposta'
 import Configuracoes from './pages/Configuracoes'
 import Equipe from './pages/Equipe'
 import Videos from './pages/Videos'
+import Certificados from './pages/Certificados'
 import NotFound from './pages/NotFound'
 import AdminVisaoGeral from './pages/admin/AdminVisaoGeral'
 import AdminOrganizacoes from './pages/admin/AdminOrganizacoes'
@@ -340,6 +341,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Videos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/certificados"
+              element={
+                <ProtectedRoute>
+                  <Certificados />
                 </ProtectedRoute>
               }
             />

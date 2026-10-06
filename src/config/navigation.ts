@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Video,
   LayoutDashboard,
+  Award,
 } from 'lucide-react'
 
 export interface NavSubItemConfig {
@@ -135,6 +136,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
   },
   // Vídeos: item de nível único, de propósito próprio — não é uma aba de
   // "Documentação SST" nem tem relação com levantamento/catálogo/matrizes.
+  // Certificados de treinamento em massa (um PDF por colaborador).
+  { to: '/certificados', label: 'Certificados', icon: Award },
   { to: '/videos', label: 'Vídeos', icon: Video, escondaAdministrativo: true },
   { to: '/agenda', label: 'Agenda', icon: CalendarClock },
   // Blog e Normas são ferramentas da administração da plataforma (Labora),
