@@ -240,11 +240,14 @@ function desenharFrente(
     nome: colabOriginal.nome.trim().toLocaleUpperCase('pt-BR'),
   }
 
-  // "NR 12" logo abaixo do título
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(26)
-  doc.setTextColor(...marca.corPrimaria)
-  doc.text(`NR ${lote.nr}`, FRENTE_CX, 112, { align: 'center' })
+  // selo (ex.: "NR 12") logo abaixo do título; sem selo, nada é desenhado
+  const selo = txt(lote.selo.trim())
+  if (selo) {
+    const tSelo = ajustarFonte(doc, selo, 'bold', 26, FRENTE_LARGURA_TEXTO, 12)
+    doc.setFontSize(tSelo)
+    doc.setTextColor(...marca.corPrimaria)
+    doc.text(selo, FRENTE_CX, 112, { align: 'center' })
+  }
 
   // nome do aluno em destaque
   const nome = txt(colab.nome)
@@ -427,7 +430,7 @@ export function gerarCertificadoPdf(
 ): Blob {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true })
   doc.setProperties({
-    title: txt(`Certificado NR ${lote.nr} - ${colab.nome.trim()}`),
+    title: txt(`Certificado ${lote.selo.trim() || lote.nomeModelo.trim()} - ${colab.nome.trim()}`),
     author: txt(marca.nome),
     creator: 'Labora Vistorias',
   })
@@ -442,10 +445,22 @@ export function gerarCertificadoPdf(
   return doc.output('blob')
 }
 
-export function nomeArquivoCertificado(nr: string, colab: Colaborador): string {
-  const limpo = colab.nome
+const semAcento = (s: string) =>
+  s
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .trim()
-  return `Certificado_NR${nr}_${sanitizarNomeArquivo(limpo)}.pdf`
+
+/** Parte do nome do arquivo que identifica o modelo: o selo sem espaços ("NR12") ou o nome do modelo. */
+export function identificadorModelo(lote: Pick<DadosLote, 'selo' | 'nomeModelo'>): string {
+  const selo = semAcento(lote.selo).replace(/\s+/g, '')
+  const base = selo || semAcento(lote.nomeModelo).slice(0, 40)
+  return sanitizarNomeArquivo(base) || 'Treinamento'
+}
+
+export function nomeArquivoCertificado(
+  lote: Pick<DadosLote, 'selo' | 'nomeModelo'>,
+  colab: Colaborador,
+): string {
+  return `Certificado_${identificadorModelo(lote)}_${sanitizarNomeArquivo(semAcento(colab.nome))}.pdf`
 }

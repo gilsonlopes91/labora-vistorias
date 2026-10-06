@@ -1,152 +1,16 @@
-// Modelos de certificado de treinamento por NR (texto do certificado e conteúdo programático).
-// Os textos de NR 01, 06, 12 e 18 vêm dos certificados da Labora. NR 17 e NR 23 são rascunhos para revisão.
+// Regras do certificado de treinamento: variáveis do texto, lista de colaboradores e validação.
+// Os modelos em si (texto, conteúdo programático, selo) ficam no banco, na coleção
+// modelos_certificado — ver src/services/modelosCertificado.ts.
 //
 // Variáveis aceitas no texto do certificado:
 //   {NOME} {CPF} {EMPRESA} {ENDERECO} {DATA} {CARGA} {EXTRA}
-// {CARGA} já sai com a unidade ("04 horas"). {EXTRA} é o campo específico do modelo (ex.: máquina da NR 12).
+// {CARGA} já sai com a unidade ("04 horas"). {EXTRA} é o campo extra do modelo (ex.: máquina da NR 12).
 // {ENDERECO} sai no formato "no endereço: <endereço>" quando preenchido, ou vazio quando em branco.
 //
 // Conteúdo programático: uma linha por tópico.
-//   - linha comum: sai com marcador (bolinha verde)
+//   - linha comum: sai com marcador (bolinha na cor da organização)
 //   - linha começando com "a) ", "b) ", "I. ", "II. "...: sai sem marcador
 //   - linha começando com "~ ": texto corrido, sem marcador
-
-export type NrId = '01' | '06' | '12' | '17' | '18' | '23'
-
-export interface ModeloNr {
-  id: NrId
-  rotulo: string
-  /** Texto do certificado, com variáveis. */
-  texto: string
-  /** Carga horária sugerida (vazia = o usuário precisa informar). */
-  cargaHoraria: string
-  /** Conteúdo programático, uma linha por tópico. */
-  conteudo: string
-  /** Campo extra específico da NR (aparece no formulário e substitui {EXTRA}). */
-  campoExtra?: { rotulo: string; exemplo: string }
-  /** Texto ainda não validado pela Labora. */
-  rascunho?: boolean
-}
-
-const ABERTURA =
-  'Certificamos que {NOME}, portador do CPF {CPF}, concluiu com aproveitamento satisfatório'
-const FECHO = 'promovido nas dependências da empresa {EMPRESA} no dia {DATA}'
-
-export const MODELOS_NR: Record<NrId, ModeloNr> = {
-  '01': {
-    id: '01',
-    rotulo: 'NR 01 – Curso Básico em Segurança do Trabalho',
-    texto: `${ABERTURA} o curso de NR 01 – Curso Básico em Segurança do Trabalho, ${FECHO}, conforme exigências da Norma Regulamentadora – NR 01, com carga horária de {CARGA}.`,
-    cargaHoraria: '',
-    conteudo: [
-      'Conceitos básicos de segurança do trabalho.',
-      'Importância da prevenção de acidentes e doenças ocupacionais.',
-      'Responsabilidades do empregador e do empregado.',
-      'Visão geral das leis trabalhistas e das Normas Regulamentadoras.',
-      'CIPA e SESMT: objetivos, atribuições, eleição e funcionamento.',
-      'Identificação e avaliação de riscos no ambiente de trabalho.',
-      'Medidas de prevenção e controle de acidentes.',
-      'Equipamentos de proteção individual (EPI) e coletiva (EPC).',
-      'Noções básicas sobre prevenção e combate a incêndios.',
-      'Procedimentos de evacuação e utilização de extintores.',
-      'Princípios de primeiros socorros e atendimento a emergências.',
-      'Registro e análise de acidentes e doenças do trabalho.',
-    ].join('\n'),
-  },
-  '06': {
-    id: '06',
-    rotulo: 'NR 06 – Uso e guarda de EPI',
-    texto: `${ABERTURA} o Curso sobre uso e guarda de EPI, ${FECHO}, conforme exigências da Norma Regulamentadora – NR 06, com carga horária de {CARGA}.`,
-    cargaHoraria: '',
-    conteudo: [
-      'Descrição do equipamento e seus componentes;',
-      'Risco ocupacional contra o qual o EPI oferece proteção;',
-      'Conhecimento dos riscos presentes no ambiente de trabalho e como os EPIs protegem contra esses riscos;',
-      'Restrições e limitações de proteção;',
-      'Forma adequada de uso e ajuste;',
-      'Procedimentos de inspeção antes do uso dos EPIs;',
-      'Identificação de danos, desgastes e validade dos EPIs;',
-      'Manutenção, limpeza e substituição;',
-      'Estímulo à conscientização e atitude próativa em relação à segurança pessoal;',
-      'Discussão de casos práticos e situações específicas relacionadas ao uso de EPIs.',
-    ].join('\n'),
-  },
-  '12': {
-    id: '12',
-    rotulo: 'NR 12 – Operador de máquina',
-    texto: `${ABERTURA} o Curso para operador de {EXTRA}, ${FECHO}, conforme exigências da Norma Regulamentadora – NR 12, com carga horária de {CARGA}.`,
-    cargaHoraria: '',
-    campoExtra: { rotulo: 'Máquina / equipamento', exemplo: 'Ex.: serra circular de bancada' },
-    conteudo: [
-      '~ A capacitação para operação segura de máquinas deve abranger as etapas teórica e prática, a fim de proporcionar a competência adequada do operador para trabalho seguro.',
-      'a) descrição e identificação dos riscos associados com cada máquina e equipamento e as proteções específicas contra cada um deles;',
-      'b) funcionamento das proteções; como e por que devem ser usadas;',
-      'c) como e em que circunstâncias uma proteção pode ser removida, e por quem, sendo na maioria dos casos, somente o pessoal de inspeção ou manutenção;',
-      'd) o que fazer, por exemplo, contatar o supervisor, se uma proteção foi danificada ou se perdeu sua função, deixando de garantir uma segurança adequada;',
-      'e) os princípios de segurança na utilização da máquina ou equipamento;',
-      'f) segurança para riscos mecânicos, elétricos e outros relevantes;',
-      'g) método de trabalho seguro;',
-      'h) permissão de trabalho; e',
-      'i) sistema de bloqueio de funcionamento da máquina e equipamento durante operações de inspeção, limpeza, lubrificação e manutenção.',
-    ].join('\n'),
-  },
-  '17': {
-    id: '17',
-    rotulo: 'NR 17 – Ergonomia',
-    texto: `${ABERTURA} o curso de NR 17 – Ergonomia, ${FECHO}, conforme exigências da Norma Regulamentadora – NR 17, com carga horária de {CARGA}.`,
-    cargaHoraria: '',
-    rascunho: true,
-    conteudo: [
-      'Conceito de ergonomia e objetivo da NR 17.',
-      'Responsabilidades do empregador e dos trabalhadores.',
-      'Relação entre o trabalhador, a tarefa e as condições de trabalho.',
-      'Organização do trabalho: ritmo, pausas, jornada e conteúdo das tarefas.',
-      'Avaliação ergonômica preliminar (AEP) e análise ergonômica do trabalho (AET).',
-      'Levantamento, transporte e descarga individual de cargas.',
-      'Mobiliário e postos de trabalho: posturas sentada e em pé, regulagens e ajustes.',
-      'Trabalho com computadores e equipamentos de escritório.',
-      'Condições ambientais de trabalho: ruído, iluminação, temperatura e umidade.',
-      'Fatores de risco ergonômico e distúrbios osteomusculares relacionados ao trabalho.',
-      'Medidas de prevenção: pausas, alongamentos e boas práticas posturais.',
-      'Orientações práticas para ajuste do posto de trabalho.',
-    ].join('\n'),
-  },
-  '18': {
-    id: '18',
-    rotulo: 'NR 18 – Curso Básico (construção civil)',
-    texto: `${ABERTURA} o curso de NR 18 – Segurança e Saúde no Trabalho na Indústria da Construção (Curso Básico), ${FECHO}, conforme exigências da Norma Regulamentadora – NR 18, com carga horária de {CARGA}.`,
-    cargaHoraria: '04',
-    conteudo: [
-      'I. as condições e meio ambiente de trabalho;',
-      'II. os riscos inerentes às atividades desenvolvidas;',
-      'III. os equipamentos e proteção coletiva existentes no canteiro de obras;',
-      'IV. o uso adequado dos equipamentos de proteção individual;',
-      'V. o PGR do canteiro de obras.',
-    ].join('\n'),
-  },
-  '23': {
-    id: '23',
-    rotulo: 'NR 23 – Proteção Contra Incêndios',
-    texto: `${ABERTURA} o curso de NR 23 – Proteção Contra Incêndios, ${FECHO}, conforme exigências da Norma Regulamentadora – NR 23, com carga horária de {CARGA}.`,
-    cargaHoraria: '',
-    rascunho: true,
-    conteudo: [
-      'Conceitos de fogo: triângulo e tetraedro do fogo.',
-      'Causas dos incêndios e formas de propagação do calor.',
-      'Classes de incêndio e métodos de extinção.',
-      'Agentes extintores e tipos de extintores portáteis.',
-      'Escolha, localização, sinalização e inspeção de extintores.',
-      'Técnica de utilização de extintores (prática).',
-      'Prevenção de incêndios no ambiente de trabalho: materiais inflamáveis, armazenamento e instalações elétricas.',
-      'Saídas de emergência, rotas de fuga e sinalização.',
-      'Sistemas de alarme, detecção e combate a incêndio.',
-      'Plano de emergência e procedimentos de abandono.',
-      'Responsabilidades dos trabalhadores e noções sobre brigada de incêndio.',
-    ].join('\n'),
-  },
-}
-
-export const ORDEM_NR: NrId[] = ['01', '06', '12', '17', '18', '23']
 
 export interface Instrutor {
   nome: string
@@ -160,7 +24,12 @@ export interface Colaborador {
 }
 
 export interface DadosLote {
-  nr: NrId
+  /** Nome do modelo (ex.: "NR 12 – Operador de máquina"). */
+  nomeModelo: string
+  /** Selo logo abaixo do título (ex.: "NR 12"). Vazio = sem selo. */
+  selo: string
+  /** Rótulo do campo extra do modelo; vazio = o modelo não tem campo extra. */
+  campoExtraRotulo?: string
   empresa: string
   endereco?: string
   /** AAAA-MM-DD (valor de input type=date) */
@@ -283,11 +152,10 @@ export function cpfValido(valor: string): boolean {
 /** Lista o que falta ou está errado antes de gerar. Vazio = pode gerar. */
 export function validarLote(lote: DadosLote, colaboradores: Colaborador[]): string[] {
   const erros: string[] = []
-  const modelo = MODELOS_NR[lote.nr]
   if (!lote.empresa.trim()) erros.push('Informe a empresa.')
   if (!lote.data) erros.push('Informe a data do curso.')
   if (!lote.cargaHoraria.trim()) erros.push('Informe a carga horária.')
-  if (modelo.campoExtra && !lote.extra.trim()) erros.push(`Informe: ${modelo.campoExtra.rotulo}.`)
+  if (lote.campoExtraRotulo && !lote.extra.trim()) erros.push(`Informe: ${lote.campoExtraRotulo}.`)
   if (!lote.texto.trim()) erros.push('O texto do certificado está vazio.')
   if (!lote.conteudo.trim()) erros.push('O conteúdo programático está vazio.')
   if (!lote.instrutores.some((i) => i.nome.trim())) erros.push('Informe pelo menos um instrutor.')

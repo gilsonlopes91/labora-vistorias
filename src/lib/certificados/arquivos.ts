@@ -29,6 +29,14 @@ export function baixarBlob(blob: Blob, nome: string) {
   setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
+/** Abre o PDF em outra aba; se o navegador bloquear, baixa o arquivo. */
+export function abrirPdfEmNovaAba(blob: Blob, nomeSeBloqueado: string) {
+  const url = URL.createObjectURL(blob)
+  const aba = window.open(url, '_blank')
+  if (!aba || aba.closed || typeof aba.closed === 'undefined') baixarBlob(blob, nomeSeBloqueado)
+  setTimeout(() => URL.revokeObjectURL(url), 120000)
+}
+
 const TABELA_CRC = (() => {
   const tabela = new Uint32Array(256)
   for (let n = 0; n < 256; n++) {

@@ -1,7 +1,7 @@
 /* Certificados em massa — gera um certificado de treinamento em PDF (frente e
  * conteúdo programático) para cada colaborador da lista. Nada é gravado no
  * servidor: os PDFs são montados no navegador e baixados. */
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Award, Eye, FileDown, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -17,29 +17,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import ModelosCertificadoTab from '@/components/ModelosCertificadoTab'
 import {
+  abrirPdfEmNovaAba,
   baixarBlob,
   montarZip,
   sanitizarNomeArquivo,
   type ArquivoGerado,
 } from '@/lib/certificados/arquivos'
 import {
-  MODELOS_NR,
-  ORDEM_NR,
   formatarCpf,
   interpretarLista,
   validarLote,
   type Colaborador,
   type DadosLote,
   type Instrutor,
-  type NrId,
 } from '@/lib/certificados/modelos'
 import {
   carregarMarca,
   gerarCertificadoPdf,
+  identificadorModelo,
   nomeArquivoCertificado,
 } from '@/lib/certificados/pdfCertificado'
+import { isGestor } from '@/services/equipe'
+import { getModelosCertificado, type ModeloCertificado } from '@/services/modelosCertificado'
 
 interface LinhaColaborador extends Colaborador {
   id: number
@@ -55,14 +58,70 @@ function hojeLocalISO(): string {
 }
 
 export default function Certificados() {
-  const [nr, setNr] = useState<NrId>('01')
+  const gestor = isGestor()
+  const [aba, setAba] = useState<'gerar' | 'modelos'>('gerar')
+  const [modelos, setModelos] = useState<ModeloCertificado[]>([])
+  const [carregando, setCarregando] = useState(true)
+
+  const recarregar = useCallback(async () => {
+    try {
+      setModelos(await getModelosCertificado())
+    } catch (e) {
+      toast.error(`Não foi possível carregar os modelos: ${(e as Error).message}`)
+    } finally {
+      setCarregando(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void recarregar()
+  }, [recarregar])
+
+  return (
+    <div className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
+      <div>
+        <h1 className="text-2xl font-bold">Certificados em massa</h1>
+        <p className="text-sm text-muted-foreground">
+          Gere um certificado em PDF (frente e conteúdo programático) para cada colaborador do
+          treinamento.
+        </p>
+      </div>
+
+      {gestor && (
+        <Tabs value={aba} onValueChange={(v) => setAba(v as 'gerar' | 'modelos')}>
+          <TabsList>
+            <TabsTrigger value="gerar">Gerar certificados</TabsTrigger>
+            <TabsTrigger value="modelos">Modelos</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+
+      {/* As duas áreas ficam montadas para não perder o que foi digitado ao trocar de aba. */}
+      <div className={aba === 'gerar' || !gestor ? '' : 'hidden'}>
+        {carregando ? (
+          <Loader2 className="mx-auto my-10 h-6 w-6 animate-spin text-muted-foreground" />
+        ) : (
+          <GeradorCertificados modelos={modelos} />
+        )}
+      </div>
+      {gestor && (
+        <div className={aba === 'modelos' ? '' : 'hidden'}>
+          <ModelosCertificadoTab modelos={modelos} onMudou={recarregar} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GeradorCertificados({ modelos }: { modelos: ModeloCertificado[] }) {
+  const [modeloId, setModeloId] = useState('')
   const [empresa, setEmpresa] = useState('')
   const [endereco, setEndereco] = useState('')
   const [data, setData] = useState(hojeLocalISO())
-  const [carga, setCarga] = useState(MODELOS_NR['01'].cargaHoraria)
+  const [carga, setCarga] = useState('')
   const [extra, setExtra] = useState('')
-  const [texto, setTexto] = useState(MODELOS_NR['01'].texto)
-  const [conteudo, setConteudo] = useState(MODELOS_NR['01'].conteudo)
+  const [texto, setTexto] = useState('')
+  const [conteudo, setConteudo] = useState('')
   const [instrutores, setInstrutores] = useState<Instrutor[]>([
     { ...INSTRUTOR_VAZIO },
     { ...INSTRUTOR_VAZIO },
@@ -74,20 +133,29 @@ export default function Certificados() {
   const [progresso, setProgresso] = useState<{ atual: number; total: number } | null>(null)
   const proximoId = useRef(1)
 
-  const modelo = MODELOS_NR[nr]
+  const modelo = modelos.find((m) => m.id === modeloId) ?? null
 
-  const trocarNr = (novo: NrId) => {
-    const m = MODELOS_NR[novo]
-    setNr(novo)
+  const aplicarModelo = (m: ModeloCertificado) => {
+    setModeloId(m.id)
     setTexto(m.texto)
     setConteudo(m.conteudo)
-    setCarga(m.cargaHoraria)
+    setCarga(m.carga_horaria || '')
     setExtra('')
     setErros([])
   }
 
+  // Seleciona o primeiro modelo ao abrir; se o modelo escolhido sumiu (excluído), volta ao primeiro.
+  useEffect(() => {
+    if (modelos.length && !modelos.some((m) => m.id === modeloId)) aplicarModelo(modelos[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelos])
+
+  const campoExtraRotulo = modelo?.campo_extra_rotulo || ''
+
   const montarLote = (): DadosLote => ({
-    nr,
+    nomeModelo: modelo?.nome || '',
+    selo: modelo?.selo || '',
+    campoExtraRotulo,
     empresa,
     endereco,
     data,
@@ -136,13 +204,7 @@ export default function Certificados() {
     setOcupado('previa')
     try {
       const blob = gerarCertificadoPdf(lote, exemplo, await carregarMarca())
-      const url = URL.createObjectURL(blob)
-      const aba = window.open(url, '_blank')
-      if (!aba || aba.closed || typeof aba.closed === 'undefined') {
-        // O navegador bloqueou a nova aba: baixa o arquivo
-        baixarBlob(blob, nomeArquivoCertificado(nr, exemplo))
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 120000)
+      abrirPdfEmNovaAba(blob, nomeArquivoCertificado(lote, exemplo))
     } catch (e) {
       toast.error(`Erro ao gerar a prévia: ${(e as Error).message}`)
     } finally {
@@ -166,7 +228,7 @@ export default function Certificados() {
       for (let i = 0; i < colaboradores.length; i++) {
         setProgresso({ atual: i + 1, total: colaboradores.length })
         arquivos.push({
-          nome: nomeArquivoCertificado(nr, colaboradores[i]),
+          nome: nomeArquivoCertificado(lote, colaboradores[i]),
           blob: gerarCertificadoPdf(lote, colaboradores[i], marca),
         })
         // devolve o controle ao navegador para o contador aparecer
@@ -175,7 +237,7 @@ export default function Certificados() {
       if (arquivos.length === 1) {
         baixarBlob(arquivos[0].blob, arquivos[0].nome)
       } else {
-        const base = sanitizarNomeArquivo(`Certificados_NR${nr}_${empresa}`)
+        const base = sanitizarNomeArquivo(`Certificados_${identificadorModelo(lote)}_${empresa}`)
         baixarBlob(await montarZip(arquivos), `${base}.zip`)
       }
       toast.success(`${arquivos.length} certificado(s) gerado(s).`)
@@ -187,32 +249,38 @@ export default function Certificados() {
     }
   }
 
-  return (
-    <div className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-bold">Certificados em massa</h1>
-        <p className="text-sm text-muted-foreground">
-          Gere um certificado em PDF (frente e conteúdo programático) para cada colaborador do
-          treinamento.
-        </p>
-      </div>
+  if (!modelo) {
+    return (
+      <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+        Nenhum modelo disponível. Crie um na aba &quot;Modelos&quot; ou peça a um gestor.
+      </p>
+    )
+  }
 
+  return (
+    <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">1. Treinamento</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Norma Regulamentadora</Label>
+            <Label>Modelo de certificado</Label>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={nr} onValueChange={(v) => trocarNr(v as NrId)}>
+              <Select
+                value={modeloId}
+                onValueChange={(v) => {
+                  const m = modelos.find((x) => x.id === v)
+                  if (m) aplicarModelo(m)
+                }}
+              >
                 <SelectTrigger className="w-full md:w-[420px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ORDEM_NR.map((id) => (
-                    <SelectItem key={id} value={id}>
-                      {MODELOS_NR[id].rotulo}
+                  {modelos.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -264,14 +332,14 @@ export default function Certificados() {
               placeholder="Ex.: 04"
             />
           </div>
-          {modelo.campoExtra && (
+          {campoExtraRotulo && (
             <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="cert-extra">{modelo.campoExtra.rotulo}</Label>
+              <Label htmlFor="cert-extra">{campoExtraRotulo}</Label>
               <Input
                 id="cert-extra"
                 value={extra}
                 onChange={(e) => setExtra(e.target.value)}
-                placeholder={modelo.campoExtra.exemplo}
+                placeholder={modelo.campo_extra_exemplo || ''}
               />
             </div>
           )}
@@ -419,7 +487,7 @@ export default function Certificados() {
             />
             <p className="text-xs text-muted-foreground">
               Variáveis: {'{NOME}'} {'{CPF}'} {'{EMPRESA}'} {'{ENDERECO}'} {'{DATA}'} {'{CARGA}'}
-              {modelo.campoExtra ? ' {EXTRA}' : ''}. Elas são trocadas pelos dados de cada
+              {campoExtraRotulo ? ' {EXTRA}' : ''}. Elas são trocadas pelos dados de cada
               colaborador.
             </p>
           </div>
