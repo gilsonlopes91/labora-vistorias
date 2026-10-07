@@ -550,6 +550,17 @@ export function EstruturaSstTab({
                 onChange={(e) => setFSetor((v) => ({ ...v, descricao_processo: e.target.value }))}
               />
             </div>
+            <div>
+              <Label>Máquinas, equipamentos e substâncias</Label>
+              <Textarea
+                className="mt-1.5"
+                placeholder="O que existe no ambiente e entra no PGR (bloco de ambientes)"
+                value={fSetor.maquinas_equipamentos || ''}
+                onChange={(e) =>
+                  setFSetor((v) => ({ ...v, maquinas_equipamentos: e.target.value }))
+                }
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSetorDialog(false)}>

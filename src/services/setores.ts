@@ -15,6 +15,8 @@ export interface Setor extends RecordModel {
   paredes?: string
   iluminacao?: string
   ventilacao?: string
+  /** Máquinas, equipamentos e substâncias do ambiente (bloco 20.1 do PGR). */
+  maquinas_equipamentos?: string
   fotos?: string[]
   created: string
   updated: string

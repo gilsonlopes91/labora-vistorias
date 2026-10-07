@@ -45,6 +45,9 @@ export interface AvaliacaoRisco extends RecordModel {
   epi_validade_ca_ok?: boolean
   epi_periodicidade_troca_ok?: boolean
   epi_higienizacao_ok?: boolean
+  /** Critérios EF e MP do questionário de sete itens do laudo NR-15 (migration 0181). */
+  epi_eficacia_atenuacao_ok?: boolean
+  epi_medida_previa_ok?: boolean
   probabilidade_sugerida?: number
   probabilidade_final?: number
   severidade_sugerida?: number

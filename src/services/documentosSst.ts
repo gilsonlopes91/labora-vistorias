@@ -47,6 +47,18 @@ export interface DocumentoSst extends RecordModel {
   link_publico_chave?: string
   link_publico_ativo?: boolean
   documento_anterior_id?: string
+  /** Modelos Gerais (migration 0181): autor e coordenador, escolhas das
+   *  alternativas, configuração dos blocos, campos manuais e pendências. */
+  autor_rt_id?: string
+  coordenador_rt_id?: string
+  alternativas?: Record<string, string>
+  blocos_config?: Record<string, { incluir?: boolean; observacao?: string }>
+  campos_manuais?: Record<string, string>
+  pendencias?: { campo: string; motivo: string }[]
+  data_levantamento?: string
+  cidade_emissao?: string
+  numero_art?: string
+  modelo_versao?: string
   created: string
   updated: string
 }

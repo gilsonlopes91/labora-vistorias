@@ -31,10 +31,30 @@ export interface Empresa extends RecordModel {
   /** Planejamento do PGR (E0 — ver P3 do desenho de processo). */
   pgr_data_inicio_levantamento?: string
   pgr_modo_organizacao?: 'GHE/GES' | 'Atividade, posto, função ou setor' | 'Misto'
-  pgr_matriz_padrao_metodologia?: 'AIHA' | 'ISO45002'
+  pgr_matriz_padrao_metodologia?: 'AIHA' | 'ISO45002' | 'LABORA'
   pgr_matriz_padrao_dimensao?: '3' | '5'
   pgr_participantes?: string
   pgr_observacoes_planejamento?: string
+  /** Dados do estabelecimento usados nos Modelos Gerais (migration 0181). */
+  nome_estabelecimento?: string
+  representante_legal_nome?: string
+  representante_legal_cargo?: string
+  gestao_sst?: 'SESMT' | 'CIPA' | 'Designado de CIPA' | 'Dispensado'
+  jornada_trabalho?: string
+  horario_trabalho?: string
+  turnos_trabalho?: string
+  descricao_processo_produtivo?: string
+  canal_comunicacao?: string
+  responsavel_plano_nome?: string
+  responsavel_plano_cargo?: string
+  periodicidade_acompanhamento?: string
+  forma_acesso_documento?: string
+  local_guarda?: string
+  convencao_coletiva_insalubridade?: boolean
+  convencao_coletiva_clausula?: string
+  area_construida_pavimentos?: string
+  numero_cno?: string
+  avcb_clcb?: string
   created: string
   updated: string
 }

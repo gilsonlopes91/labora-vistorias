@@ -97,6 +97,7 @@ const TRILHAS_DESLIGADAS: TrilhaProbabilidade[] = ['Psicossocial']
 const METODOLOGIAS_MATRIZ = [
   { valor: 'AIHA', nome: 'AIHA (adaptação BS 8800)' },
   { valor: 'ISO45002', nome: 'ISO 45002 (manual do MTE)' },
+  { valor: 'LABORA', nome: 'Labora (NR-1, modelo geral)' },
 ]
 const NIVEIS_CONTROLE = [
   'Excelente / melhor prática',
@@ -454,7 +455,7 @@ export function RiscosOcupacionaisPainel({
             value={metodologia}
             onValueChange={(v) => {
               setMetodologia(v)
-              if (v === 'ISO45002') setDimensao(5)
+              if (v === 'ISO45002' || v === 'LABORA') setDimensao(5)
             }}
           >
             <SelectTrigger className="h-8 w-48 text-xs">
@@ -477,7 +478,7 @@ export function RiscosOcupacionaisPainel({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="5">5 x 5</SelectItem>
-              <SelectItem value="3" disabled={metodologia === 'ISO45002'}>
+              <SelectItem value="3" disabled={metodologia !== 'AIHA'}>
                 3 x 3
               </SelectItem>
             </SelectContent>
@@ -1345,11 +1346,16 @@ export function RiscosOcupacionaisPainel({
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(
                     [
-                      ['epi_condicao_funcionamento', 'Em condição de funcionamento'],
-                      ['epi_uso_ininterrupto', 'Uso ininterrupto na exposição'],
-                      ['epi_validade_ca_ok', 'CA dentro da validade'],
-                      ['epi_periodicidade_troca_ok', 'Troca respeita periodicidade'],
-                      ['epi_higienizacao_ok', 'Higienização adequada'],
+                      [
+                        'epi_eficacia_atenuacao_ok',
+                        'EF – atenuação ou fator de proteção adequado ao agente',
+                      ],
+                      ['epi_medida_previa_ok', 'MP – medida de proteção coletiva tentada antes'],
+                      ['epi_validade_ca_ok', 'PV – CA dentro da validade'],
+                      ['epi_condicao_funcionamento', 'CF – em condição de funcionamento'],
+                      ['epi_uso_ininterrupto', 'UI – uso ininterrupto na exposição'],
+                      ['epi_periodicidade_troca_ok', 'PT – troca respeita periodicidade'],
+                      ['epi_higienizacao_ok', 'HG – higienização adequada'],
                     ] as const
                   ).map(([campo, label]) => (
                     <label key={campo} className="flex items-center gap-2 text-sm">
