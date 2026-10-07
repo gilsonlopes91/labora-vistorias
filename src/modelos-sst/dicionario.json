@@ -1,0 +1,1205 @@
+{
+  "NOME_EMPRESA_SST": {
+    "descricao": "Nome da organização que elabora o documento",
+    "origem": "organizacao",
+    "tipo": "texto"
+  },
+  "ENDERECO_EMPRESA_SST": {
+    "descricao": "Endereço da organização que elabora",
+    "origem": "organizacao",
+    "tipo": "texto"
+  },
+  "CNPJ_EMPRESA_SST": {
+    "descricao": "CNPJ da organização que elabora",
+    "origem": "organizacao",
+    "tipo": "cnpj"
+  },
+  "EMAIL_EMPRESA_SST": {
+    "descricao": "E-mail da organização que elabora",
+    "origem": "organizacao",
+    "tipo": "texto"
+  },
+  "TELEFONE_EMPRESA_SST": {
+    "descricao": "Telefone da organização que elabora",
+    "origem": "organizacao",
+    "tipo": "telefone"
+  },
+  "RAZAO_SOCIAL": {
+    "descricao": "Razão social da empresa cliente",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "NOME_FANTASIA": {
+    "descricao": "Nome fantasia da empresa cliente",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "CNPJ": { "descricao": "CNPJ do estabelecimento avaliado", "origem": "empresa", "tipo": "cnpj" },
+  "ENDERECO_COMPLETO": {
+    "descricao": "Endereço completo do estabelecimento avaliado",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "TELEFONE": {
+    "descricao": "Telefone de contato da empresa",
+    "origem": "empresa",
+    "tipo": "telefone"
+  },
+  "CNAE_PRINCIPAL": {
+    "descricao": "Código do CNAE principal",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "DESCRICAO_CNAE": {
+    "descricao": "Descrição do CNAE principal",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "GRAU_RISCO_NR4": {
+    "descricao": "Grau de risco (1 a 4) conforme CNAE e NR-4",
+    "origem": "empresa",
+    "tipo": "numero"
+  },
+  "NOME_ESTABELECIMENTO": {
+    "descricao": "Nome ou código do estabelecimento avaliado",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "NUM_TRABALHADORES": {
+    "descricao": "Número total de trabalhadores do estabelecimento",
+    "origem": "empresa",
+    "tipo": "numero"
+  },
+  "ENQUADRAMENTO_PORTE": {
+    "descricao": "Enquadramento de porte: ME, EPP, MEI ou não se aplica",
+    "origem": "empresa",
+    "tipo": "lista"
+  },
+  "CIDADE": { "descricao": "Cidade de emissão", "origem": "empresa", "tipo": "texto" },
+  "DESCRICAO_PROCESSO_PRODUTIVO": {
+    "descricao": "Descrição da atividade econômica e dos processos produtivos",
+    "origem": "empresa",
+    "tipo": "texto longo"
+  },
+  "JORNADA_TRABALHO": {
+    "descricao": "Jornada semanal e regime de trabalho",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "HORARIO_TRABALHO": { "descricao": "Horários de trabalho", "origem": "empresa", "tipo": "texto" },
+  "TURNOS_TRABALHO": { "descricao": "Turnos de trabalho", "origem": "empresa", "tipo": "texto" },
+  "GESTAO_SST": {
+    "descricao": "Gestão de SST: SESMT, CIPA, designado de CIPA ou dispensado",
+    "origem": "empresa",
+    "tipo": "lista"
+  },
+  "NOME_REPRESENTANTE_EMPRESA": {
+    "descricao": "Nome do representante legal da empresa",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "CARGO_REPRESENTANTE_EMPRESA": {
+    "descricao": "Cargo do representante legal",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "NOME_ACOMPANHANTE_EMPRESA": {
+    "descricao": "Nome e cargo de quem acompanhou o levantamento pela empresa",
+    "origem": "planejamento",
+    "tipo": "texto"
+  },
+  "CONVENCAO_COLETIVA_SIM_NAO": {
+    "descricao": "Existe convenção ou acordo coletivo com cláusula de insalubridade",
+    "origem": "empresa",
+    "tipo": "sim/não"
+  },
+  "CONVENCAO_COLETIVA_CLAUSULA": {
+    "descricao": "Instrumento coletivo e cláusula",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "AREA_CONSTRUIDA_PAVIMENTOS": {
+    "descricao": "Área construída e número de pavimentos",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "NUMERO_CNO": {
+    "descricao": "Matrícula CNO (obras), se houver",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "DOCUMENTOS_ANALISADOS": {
+    "descricao": "Documentos da empresa analisados no levantamento",
+    "origem": "manual",
+    "tipo": "texto longo"
+  },
+  "CANAL_COMUNICACAO": {
+    "descricao": "Canal para os trabalhadores comunicarem perigos e incidentes",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "NOME_RESPONSAVEL_PLANO": {
+    "descricao": "Responsável geral pelo acompanhamento do plano de ação",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "CARGO_RESPONSAVEL_PLANO": {
+    "descricao": "Cargo do responsável pelo plano de ação",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "PERIODICIDADE_ACOMPANHAMENTO": {
+    "descricao": "Periodicidade de acompanhamento do plano de ação",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "FORMA_ACESSO_DOCUMENTO": {
+    "descricao": "Forma de acesso dos trabalhadores ao documento",
+    "origem": "empresa",
+    "tipo": "lista"
+  },
+  "LOCAL_GUARDA": {
+    "descricao": "Local de guarda do documento e das versões",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "AVCB_OU_CLCB": {
+    "descricao": "AVCB ou CLCB: número e validade",
+    "origem": "empresa",
+    "tipo": "texto"
+  },
+  "DATA_ULTIMO_SIMULADO": {
+    "descricao": "Data do último simulado de emergência",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "PERIODO_ANALISE": {
+    "descricao": "Período analisado para acidentes e doenças",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "DATA_DECLARACAO_DISPENSA": {
+    "descricao": "Data da declaração de dispensa do PGR (ME/EPP)",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "PROTOCOLO_DECLARACAO": {
+    "descricao": "Protocolo da declaração de dispensa",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "NOME_AUTOR": {
+    "descricao": "Nome do responsável técnico autor",
+    "origem": "rt",
+    "tipo": "texto"
+  },
+  "REGISTRO_AUTOR": {
+    "descricao": "Registro profissional do autor (CREA, CRM ou outro)",
+    "origem": "rt",
+    "tipo": "texto"
+  },
+  "NOME_COORDENADOR": {
+    "descricao": "Nome do coordenador técnico, se houver",
+    "origem": "rt",
+    "tipo": "texto"
+  },
+  "REGISTRO_COORDENADOR": {
+    "descricao": "Registro profissional do coordenador",
+    "origem": "rt",
+    "tipo": "texto"
+  },
+  "NUMERO_ART": {
+    "descricao": "Número da ART, quando aplicável",
+    "origem": "documento",
+    "tipo": "texto"
+  },
+  "CONSELHO_ART": {
+    "descricao": "Conselho em que a ART foi registrada (CREA ou outro)",
+    "origem": "rt",
+    "tipo": "texto"
+  },
+  "VERSAO_DOCUMENTO": {
+    "descricao": "Versão do documento",
+    "origem": "documento",
+    "tipo": "texto"
+  },
+  "DATA_EMISSAO": { "descricao": "Data de emissão", "origem": "documento", "tipo": "data" },
+  "DATA_INICIO_VALIDADE": {
+    "descricao": "Início da validade ou vigência",
+    "origem": "documento",
+    "tipo": "data"
+  },
+  "DATA_REVISAO_ATE": {
+    "descricao": "Data limite para revisão",
+    "origem": "documento",
+    "tipo": "data"
+  },
+  "DATA_LEVANTAMENTO": {
+    "descricao": "Data ou datas do levantamento de campo e das medições",
+    "origem": "documento",
+    "tipo": "data"
+  },
+  "PERIODO_INICIO": {
+    "descricao": "Início do período a que o laudo se refere",
+    "origem": "documento",
+    "tipo": "data"
+  },
+  "PERIODO_FIM": {
+    "descricao": "Fim do período a que o laudo se refere",
+    "origem": "documento",
+    "tipo": "data"
+  },
+  "PERIODICIDADE_REVISAO": {
+    "descricao": "Periodicidade de revisão adotada",
+    "origem": "documento",
+    "tipo": "texto"
+  },
+  "TIPO_EMISSAO": {
+    "descricao": "Emissão inicial, ou revisão do laudo anterior com a data",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "DATA_LAUDO_ANTERIOR": {
+    "descricao": "Data do laudo anterior, se revisão",
+    "origem": "revisoes",
+    "tipo": "data"
+  },
+  "DATA_CIENCIA": {
+    "descricao": "Data da ciência do empregador",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "DECLARACAO_EMPRESA_ALTERACOES": {
+    "descricao": "Declaração da empresa sobre alterações no período (art. 279)",
+    "origem": "manual",
+    "tipo": "texto longo"
+  },
+  "NUM_GHE": { "descricao": "Número de GHE avaliados", "origem": "derivado", "tipo": "numero" },
+  "NUM_TRABALHADORES_AVALIADOS": {
+    "descricao": "Número de trabalhadores avaliados",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "NOME_TRABALHADOR": {
+    "descricao": "Nome do trabalhador (laudo individual)",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "FUNCAO_TRABALHADOR": {
+    "descricao": "Função do trabalhador (laudo individual)",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "MOTIVO_EMISSAO_INDIVIDUAL": {
+    "descricao": "Motivo da emissão individual",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "REFERENCIA_LTCAT": {
+    "descricao": "Referência do LTCAT da empresa",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "DATA_LTCAT": { "descricao": "Data do LTCAT", "origem": "derivado", "tipo": "data" },
+  "DATA_PGR": {
+    "descricao": "Data da versão do PGR consultada",
+    "origem": "derivado",
+    "tipo": "data"
+  },
+  "DATA_PCMSO": {
+    "descricao": "Data da versão do PCMSO consultada",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "REFERENCIA_LAUDO_INSALUBRIDADE": {
+    "descricao": "Referência do laudo de insalubridade",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "REFERENCIA_LAUDO_PERICULOSIDADE": {
+    "descricao": "Referência do laudo de periculosidade",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "REFERENCIA_AET": { "descricao": "Referência da AET", "origem": "manual", "tipo": "texto" },
+  "REFERENCIA_CERTIFICACAO": {
+    "descricao": "Referência da certificação em SGSST",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "OUTROS_DOCUMENTOS_CONSULTADOS": {
+    "descricao": "Outros documentos consultados, com identificação e data",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "REFERENCIA_COMPROVANTES_EPI": {
+    "descricao": "Referência dos comprovantes de entrega e treinamento de EPI",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "BIBLIOGRAFIA_ESPECIFICA": {
+    "descricao": "Bibliografia técnica específica, manuais e laudos de laboratório",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "PORTARIA_NORMA_VIGENTE": {
+    "descricao": "Portaria de última atualização da norma citada",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "AMBIENTE_NOME": {
+    "descricao": "Nome do ambiente ou setor",
+    "origem": "setores",
+    "tipo": "texto"
+  },
+  "AMBIENTE_SETOR": {
+    "descricao": "Setor a que o ambiente pertence",
+    "origem": "setores",
+    "tipo": "texto"
+  },
+  "AMBIENTE_PROCESSO": {
+    "descricao": "Descrição do processo e da atividade no ambiente",
+    "origem": "setores",
+    "tipo": "texto longo"
+  },
+  "AMBIENTE_CARACTERISTICAS": {
+    "descricao": "Área, pé-direito, piso, cobertura, ventilação, iluminação",
+    "origem": "setores",
+    "tipo": "texto longo"
+  },
+  "AMBIENTE_EQUIPAMENTOS": {
+    "descricao": "Máquinas, equipamentos e substâncias do ambiente",
+    "origem": "setores",
+    "tipo": "texto longo"
+  },
+  "AMBIENTE_NUM_TRAB": {
+    "descricao": "Número de trabalhadores no ambiente",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "AMBIENTE_FONTES": {
+    "descricao": "Fontes de agentes presentes no ambiente",
+    "origem": "derivado",
+    "tipo": "texto longo"
+  },
+  "AMBIENTE_FONTE_PERIGO_NR16": {
+    "descricao": "Fonte de perigo da NR-16 presente no ambiente, ou nenhuma",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "AMBIENTE_AREA_RISCO": {
+    "descricao": "Área de risco delimitada: sim, não ou não se aplica",
+    "origem": "manual",
+    "tipo": "lista"
+  },
+  "GHE_NOME": { "descricao": "Nome do grupo de exposição", "origem": "ghes", "tipo": "texto" },
+  "GHE_CODIGO": { "descricao": "Código do GHE", "origem": "ghes", "tipo": "texto" },
+  "GHE_SETOR_AMBIENTES": {
+    "descricao": "Setor e ambientes do GHE",
+    "origem": "ghes",
+    "tipo": "texto"
+  },
+  "GHE_FUNCOES": {
+    "descricao": "Funções que compõem o GHE",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "GHE_NUM_EXPOSTOS": {
+    "descricao": "Número de trabalhadores do GHE",
+    "origem": "ghes",
+    "tipo": "numero"
+  },
+  "GHE_CRITERIO": {
+    "descricao": "Critério de agrupamento do GHE",
+    "origem": "ghes",
+    "tipo": "texto longo"
+  },
+  "FUNCAO_NOME": { "descricao": "Nome da função", "origem": "funcoes", "tipo": "texto" },
+  "FUNCAO_CBO": { "descricao": "CBO da função", "origem": "funcoes", "tipo": "texto" },
+  "FUNCAO_GHE": { "descricao": "GHE da função", "origem": "funcoes", "tipo": "texto" },
+  "FUNCAO_AMBIENTE": {
+    "descricao": "Ambiente (setor) da função",
+    "origem": "funcoes",
+    "tipo": "texto"
+  },
+  "FUNCAO_ATIVIDADES": {
+    "descricao": "Descrição das atividades da função",
+    "origem": "funcoes",
+    "tipo": "texto longo"
+  },
+  "FUNCAO_JORNADA": { "descricao": "Jornada da função", "origem": "ghes", "tipo": "texto" },
+  "FUNCAO_NUM_EXPOSTOS": {
+    "descricao": "Número de trabalhadores da função",
+    "origem": "funcoes",
+    "tipo": "numero"
+  },
+  "FUNCAO_AMBIENTES_TEMPO": {
+    "descricao": "Ambientes e tempo de permanência em cada um",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "FUNCAO_FONTES_AGENTES": {
+    "descricao": "Fontes dos agentes a que a função está exposta",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "FUNCAO_VIA_EXPOSICAO": {
+    "descricao": "Via de exposição: auditiva, respiratória, cutânea, corporal",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "FUNCAO_PERIODICIDADE_EXPOSICAO": {
+    "descricao": "Periodicidade da exposição: contínua, intermitente ou ocasional",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "INV_GRUPO": {
+    "descricao": "Grupo de exposição ou função",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "INV_CATEGORIA": {
+    "descricao": "Categoria do risco (físico, químico, biológico, ergonômico, acidente, psicossocial)",
+    "origem": "avaliacoes",
+    "tipo": "lista"
+  },
+  "INV_PERIGO": { "descricao": "Perigo ou agente", "origem": "avaliacoes", "tipo": "texto" },
+  "INV_FONTE": {
+    "descricao": "Fonte geradora ou circunstância",
+    "origem": "avaliacoes",
+    "tipo": "texto longo"
+  },
+  "INV_LESOES": {
+    "descricao": "Possíveis lesões ou agravos à saúde",
+    "origem": "avaliacoes",
+    "tipo": "texto longo"
+  },
+  "INV_MEDIDAS": {
+    "descricao": "Medidas de prevenção implementadas",
+    "origem": "avaliacoes",
+    "tipo": "texto longo"
+  },
+  "AGENTE_NOME": { "descricao": "Nome do agente nocivo", "origem": "avaliacoes", "tipo": "texto" },
+  "AGENTE_ANEXO_NR15": {
+    "descricao": "Anexo da NR-15 do agente",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AGENTE_ITEM_NR15": {
+    "descricao": "Item do anexo da NR-15",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "AGENTE_ANEXO_NR16": {
+    "descricao": "Anexo da NR-16 do agente",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AGENTE_ITEM_NR16": {
+    "descricao": "Item do anexo da NR-16",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "AGENTE_CODIGO_ANEXO_IV": {
+    "descricao": "Código do Anexo IV do Decreto 3.048/1999",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AGENTE_CAS": {
+    "descricao": "Número CAS do agente químico",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AGENTE_CODIGO_ESOCIAL": {
+    "descricao": "Código da Tabela 24 do eSocial",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EXPOSICAO_HABITUALIDADE": {
+    "descricao": "Habitual ou fortuita",
+    "origem": "avaliacoes",
+    "tipo": "lista"
+  },
+  "EXPOSICAO_PERMANENCIA": {
+    "descricao": "Permanente, intermitente ou eventual",
+    "origem": "avaliacoes",
+    "tipo": "lista"
+  },
+  "EXPOSICAO_TEMPO": { "descricao": "Tempo de exposição", "origem": "avaliacoes", "tipo": "texto" },
+  "EXPOSICAO_FREQUENCIA_DURACAO": {
+    "descricao": "Frequência e duração da exposição",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AV_GRUPO": {
+    "descricao": "Grupo de exposição ou função avaliada",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AV_PERIGO": { "descricao": "Perigo avaliado", "origem": "avaliacoes", "tipo": "texto" },
+  "AV_EXPOSICAO": {
+    "descricao": "Exposição: frequência, duração e intensidade",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "AV_DADOS": {
+    "descricao": "Dados de análise ou monitoramento usados",
+    "origem": "avaliacoes",
+    "tipo": "texto longo"
+  },
+  "AV_P": { "descricao": "Probabilidade (1 a 5)", "origem": "avaliacoes", "tipo": "numero" },
+  "AV_S": { "descricao": "Severidade (1 a 5)", "origem": "avaliacoes", "tipo": "numero" },
+  "AV_NIVEL": { "descricao": "Nível de risco", "origem": "derivado", "tipo": "texto" },
+  "AV_CLASSIFICACAO": {
+    "descricao": "Classificação para o plano de ação",
+    "origem": "derivado",
+    "tipo": "lista"
+  },
+  "MED_AGENTE": {
+    "descricao": "Agente avaliado, com CAS ou código do Anexo IV quando houver",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "MED_LOCAL": {
+    "descricao": "Local, GHE ou função da medição",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "MED_METODO": {
+    "descricao": "Método e norma de referência",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "MED_INSTRUMENTO": {
+    "descricao": "Instrumento e calibração",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "MED_DATA": { "descricao": "Data da medição", "origem": "medicoes", "tipo": "data" },
+  "MED_RESULTADO": { "descricao": "Resultado da medição", "origem": "medicoes", "tipo": "texto" },
+  "MED_UNIDADE": { "descricao": "Unidade do resultado", "origem": "medicoes", "tipo": "texto" },
+  "MED_LIMITE": {
+    "descricao": "Limite de exposição e nível de ação",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "MED_PERCENTUAL": {
+    "descricao": "Percentual do limite de exposição",
+    "origem": "derivado",
+    "tipo": "percentual"
+  },
+  "MED_JULGAMENTO": {
+    "descricao": "Julgamento: acima do limite, acima do nível de ação, região de incerteza ou aceitável",
+    "origem": "derivado",
+    "tipo": "lista"
+  },
+  "MED_TEMPO": {
+    "descricao": "Tempo de medição ou amostragem",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "MED_NUM_AMOSTRAS": { "descricao": "Número de amostras", "origem": "derivado", "tipo": "numero" },
+  "MED_CRITERIO_REPRESENTATIVO": {
+    "descricao": "Critério de seleção do trabalhador representativo",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "MED_NUM_TRABALHADORES_MEDIDOS": {
+    "descricao": "Número de trabalhadores medidos",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "INSTR_NOME": { "descricao": "Instrumento", "origem": "medicoes", "tipo": "texto" },
+  "INSTR_FABRICANTE_MODELO": {
+    "descricao": "Fabricante e modelo do instrumento",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "INSTR_NUMERO_SERIE": { "descricao": "Número de série", "origem": "medicoes", "tipo": "texto" },
+  "INSTR_CERTIFICADO": {
+    "descricao": "Número do certificado de calibração",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "INSTR_VALIDADE_CALIBRACAO": {
+    "descricao": "Validade da calibração",
+    "origem": "medicoes",
+    "tipo": "data"
+  },
+  "INSTR_GRANDEZA": { "descricao": "Grandeza medida", "origem": "derivado", "tipo": "texto" },
+  "INSTR_CLASSE": {
+    "descricao": "Classe ou especificação do instrumento",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "INSTR_AGENTES": {
+    "descricao": "Agentes avaliados com o instrumento",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "RUIDO_NE": {
+    "descricao": "Nível de exposição medido, dB(A)",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "RUIDO_NEN": {
+    "descricao": "Nível de exposição normalizado, dB(A)",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "RUIDO_DOSE": { "descricao": "Dose de ruído, %", "origem": "medicoes", "tipo": "numero" },
+  "RUIDO_INSTRUMENTO_CONFIG": {
+    "descricao": "Instrumento e configuração do dosímetro",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "CALOR_EDICAO_NHO06": {
+    "descricao": "Edição da NHO-06 utilizada",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "CALOR_REGIME": {
+    "descricao": "Regime de trabalho e descanso",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "CALOR_TAXA_METABOLICA": {
+    "descricao": "Taxa metabólica (W)",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "CALOR_IBUTG_MEDIO": {
+    "descricao": "IBUTG médio ponderado (°C)",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "CALOR_IBUTG_MAXIMO": {
+    "descricao": "IBUTG máximo (°C)",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "CALOR_LIMITE": {
+    "descricao": "Limite de tolerância do Quadro 1 (°C)",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "CALOR_NIVEL_ACAO": { "descricao": "Nível de ação (°C)", "origem": "derivado", "tipo": "numero" },
+  "CALOR_TBN_TG_TBS": {
+    "descricao": "Temperaturas tbn, tg e tbs (°C)",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "CALOR_DATA_HORARIO": {
+    "descricao": "Data e horário da medição de calor",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "VIB_TIPO": {
+    "descricao": "Tipo de vibração: mãos e braços ou corpo inteiro",
+    "origem": "medicoes",
+    "tipo": "lista"
+  },
+  "VIB_EQUIPAMENTO": {
+    "descricao": "Equipamento ou máquina fonte da vibração",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "VIB_AREN": {
+    "descricao": "Aceleração resultante de exposição normalizada, aren (m/s²)",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "VIB_VDVR": {
+    "descricao": "Valor da dose de vibração resultante, VDVR",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "VIB_TEMPO_EXPOSICAO": {
+    "descricao": "Tempo de exposição à vibração",
+    "origem": "medicoes",
+    "tipo": "texto"
+  },
+  "QUIM_CONCENTRACAO": {
+    "descricao": "Concentração média ou ponderada",
+    "origem": "medicoes",
+    "tipo": "numero"
+  },
+  "QUIM_FATOR_DESVIO": { "descricao": "Fator de desvio", "origem": "derivado", "tipo": "texto" },
+  "QUIM_GRAU": {
+    "descricao": "Grau do agente: mínimo, médio ou máximo",
+    "origem": "derivado",
+    "tipo": "lista"
+  },
+  "QUAL_ATIVIDADE_MATERIAL": {
+    "descricao": "Atividade e material em contato",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "QUAL_VIA_ABSORCAO": { "descricao": "Via de absorção", "origem": "avaliacoes", "tipo": "texto" },
+  "QUAL_FONTE_LIBERACAO": {
+    "descricao": "Fonte e possibilidade de liberação",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "QUAL_RESULTADO": {
+    "descricao": "Resultado da avaliação qualitativa",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "OUTROS_ATIVIDADE_OPERACAO": {
+    "descricao": "Atividade ou operação enquadrável",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "OUTROS_TEMPO_PERMANENCIA_PROTECAO": {
+    "descricao": "Tempo, permanência e proteção",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "OUTROS_REGISTRO_INSPECAO": {
+    "descricao": "Registro da inspeção",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "OUTROS_ENQUADRA": {
+    "descricao": "Enquadra ou não enquadra",
+    "origem": "avaliacoes",
+    "tipo": "lista"
+  },
+  "EPC_GRUPO": {
+    "descricao": "Setor, GHE ou função do EPC",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPC_DESCRICAO": {
+    "descricao": "Equipamento de proteção coletiva ou medida administrativa",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPC_AGENTE": {
+    "descricao": "Agente controlado pelo EPC",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPC_DATA_INSTALACAO": {
+    "descricao": "Data de instalação ou implantação do EPC",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "EPC_MANUTENCAO": {
+    "descricao": "Registro de manutenção e verificação",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPC_EFICAZ": {
+    "descricao": "Eficácia comprovada: sim ou não",
+    "origem": "avaliacoes",
+    "tipo": "sim/não"
+  },
+  "EPC_EVIDENCIA": {
+    "descricao": "Evidência da eficácia (medição de referência)",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "EPI_GRUPO": {
+    "descricao": "Função ou GHE que usa o EPI",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPI_TIPO": { "descricao": "Tipo: EPC ou EPI", "origem": "derivado", "tipo": "lista" },
+  "EPI_DESCRICAO": { "descricao": "Descrição do EPI", "origem": "epis", "tipo": "texto" },
+  "EPI_CA": { "descricao": "Número do CA", "origem": "epis", "tipo": "texto" },
+  "EPI_VALIDADE": { "descricao": "Validade do CA", "origem": "epis", "tipo": "data" },
+  "EPI_FORNECIMENTO": {
+    "descricao": "Fornecimento comprovado (data e ficha)",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "EPI_TREINAMENTO": {
+    "descricao": "Data do treinamento de uso",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "EPI_HIGIENIZACAO": {
+    "descricao": "Registro de higienização e guarda",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPI_EFICACIA": {
+    "descricao": "Eficácia atestada: sim ou não, com justificativa",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "EPI_EF": {
+    "descricao": "Critério EF: atenuação ou fator de proteção adequado ao agente",
+    "origem": "avaliacoes",
+    "tipo": "S/N"
+  },
+  "EPI_MP": {
+    "descricao": "Critério MP: medida de proteção coletiva prévia",
+    "origem": "avaliacoes",
+    "tipo": "S/N"
+  },
+  "EPI_PV": {
+    "descricao": "Critério PV: CA dentro da validade",
+    "origem": "avaliacoes",
+    "tipo": "S/N"
+  },
+  "EPI_CF": {
+    "descricao": "Critério CF: condições de funcionamento",
+    "origem": "avaliacoes",
+    "tipo": "S/N"
+  },
+  "EPI_UI": { "descricao": "Critério UI: uso ininterrupto", "origem": "avaliacoes", "tipo": "S/N" },
+  "EPI_PT": {
+    "descricao": "Critério PT: periodicidade de troca",
+    "origem": "avaliacoes",
+    "tipo": "S/N"
+  },
+  "EPI_HG": { "descricao": "Critério HG: higienização", "origem": "avaliacoes", "tipo": "S/N" },
+  "EPI_NEUTRALIZA": {
+    "descricao": "EPI neutraliza o risco: sim se todos S, não se algum N",
+    "origem": "derivado",
+    "tipo": "sim/não"
+  },
+  "CONC_FUNCAO": { "descricao": "Função concluída", "origem": "funcoes", "tipo": "texto" },
+  "CONC_GHE": { "descricao": "GHE da função", "origem": "funcoes", "tipo": "texto" },
+  "CONC_AGENTE": {
+    "descricao": "Agente, atividade ou ausência de agente",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "CONC_FONTE_EXPOSICAO": {
+    "descricao": "Fonte e tipo de exposição",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "CONC_HABITUALIDADE": {
+    "descricao": "Habitualidade e permanência, com tempo",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "CONC_AVALIACAO": {
+    "descricao": "Avaliação qualitativa ou quantitativa, valor e limite",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "CONC_EPC_EPI": {
+    "descricao": "EPC e EPI, CA e requisitos atendidos",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "CONC_ENQUADRAMENTO": {
+    "descricao": "Enquadramento legal",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "CONC_CONCLUSAO": { "descricao": "Conclusão", "origem": "avaliacoes", "tipo": "lista" },
+  "CONC_JUSTIFICATIVA": {
+    "descricao": "Justificativa técnica da conclusão",
+    "origem": "avaliacoes",
+    "tipo": "texto longo"
+  },
+  "PPP_CODIGO_TABELA24": {
+    "descricao": "Código da Tabela 24 do eSocial",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "PPP_GRAU_EXPOSICAO": {
+    "descricao": "Grau de exposição (S-1200), 1 a 4",
+    "origem": "manual",
+    "tipo": "numero"
+  },
+  "PPP_TEMPO_FAE": {
+    "descricao": "Tempo de 15, 20 ou 25 anos e FAE",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "PPP_INICIO_CONDICAO": {
+    "descricao": "Data de início da condição",
+    "origem": "manual",
+    "tipo": "data"
+  },
+  "RES_AGENTE_MAIOR_GRAU": {
+    "descricao": "Agente de maior grau da função",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "RES_GRAU_FINAL": {
+    "descricao": "Grau final: máximo, médio, mínimo ou sem insalubridade",
+    "origem": "derivado",
+    "tipo": "lista"
+  },
+  "RES_PERCENTUAL": {
+    "descricao": "Percentual do adicional: 40, 20, 10 ou 0",
+    "origem": "derivado",
+    "tipo": "percentual"
+  },
+  "RES_TOTAL_FUNCOES": {
+    "descricao": "Total de funções avaliadas",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "RES_CARACTERIZADAS": {
+    "descricao": "Funções caracterizadas",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "RES_NAO_CARACTERIZADAS": {
+    "descricao": "Funções não caracterizadas",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "RES_TRABALHADORES_ADICIONAL": {
+    "descricao": "Trabalhadores abrangidos pelo adicional",
+    "origem": "derivado",
+    "tipo": "numero"
+  },
+  "RES_ANEXOS": { "descricao": "Anexos aplicáveis", "origem": "derivado", "tipo": "texto" },
+  "SIM_ANEXO_PERIC": {
+    "descricao": "Anexo da periculosidade (função com os dois adicionais)",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "SIM_CONCLUSAO_PERIC": {
+    "descricao": "Conclusão da periculosidade",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "SIM_AGENTE_INSAL": {
+    "descricao": "Agente da insalubridade",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "SIM_GRAU_INSAL": {
+    "descricao": "Grau da insalubridade",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "VALOR_BASE_CALCULO": {
+    "descricao": "Base de cálculo do adicional (salário mínimo ou base da norma coletiva)",
+    "origem": "manual",
+    "tipo": "moeda"
+  },
+  "PERCENTUAL_GRAU": {
+    "descricao": "Percentual do grau: 10, 20 ou 40",
+    "origem": "derivado",
+    "tipo": "percentual"
+  },
+  "VALOR_ADICIONAL": {
+    "descricao": "Adicional mensal = base x percentual",
+    "origem": "derivado",
+    "tipo": "moeda"
+  },
+  "NUM_ACAO": { "descricao": "Número da ação", "origem": "acoes_plano", "tipo": "numero" },
+  "DESCRICAO_ACAO": { "descricao": "Ação (o quê)", "origem": "acoes_plano", "tipo": "texto longo" },
+  "RISCO_ORIGEM": {
+    "descricao": "Risco de origem da ação",
+    "origem": "acoes_plano",
+    "tipo": "texto"
+  },
+  "JUSTIFICATIVA": { "descricao": "Por quê", "origem": "acoes_plano", "tipo": "texto longo" },
+  "LOCAL_ACAO": { "descricao": "Onde", "origem": "acoes_plano", "tipo": "texto" },
+  "METODO_ACAO": { "descricao": "Como", "origem": "acoes_plano", "tipo": "texto longo" },
+  "RESP_ACAO": { "descricao": "Responsável", "origem": "acoes_plano", "tipo": "texto" },
+  "PRAZO_ACAO": { "descricao": "Prazo", "origem": "acoes_plano", "tipo": "data" },
+  "CUSTO_ACAO": { "descricao": "Custo estimado", "origem": "acoes_plano", "tipo": "moeda" },
+  "AFERICAO_ACAO": { "descricao": "Forma de aferição", "origem": "acoes_plano", "tipo": "texto" },
+  "PRIORIDADE_ACAO": { "descricao": "Prioridade", "origem": "acoes_plano", "tipo": "lista" },
+  "SITUACAO_ACAO": { "descricao": "Situação", "origem": "acoes_plano", "tipo": "lista" },
+  "HIERARQUIA_ACAO": {
+    "descricao": "Hierarquia da medida: eliminação, coletiva, administrativa, individual",
+    "origem": "acoes_plano",
+    "tipo": "lista"
+  },
+  "AGENTE_GHE_ACAO": {
+    "descricao": "Agente e GHE ou função da ação",
+    "origem": "acoes_plano",
+    "tipo": "texto"
+  },
+  "ANEXO_ACAO": {
+    "descricao": "Anexo da NR-16 de origem da ação",
+    "origem": "acoes_plano",
+    "tipo": "texto"
+  },
+  "ITEM_ACAO": {
+    "descricao": "Item do anexo de origem da ação",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "VERSAO_REV": { "descricao": "Versão", "origem": "revisoes", "tipo": "texto" },
+  "DATA_REV": { "descricao": "Data da revisão", "origem": "revisoes", "tipo": "data" },
+  "MOTIVO_REV": { "descricao": "Motivo da revisão", "origem": "revisoes", "tipo": "texto longo" },
+  "ALTERACOES_REV": { "descricao": "Itens alterados", "origem": "revisoes", "tipo": "texto longo" },
+  "RESP_REV": {
+    "descricao": "Responsável técnico pela revisão",
+    "origem": "revisoes",
+    "tipo": "texto"
+  },
+  "ASSINATURA_REV": { "descricao": "Assinatura", "origem": "revisoes", "tipo": "texto" },
+  "ERG_GRUPO": { "descricao": "Grupo ou função", "origem": "avaliacoes", "tipo": "texto" },
+  "ERG_FATOR": {
+    "descricao": "Fator ergonômico ou psicossocial",
+    "origem": "avaliacoes",
+    "tipo": "texto"
+  },
+  "ERG_METODO": { "descricao": "Instrumento ou método", "origem": "avaliacoes", "tipo": "texto" },
+  "ERG_RESULTADO": { "descricao": "Resultado", "origem": "avaliacoes", "tipo": "texto" },
+  "ERG_CLASSIFICACAO": { "descricao": "Classificação", "origem": "derivado", "tipo": "texto" },
+  "CONS_DATA": { "descricao": "Data da consulta", "origem": "manual", "tipo": "data" },
+  "CONS_FORMA": { "descricao": "Forma da consulta", "origem": "manual", "tipo": "lista" },
+  "CONS_PARTICIPANTES": { "descricao": "Participantes", "origem": "manual", "tipo": "texto" },
+  "CONS_TEMAS": { "descricao": "Temas", "origem": "manual", "tipo": "texto longo" },
+  "CONS_ENCAMINHAMENTOS": {
+    "descricao": "Encaminhamentos",
+    "origem": "manual",
+    "tipo": "texto longo"
+  },
+  "ACID_DATA": { "descricao": "Data", "origem": "manual", "tipo": "data" },
+  "ACID_FUNCAO": { "descricao": "Função", "origem": "manual", "tipo": "texto" },
+  "ACID_DESCRICAO": { "descricao": "Descrição", "origem": "manual", "tipo": "texto longo" },
+  "ACID_TIPO": {
+    "descricao": "Tipo: acidente, doença ou evento perigoso",
+    "origem": "manual",
+    "tipo": "lista"
+  },
+  "ACID_CAUSAS": { "descricao": "Causas", "origem": "manual", "tipo": "texto longo" },
+  "ACID_MEDIDA": { "descricao": "Medida adotada", "origem": "manual", "tipo": "texto" },
+  "ACID_CAT": { "descricao": "CAT emitida", "origem": "manual", "tipo": "lista" },
+  "TREIN_NOME": { "descricao": "Treinamento", "origem": "manual", "tipo": "texto" },
+  "TREIN_NORMA": { "descricao": "Norma", "origem": "manual", "tipo": "texto" },
+  "TREIN_FUNCAO": { "descricao": "Função", "origem": "manual", "tipo": "texto" },
+  "TREIN_DATA": { "descricao": "Data", "origem": "manual", "tipo": "data" },
+  "TREIN_CH": { "descricao": "Carga horária", "origem": "manual", "tipo": "numero" },
+  "TREIN_INSTRUTOR": { "descricao": "Instrutor", "origem": "manual", "tipo": "texto" },
+  "TREIN_VALIDADE": { "descricao": "Validade", "origem": "manual", "tipo": "texto" },
+  "TERC_EMPRESA": { "descricao": "Empresa contratada (CNPJ)", "origem": "manual", "tipo": "texto" },
+  "TERC_SERVICO": { "descricao": "Serviço", "origem": "manual", "tipo": "texto" },
+  "TERC_LOCAL": { "descricao": "Local", "origem": "manual", "tipo": "texto" },
+  "TERC_RISCOS": { "descricao": "Riscos informados", "origem": "manual", "tipo": "texto longo" },
+  "TERC_COMPROVACAO": {
+    "descricao": "Comprovação de entrega das informações",
+    "origem": "manual",
+    "tipo": "texto longo"
+  },
+  "DOC_NOME": { "descricao": "Documento verificado", "origem": "manual", "tipo": "texto" },
+  "DOC_EXISTE": { "descricao": "Existe: sim ou não", "origem": "manual", "tipo": "sim/não" },
+  "DOC_DATA": { "descricao": "Data ou validade", "origem": "manual", "tipo": "data" },
+  "DOC_OBS": { "descricao": "Observação", "origem": "manual", "tipo": "texto" },
+  "INFL_PRODUTO": { "descricao": "Produto", "origem": "manual", "tipo": "texto" },
+  "INFL_ESTADO": { "descricao": "Estado físico", "origem": "manual", "tipo": "lista" },
+  "INFL_PONTO_FULGOR": {
+    "descricao": "Ponto de fulgor (°C)",
+    "origem": "manual",
+    "tipo": "numero"
+  },
+  "INFL_FDS": { "descricao": "Fonte (FDS)", "origem": "manual", "tipo": "texto" },
+  "INFL_CLASSIFICACAO": { "descricao": "Classificação", "origem": "manual", "tipo": "lista" },
+  "INFL_LOCAL": { "descricao": "Local de armazenamento", "origem": "manual", "tipo": "texto" },
+  "INFL_EMBALAGEM": {
+    "descricao": "Embalagem, capacidade e grupo",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "INFL_QUANTIDADE": { "descricao": "Quantidade total", "origem": "manual", "tipo": "texto" },
+  "INFL_CERTIFICACAO": {
+    "descricao": "Certificação da embalagem",
+    "origem": "manual",
+    "tipo": "sim/não"
+  },
+  "INFL_ATIVIDADE": { "descricao": "Atividade que o utiliza", "origem": "manual", "tipo": "texto" },
+  "ELET_INSTALACAO": { "descricao": "Instalação elétrica", "origem": "manual", "tipo": "texto" },
+  "ELET_TIPO": { "descricao": "SEP ou SEC", "origem": "manual", "tipo": "lista" },
+  "ELET_TENSAO": { "descricao": "Tensão nominal", "origem": "manual", "tipo": "texto" },
+  "ELET_SITUACAO": {
+    "descricao": "Energizada ou desenergizada",
+    "origem": "manual",
+    "tipo": "lista"
+  },
+  "ELET_ZONAS": {
+    "descricao": "Zona de risco e zona controlada (raios em m)",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "ELET_MEDIDAS_10_2_8": {
+    "descricao": "Medidas do item 10.2.8 da NR-10 adotadas",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "ELET_DOCUMENTOS": {
+    "descricao": "Prontuário e documentos",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "VEIC_TIPO": { "descricao": "Motocicleta ou veículo", "origem": "manual", "tipo": "lista" },
+  "VEIC_PLACA": { "descricao": "Placa", "origem": "manual", "tipo": "texto" },
+  "VEIC_TITULAR": { "descricao": "Titular", "origem": "manual", "tipo": "lista" },
+  "VEIC_FUNCAO": { "descricao": "Função que utiliza", "origem": "manual", "tipo": "texto" },
+  "VEIC_VIAS": { "descricao": "Vias percorridas", "origem": "manual", "tipo": "lista" },
+  "VEIC_FINALIDADE": { "descricao": "Finalidade", "origem": "manual", "tipo": "texto" },
+  "VEIC_FREQUENCIA": {
+    "descricao": "Frequência e duração diárias",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "ENQ_FUNCAO_INSTALACAO": {
+    "descricao": "Função ou instalação",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "ENQ_CONDICAO": {
+    "descricao": "Condição de enquadramento verificada",
+    "origem": "manual",
+    "tipo": "texto longo"
+  },
+  "ENQ_DOCUMENTO": { "descricao": "Documento comprobatório", "origem": "manual", "tipo": "texto" },
+  "ENQ_NUMERO_DATA": { "descricao": "Número e validade", "origem": "manual", "tipo": "texto" },
+  "EXP_FONTE": { "descricao": "Fonte de perigo", "origem": "avaliacoes", "tipo": "texto" },
+  "EXP_ANEXO": { "descricao": "Anexo da NR-16", "origem": "avaliacoes", "tipo": "texto" },
+  "EXP_LOCAL": { "descricao": "Local de exposição", "origem": "manual", "tipo": "texto" },
+  "EXP_TEMPO_INGRESSO": {
+    "descricao": "Tempo por ingresso (minutos)",
+    "origem": "manual",
+    "tipo": "numero"
+  },
+  "EXP_INGRESSOS": {
+    "descricao": "Ingressos por dia e por mês",
+    "origem": "manual",
+    "tipo": "texto"
+  },
+  "EXP_FORMA": {
+    "descricao": "Forma: permanente, intermitente ou eventual",
+    "origem": "avaliacoes",
+    "tipo": "lista"
+  },
+  "EXP_FONTE_INFORMACAO": {
+    "descricao": "Fonte da informação: cronometragem, entrevista ou registro",
+    "origem": "manual",
+    "tipo": "lista"
+  },
+  "AR_ID": { "descricao": "Identificador da área de risco", "origem": "manual", "tipo": "texto" },
+  "AR_LOCAL": { "descricao": "Local", "origem": "manual", "tipo": "texto" },
+  "AR_FONTE": { "descricao": "Fonte de perigo", "origem": "manual", "tipo": "texto" },
+  "AR_ANEXO": { "descricao": "Anexo de origem", "origem": "manual", "tipo": "texto" },
+  "AR_ITEM": { "descricao": "Item de origem", "origem": "manual", "tipo": "texto" },
+  "AR_CRITERIO": { "descricao": "Critério geométrico", "origem": "manual", "tipo": "lista" },
+  "AR_DISTANCIA": { "descricao": "Distância medida (m)", "origem": "manual", "tipo": "numero" },
+  "AR_DELIMITACAO": { "descricao": "Delimitação física", "origem": "manual", "tipo": "texto" },
+  "AR_SINALIZACAO": { "descricao": "Sinalização", "origem": "manual", "tipo": "sim/não" },
+  "AR_FUNCOES": { "descricao": "Funções que ingressam", "origem": "manual", "tipo": "texto" },
+  "CROQUI": {
+    "descricao": "Planta baixa ou croqui com as áreas de risco",
+    "origem": "manual",
+    "tipo": "imagem"
+  },
+  "NOME_MATRIZ": {
+    "descricao": "Nome da matriz de risco adotada",
+    "origem": "derivado",
+    "tipo": "texto"
+  },
+  "METODOLOGIA_MATRIZ": {
+    "descricao": "Metodologia da matriz de risco adotada",
+    "origem": "derivado",
+    "tipo": "texto"
+  }
+}

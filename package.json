@@ -6,10 +6,12 @@
   "type": "module",
   "scripts": {
     "start": "vite dev",
+    "prestart": "node scripts/converter-modelos.mjs",
     "dev": "vite",
+    "predev": "node scripts/converter-modelos.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "prebuild": "node scripts/generate-favicons.js",
+    "prebuild": "node scripts/generate-favicons.js && node scripts/converter-modelos.mjs && node scripts/validar-modelos.mjs",
     "lint": "oxlint src",
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt",
