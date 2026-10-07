@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { getVisaoCliente } from '@/lib/visaoCliente'
 
 export type Papel = 'dono' | 'gerente' | 'gestor' | 'executor' | 'administrativo'
 
@@ -12,6 +13,8 @@ export interface MembroEquipe {
 export const getPapelUsuarioLogado = (): Papel | 'admin_plataforma' | 'staff_labora' => {
   const record = pb.authStore.record as (Record<string, unknown> & { papel?: string }) | null
   const papel = record?.papel
+  // Administrador com "ver como cliente" ligado enxerga como um dono comum.
+  if (papel === 'admin_plataforma' && getVisaoCliente()) return 'dono'
   return (papel as Papel | 'admin_plataforma' | 'staff_labora') || 'dono' // usuários antigos sem papel = dono
 }
 
@@ -32,6 +35,7 @@ export const isGestor = () => {
  */
 export const isAdmin = (): boolean => {
   if (!pb.authStore.isValid || !pb.authStore.record) return false
+  if (getVisaoCliente()) return false
   const record = pb.authStore.record as Record<string, unknown> & {
     papel?: string
     acesso_console?: boolean

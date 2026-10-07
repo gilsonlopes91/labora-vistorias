@@ -5,6 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { isGestor } from '@/services/equipe'
+import { getVisaoCliente } from '@/lib/visaoCliente'
 import { isGestorOnlyPath } from '@/config/navigation'
 import AcessoNegado from '@/components/AcessoNegado'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -47,8 +48,9 @@ export default function ProtectedRoute({
   // Verifica proteção de admin_plataforma
   if (adminOnly) {
     const isAdmin =
-      user?.papel === 'admin_plataforma' ||
-      (user?.papel === 'staff_labora' && Boolean(user?.acesso_console))
+      !getVisaoCliente() &&
+      (user?.papel === 'admin_plataforma' ||
+        (user?.papel === 'staff_labora' && Boolean(user?.acesso_console)))
     if (!isAdmin) {
       return (
         <AcessoNegado

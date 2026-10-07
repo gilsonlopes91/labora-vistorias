@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { getModulos, type Modulos } from '@/services/modulos'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
-import { LogOut, ChevronDown } from 'lucide-react'
+import { LogOut, ChevronDown, Eye, EyeOff } from 'lucide-react'
+import FeedbackFlutuante from '@/components/FeedbackFlutuante'
+import { getVisaoCliente, setVisaoCliente } from '@/lib/visaoCliente'
 import { useAuth } from '@/hooks/use-auth'
 import { LaboraLogo } from '@/components/LaboraLogo'
 import { isGestor } from '@/services/equipe'
@@ -250,9 +252,16 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const userGestor = isGestor()
+  const adminReal = user?.papel === 'admin_plataforma'
+  const visaoCliente = adminReal && getVisaoCliente()
   const userAdmin =
-    user?.papel === 'admin_plataforma' ||
-    (user?.papel === 'staff_labora' && Boolean(user?.acesso_console))
+    !visaoCliente &&
+    (user?.papel === 'admin_plataforma' ||
+      (user?.papel === 'staff_labora' && Boolean(user?.acesso_console)))
+  const alternarVisao = () => {
+    setVisaoCliente(!visaoCliente)
+    window.location.assign(visaoCliente ? '/admin' : '/painel')
+  }
 
   // Pacotes da organização: módulos desligados saem do menu.
   const [modulos, setModulos] = useState<Modulos | null>(null)
@@ -273,7 +282,7 @@ export default function Layout() {
   }, [isAuthenticated])
 
   // Selo do menu Normas: NRs com possível atualização encontrada no gov.br.
-  const ehAdmin = user?.papel === 'admin_plataforma'
+  const ehAdmin = adminReal && !visaoCliente
   const [alertasNormas, setAlertasNormas] = useState(0)
   useEffect(() => {
     if (!isAuthenticated || !ehAdmin) return
@@ -362,6 +371,17 @@ export default function Layout() {
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenu>
+            {adminReal && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={alternarVisao}
+                  tooltip={visaoCliente ? 'Voltar à visão de administrador' : 'Ver como cliente'}
+                >
+                  {visaoCliente ? <EyeOff /> : <Eye />}
+                  <span>{visaoCliente ? 'Sair da visão cliente' : 'Ver como cliente'}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
               <SidebarMenuButton onClick={handleSignOut} tooltip="Sair">
                 <LogOut />
@@ -391,6 +411,14 @@ export default function Layout() {
           )}
         </header>
         <BarraOffline />
+        {visaoCliente && (
+          <div className="bg-primary/10 px-3 py-1.5 text-center text-xs font-medium text-primary">
+            Visão de cliente ligada — você vê a plataforma como um cliente comum.{' '}
+            <button type="button" className="underline" onClick={alternarVisao}>
+              Voltar ao administrador
+            </button>
+          </div>
+        )}
         {userGestor && orgVencida && (
           <div className="bg-destructive/10 px-3 py-1.5 text-center text-xs font-medium text-destructive">
             Plano vencido — a organização está em modo somente leitura. Regularize para voltar a
@@ -401,6 +429,7 @@ export default function Layout() {
           <Outlet />
         </div>
       </SidebarInset>
+      <FeedbackFlutuante />
     </SidebarProvider>
   )
 }

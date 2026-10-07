@@ -8,6 +8,7 @@ import {
   BookOpen,
   FileText,
   GraduationCap,
+  MessageSquarePlus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -27,6 +28,13 @@ const ITENS = [
     to: '/admin/quiz-beta',
     label: 'Questionário beta',
     icon: GraduationCap,
+    fim: false,
+    soAdmin: true,
+  },
+  {
+    to: '/admin/feedbacks',
+    label: 'Sugestões',
+    icon: MessageSquarePlus,
     fim: false,
     soAdmin: true,
   },

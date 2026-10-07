@@ -12,6 +12,7 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMeusAcessosCliente, type AcessoCliente } from '@/services/acessosCliente'
 import type { Empresa } from '@/services/empresas'
 import LoadingScreen from '@/components/LoadingScreen'
+import FeedbackFlutuante from '@/components/FeedbackFlutuante'
 import { LaboraLogoFull } from '@/components/LaboraLogo'
 import { Button } from '@/components/ui/button'
 import {
@@ -132,6 +133,7 @@ export default function LayoutCliente() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         {empresaAtual && <Outlet context={{ empresa: empresaAtual } as ClientePortalContexto} />}
       </main>
+      <FeedbackFlutuante />
     </div>
   )
 }
