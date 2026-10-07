@@ -33,6 +33,59 @@ routerAdd(
       }
     }
 
+    // Cria uma conta de cliente: usuário novo + organização própria (a
+    // organização nasce pelo hook auto_create_organizacao, com a pessoa como
+    // titular). Todos entram com a senha padrão e são obrigados a trocá-la
+    // no primeiro acesso (users.trocar_senha = true).
+    if (acao === 'nova_conta') {
+      if (!ehAdmin) return e.forbiddenError('Só o administrador cria contas.')
+      const SENHA_PADRAO = 'laboravistoria123'
+      const email = String(body.email || '')
+        .trim()
+        .toLowerCase()
+      const nome = String(body.nome || '').trim()
+      const nomeOrg = String(body.org_nome || '').trim()
+      const plano = String(body.plano || 'individual')
+      if (!nome) return e.badRequestError('nome é obrigatório')
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return e.badRequestError('e-mail inválido')
+      if (['individual', 'equipe', 'escritorio', 'empresa'].indexOf(plano) < 0) {
+        return e.badRequestError('plano inválido')
+      }
+      let existe = true
+      try {
+        $app.findAuthRecordByEmail('users', email)
+      } catch (_) {
+        existe = false
+      }
+      if (existe) return e.json(409, { error: 'já existe uma conta com este e-mail' })
+
+      const novo = new Record($app.findCollectionByNameOrId('users'))
+      novo.set('email', email)
+      novo.set('name', nome)
+      novo.set('password', SENHA_PADRAO)
+      novo.set('passwordConfirm', SENHA_PADRAO)
+      novo.set('verified', true)
+      novo.set('trocar_senha', true)
+      $app.save(novo)
+
+      let org
+      try {
+        org = $app.findFirstRecordByFilter('organizacoes', 'dono_id = {:u}', { u: novo.id })
+      } catch (_) {
+        return e.json(500, { error: 'conta criada, mas a organização não foi encontrada' })
+      }
+      if (nomeOrg) org.set('nome', nomeOrg)
+      const limite = plano === 'equipe' ? 3 : plano === 'escritorio' ? 8 : 0
+      org.set('plano', plano)
+      org.set('limite_usuarios', limite)
+      $app.save(org)
+      registrar(org.id, 'nova_conta', 'Conta criada para ' + nome + ' (' + email + ')', {
+        user_id: novo.id,
+        plano: plano,
+      })
+      return e.json(200, { ok: true, user_id: novo.id, org_id: org.id })
+    }
+
     if (acao === 'bloqueio') {
       if (!ehAdmin) return e.forbiddenError('Só o administrador bloqueia organizações.')
       const orgId = String(body.org_id || '')

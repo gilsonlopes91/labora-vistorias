@@ -3,14 +3,30 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Search, ChevronLeft, ChevronRight, ArrowRight as Abrir } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, ArrowRight as Abrir, UserPlus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import AdminNav from '@/components/admin/AdminNav'
-import { listarOrganizacoes, PLANOS, STATUS_LABEL, type ListaOrgs } from '@/services/admin'
+import {
+  criarConta,
+  listarOrganizacoes,
+  PLANOS,
+  STATUS_LABEL,
+  type ListaOrgs,
+  type PlanoOrg,
+} from '@/services/admin'
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
   ativa: 'default',
@@ -33,6 +49,17 @@ export default function AdminOrganizacoes() {
   const [busca, setBusca] = useState(buscaUrl)
   const [dados, setDados] = useState<ListaOrgs | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Nova conta de cliente (usuário + organização própria).
+  const [novaAberta, setNovaAberta] = useState(false)
+  const [criando, setCriando] = useState(false)
+  const [nova, setNova] = useState<{
+    nome: string
+    email: string
+    org_nome: string
+    plano: PlanoOrg
+  }>({ nome: '', email: '', org_nome: '', plano: 'individual' })
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nova.email.trim())
 
   const atualizarParam = (chave: string, valor: string) => {
     const p = new URLSearchParams(params)
@@ -59,6 +86,28 @@ export default function AdminOrganizacoes() {
     carregar()
   }, [carregar])
 
+  const criar = async () => {
+    setCriando(true)
+    try {
+      await criarConta({
+        nome: nova.nome.trim(),
+        email: nova.email.trim().toLowerCase(),
+        org_nome: nova.org_nome.trim() || undefined,
+        plano: nova.plano,
+      })
+      toast.success(`Conta criada para ${nova.nome.trim()}`, {
+        description: 'Entra com o e-mail e a senha padrão e precisa trocá-la no primeiro acesso.',
+      })
+      setNovaAberta(false)
+      setNova({ nome: '', email: '', org_nome: '', plano: 'individual' })
+      carregar()
+    } catch (error) {
+      toast.error('Não foi possível criar a conta', { description: getErrorMessage(error) })
+    } finally {
+      setCriando(false)
+    }
+  }
+
   // Busca com pequeno atraso, para não disparar uma chamada por tecla.
   useEffect(() => {
     if (busca === buscaUrl) return
@@ -69,12 +118,76 @@ export default function AdminOrganizacoes() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-4">
-        <h1 className="text-3xl font-extrabold tracking-tight">Organizações</h1>
-        <p className="text-sm text-muted-foreground">
-          Clique numa organização para abrir plano, módulos, equipe, uso e histórico.
-        </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Organizações</h1>
+          <p className="text-sm text-muted-foreground">
+            Clique numa organização para abrir plano, módulos, equipe, uso e histórico.
+          </p>
+        </div>
+        <Button className="rounded-full" onClick={() => setNovaAberta(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Nova organização
+        </Button>
       </div>
+      <Dialog open={novaAberta} onOpenChange={setNovaAberta}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova organização (cliente)</DialogTitle>
+            <DialogDescription>
+              Cria o usuário e a organização dele, separada de todas as outras. A conta nasce com a
+              senha padrão e a pessoa é obrigada a trocá-la no primeiro acesso. Nenhum e-mail é
+              enviado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome da pessoa</Label>
+              <Input
+                value={nova.nome}
+                onChange={(e) => setNova((v) => ({ ...v, nome: e.target.value }))}
+                placeholder="Nome completo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail (será o login)</Label>
+              <Input
+                type="email"
+                value={nova.email}
+                onChange={(e) => setNova((v) => ({ ...v, email: e.target.value }))}
+                placeholder="email@empresa.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome da organização (opcional)</Label>
+              <Input
+                value={nova.org_nome}
+                onChange={(e) => setNova((v) => ({ ...v, org_nome: e.target.value }))}
+                placeholder="Se vazio, usa o nome da pessoa"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Plano</Label>
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={nova.plano}
+                onChange={(e) => setNova((v) => ({ ...v, plano: e.target.value as PlanoOrg }))}
+              >
+                {PLANOS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label} — {p.vagas}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={criar} disabled={criando || !nova.nome.trim() || !emailValido}>
+              {criando ? 'Criando...' : 'Criar organização'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <AdminNav />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

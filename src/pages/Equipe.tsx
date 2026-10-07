@@ -101,18 +101,23 @@ export default function Equipe() {
         email,
         nome: form.nome.trim(),
         papel: form.papel as 'gerente' | 'executor' | 'administrativo',
-        senha_padrao: true,
       })
     } catch (error) {
       toast.error('Não foi possível adicionar o membro', { description: getErrorMessage(error) })
       setSubmitting(false)
       return
     }
-    // A conta nasce com a senha padrão; a pessoa é obrigada a trocá-la no
-    // primeiro acesso. Nenhum e-mail é enviado.
-    toast.success(`${form.nome.trim()} foi adicionado(a)`, {
-      description: `Entra com ${email} e a senha padrão, e define a própria senha no primeiro acesso.`,
-    })
+    // A conta já existe; falta a pessoa criar a senha pelo link do e-mail.
+    try {
+      await enviarLinkDeAcesso(email)
+      toast.success(`Convite enviado para ${email}`, {
+        description: 'A pessoa recebe um link para criar a própria senha e entrar.',
+      })
+    } catch (error) {
+      toast.warning('A pessoa foi adicionada, mas o e-mail não saiu', {
+        description: `Use "Reenviar link" na lista. (${getErrorMessage(error)})`,
+      })
+    }
     setOpen(false)
     setForm({ nome: '', email: '', papel: 'executor' })
     setSubmitting(false)
@@ -191,9 +196,8 @@ export default function Equipe() {
               <DialogHeader>
                 <DialogTitle>Adicionar membro</DialogTitle>
                 <DialogDescription>
-                  A conta é criada na hora com a senha padrão. No primeiro acesso a pessoa é
-                  obrigada a trocá-la por uma senha só dela. Nenhum e-mail é enviado: passe o e-mail
-                  e a senha padrão para ela.
+                  A pessoa recebe um e-mail com um link para criar a própria senha. Ninguém mais
+                  fica sabendo a senha dela.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -239,7 +243,7 @@ export default function Equipe() {
                   onClick={onSubmit}
                   disabled={submitting || !form.nome.trim() || !emailValido}
                 >
-                  {submitting ? 'Adicionando...' : 'Adicionar pessoa'}
+                  {submitting ? 'Enviando convite...' : 'Enviar convite'}
                 </Button>
               </DialogFooter>
             </DialogContent>

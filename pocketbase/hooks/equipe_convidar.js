@@ -24,11 +24,7 @@ routerAdd(
     if (senhaInformada && senhaInformada.length < 8) {
       return e.badRequestError('senha deve ter ao menos 8 caracteres')
     }
-    // Cadastro direto pelo titular: todos entram com a senha padrão e são
-    // obrigados a trocá-la no primeiro acesso (users.trocar_senha = true).
-    const SENHA_PADRAO = 'laboravistoria123'
-    const usarSenhaPadrao = body.senha_padrao === true
-    const senha = usarSenhaPadrao ? SENHA_PADRAO : senhaInformada || $security.randomString(32)
+    const senha = senhaInformada || $security.randomString(32)
     if (!['gerente', 'executor', 'administrativo'].includes(papel)) {
       return e.badRequestError('papel deve ser gerente, executor ou administrativo')
     }
@@ -76,10 +72,6 @@ routerAdd(
         user.set('organizacao_id', orgId)
         user.set('papel', papel)
         if (nome) user.set('name', nome)
-        if (usarSenhaPadrao) {
-          user.setPassword(SENHA_PADRAO)
-          user.set('trocar_senha', true)
-        }
         $app.save(user)
         if (papel === 'executor' || papel === 'gerente') {
           let temRt = false
@@ -141,7 +133,6 @@ routerAdd(
     novo.set('papel', papel)
     novo.set('organizacao_id', orgId)
     novo.set('verified', true)
-    if (usarSenhaPadrao) novo.set('trocar_senha', true)
     $app.save(novo)
 
     // Executor e gerente ganham um responsável técnico vinculado ao login
@@ -158,12 +149,7 @@ routerAdd(
       $app.save(rt)
     }
 
-    return e.json(200, {
-      ok: true,
-      id: novo.id,
-      comSenha: !!senhaInformada || usarSenhaPadrao,
-      senhaPadrao: usarSenhaPadrao,
-    })
+    return e.json(200, { ok: true, id: novo.id, comSenha: !!senhaInformada })
   },
   $apis.requireAuth(),
 )

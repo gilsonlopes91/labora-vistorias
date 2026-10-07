@@ -148,6 +148,17 @@ function acao(body: Record<string, unknown>) {
   return pb.send('/backend/v1/admin/usuario', { method: 'POST', body: JSON.stringify(body) })
 }
 
+/** Cria um cliente: usuário + organização própria, com a senha padrão e troca
+ *  obrigatória no primeiro acesso. */
+export async function criarConta(dados: {
+  nome: string
+  email: string
+  org_nome?: string
+  plano: PlanoOrg
+}): Promise<{ ok: boolean; user_id: string; org_id: string }> {
+  return acao({ acao: 'nova_conta', ...dados })
+}
+
 export async function alternarBloqueio(orgId: string): Promise<{ status: string }> {
   return acao({ acao: 'bloqueio', org_id: orgId })
 }
@@ -179,6 +190,7 @@ export function gerarSenhaForte(): string {
 }
 
 export const ACAO_LABEL: Record<string, string> = {
+  nova_conta: 'Conta criada',
   bloqueio: 'Bloqueio',
   desbloqueio: 'Desbloqueio',
   plano: 'Plano',
