@@ -472,7 +472,12 @@ export function LevantamentoSstTab() {
               <EstruturaSstTab key={empresaId} empresaId={empresaId} secao="ghes" />
             </TabsContent>
             <TabsContent value="funcao" className="mt-0 focus-visible:outline-none">
-              <EstruturaSstTab key={empresaId} empresaId={empresaId} secao="funcoes" />
+              <EstruturaSstTab
+                key={empresaId}
+                empresaId={empresaId}
+                empresaNome={empresa?.nome_fantasia || empresa?.razao_social}
+                secao="funcoes"
+              />
             </TabsContent>
             <TabsContent value="plano" className="mt-0 focus-visible:outline-none">
               <PlanoAcaoTab key={empresaId} empresaId={empresaId} />

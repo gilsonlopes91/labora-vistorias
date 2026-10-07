@@ -7,7 +7,7 @@
    OrcamentosTab. */
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Building, Layers, Pencil, Plus, Trash2, Users2 } from 'lucide-react'
+import { Building, Layers, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useAuth } from '@/hooks/use-auth'
@@ -45,6 +45,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -99,9 +107,12 @@ function Secao({
 
 export function EstruturaSstTab({
   empresaId,
+  empresaNome,
   secao,
 }: {
   empresaId: string
+  /** Nome da empresa/unidade, mostrado na coluna "Unidade" da lista de funções. */
+  empresaNome?: string
   secao: 'ambientes' | 'ghes' | 'funcoes'
 }) {
   const { user } = useAuth()
@@ -377,45 +388,69 @@ export function EstruturaSstTab({
       )}
 
       {secao === 'funcoes' && (
-        <Secao
-          titulo={`Funções (${funcoes.length})`}
-          icone={Users2}
-          acao={
-            <Button size="sm" variant="outline" onClick={() => abrirFuncao(null)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Nova função
-            </Button>
-          }
-        >
-          {funcoes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma função cadastrada.</p>
-          ) : (
-            <div className="divide-y">
-              {funcoes.map((f) => (
-                <div key={f.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <div className="font-medium">{f.nome}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {f.ghe_id
-                        ? f.expand?.ghe_id?.nome || 'GHE removido'
-                        : 'Sem GHE (risco direto do cargo)'}
-                      {f.cbo && ` · CBO ${f.cbo}`}
-                      {f.numero_empregados ? ` · ${f.numero_empregados} empregados` : ''}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 gap-0.5">
-                    <Button variant="ghost" size="icon" onClick={() => abrirFuncao(f)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setFuncaoExcluir(f)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="text-lg">Funções Operacionais</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Gerencie as funções, relacionando-as a unidades, ambientes físicos e GHEs.
+              </p>
             </div>
-          )}
-        </Secao>
+            <Button onClick={() => abrirFuncao(null)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Nova Função
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {funcoes.length === 0 ? (
+              <p className="border-t px-6 py-8 text-center text-sm text-muted-foreground">
+                Nenhuma função cadastrada.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-6">Nome da função</TableHead>
+                    <TableHead>CBO</TableHead>
+                    <TableHead>Unidade</TableHead>
+                    <TableHead>Ambiente Físico</TableHead>
+                    <TableHead>Grupo (GHE)</TableHead>
+                    <TableHead className="pr-6 text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {funcoes.map((f) => (
+                    <TableRow key={f.id}>
+                      <TableCell className="pl-6 font-semibold">{f.nome}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {f.cbo || '—'}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium uppercase">
+                        {empresaNome || '—'}
+                      </TableCell>
+                      <TableCell className="text-sm uppercase text-muted-foreground">
+                        {f.expand?.setor_id?.nome || '—'}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {f.ghe_id ? f.expand?.ghe_id?.nome || 'GHE removido' : 'Sem GHE'}
+                      </TableCell>
+                      <TableCell className="pr-6">
+                        <div className="flex justify-end gap-0.5">
+                          <Button variant="ghost" size="icon" onClick={() => abrirFuncao(f)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setFuncaoExcluir(f)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Diálogo: Setor */}
@@ -628,7 +663,11 @@ export function EstruturaSstTab({
             </TabsContent>
             <TabsContent value="riscos" className="mt-0 focus-visible:outline-none">
               {gheEdit ? (
-                <RiscosOcupacionaisPainel empresaId={empresaId} gheId={gheEdit.id} />
+                <RiscosOcupacionaisPainel
+                  empresaId={empresaId}
+                  gheId={gheEdit.id}
+                  nomeContexto={gheEdit.nome}
+                />
               ) : (
                 <p className="py-10 text-center text-sm text-muted-foreground">
                   Salve a unidade primeiro para adicionar riscos.
@@ -674,6 +713,27 @@ export function EstruturaSstTab({
                     value={fFuncao.nome || ''}
                     onChange={(e) => setFFuncao((v) => ({ ...v, nome: e.target.value }))}
                   />
+                </div>
+                <div>
+                  <Label>Ambiente físico (setor)</Label>
+                  <Select
+                    value={fFuncao.setor_id || '__nenhum'}
+                    onValueChange={(v) =>
+                      setFFuncao((s) => ({ ...s, setor_id: v === '__nenhum' ? undefined : v }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Selecione o ambiente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhum">Sem ambiente definido</SelectItem>
+                      {setores.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>GHE (opcional)</Label>
@@ -739,7 +799,11 @@ export function EstruturaSstTab({
             </TabsContent>
             <TabsContent value="riscos" className="mt-0 focus-visible:outline-none">
               {funcaoEdit ? (
-                <RiscosOcupacionaisPainel empresaId={empresaId} funcaoId={funcaoEdit.id} />
+                <RiscosOcupacionaisPainel
+                  empresaId={empresaId}
+                  funcaoId={funcaoEdit.id}
+                  nomeContexto={funcaoEdit.nome}
+                />
               ) : (
                 <p className="py-10 text-center text-sm text-muted-foreground">
                   Salve a função primeiro para adicionar riscos.

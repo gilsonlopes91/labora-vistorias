@@ -94,6 +94,13 @@ export const getAcoesDosPlanos = (empresaId: string, planoIds: string[]) => {
     )
 }
 
+/** Ações vinculadas a uma avaliação de risco específica (usado no formulário de risco). */
+export const getAcoesDaAvaliacao = (avaliacaoId: string) =>
+  pb.collection('acoes_plano').getFullList<AcaoPlano>({
+    filter: `avaliacao_id = "${avaliacaoId}"`,
+    sort: '-created',
+  })
+
 export const createAcaoPlano = (data: AcaoPlanoInput) =>
   pb.collection('acoes_plano').create<AcaoPlano>(data)
 

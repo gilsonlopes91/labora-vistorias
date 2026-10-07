@@ -9,13 +9,27 @@
    sem seletor de unidade). */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, Pencil, Plus, ShieldAlert, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  BookOpen,
+  ChevronDown,
+  ListChecks,
+  Pencil,
+  Plus,
+  ShieldAlert,
+  Trash2,
+} from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
 import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
 import { getMatrizOficial, type MatrizRisco } from '@/services/matrizesRisco'
+import {
+  getAcoesDaAvaliacao,
+  type AcaoPlano,
+  type PrioridadeAcaoPlano,
+} from '@/services/acoesPlano'
 import {
   createAvaliacaoRisco,
   deleteAvaliacaoRisco,
@@ -46,6 +60,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { AcaoPlanoDialog } from '@/components/AcaoPlanoDialog'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -137,8 +153,48 @@ function percentualDoRotulo(rotulo?: string): string | null {
   return m ? m[1] : null
 }
 
+const NOMES_PROBABILIDADE_5 = [
+  'Quase impossível',
+  'Improvável',
+  'Possível',
+  'Provável',
+  'Quase certo',
+]
+const NOMES_SEVERIDADE_5 = ['Insignificante', 'Menor', 'Moderada', 'Maior', 'Catastrófica']
+const NOMES_3 = ['Baixa', 'Média', 'Alta']
+
+/** Seção numerada e recolhível do formulário de risco (1. Identificação, 2. Caracterização...). */
+function SecaoRisco({
+  numero,
+  titulo,
+  defaultOpen = false,
+  children,
+}: {
+  numero: number
+  titulo: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [aberta, setAberta] = useState(defaultOpen)
+  return (
+    <Collapsible open={aberta} onOpenChange={setAberta} className="border-b last:border-b-0">
+      <CollapsibleTrigger className="flex w-full items-center justify-between py-4 text-left">
+        <span className="text-base font-semibold">
+          {numero}. {titulo}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform ${aberta ? 'rotate-180' : ''}`}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4 pb-5">{children}</CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 interface RiscosOcupacionaisPainelProps {
   empresaId: string
+  /** Nome da função ou do GHE em edição, mostrado na seção de identificação. */
+  nomeContexto?: string
   /** Informe exatamente um dos dois: a função OU o GHE sendo editado. */
   funcaoId?: string
   gheId?: string
@@ -146,10 +202,10 @@ interface RiscosOcupacionaisPainelProps {
 
 export function RiscosOcupacionaisPainel({
   empresaId,
+  nomeContexto,
   funcaoId,
   gheId,
 }: RiscosOcupacionaisPainelProps) {
-  void empresaId
   const { user } = useAuth()
   const organizacaoId = (user?.organizacao_id as string) || ''
   const contextoBadge = funcaoId ? 'Específico da Função' : 'Geral'
@@ -212,6 +268,14 @@ export function RiscosOcupacionaisPainel({
         }),
       )
 
+  // ---- Ações do plano de ação ligadas ao risco aberto ----
+  const [acoesRisco, setAcoesRisco] = useState<AcaoPlano[]>([])
+  const [acaoDialog, setAcaoDialog] = useState(false)
+  const carregarAcoesRisco = (avaliacaoId: string) =>
+    getAcoesDaAvaliacao(avaliacaoId)
+      .then(setAcoesRisco)
+      .catch(() => setAcoesRisco([]))
+
   const abrir = (a: AvaliacaoRisco | null) => {
     setEmEdicao(a)
     const novoF: Partial<AvaliacaoRiscoInput> = a
@@ -220,7 +284,11 @@ export function RiscosOcupacionaisPainel({
     setF(novoF)
     inicialRef.current = JSON.stringify(novoF)
     setMedicoes([])
-    if (a) carregarMedicoes(a.id)
+    setAcoesRisco([])
+    if (a) {
+      carregarMedicoes(a.id)
+      carregarAcoesRisco(a.id)
+    }
     setDialogAberto(true)
   }
 
@@ -285,6 +353,31 @@ export function RiscosOcupacionaisPainel({
     }))
   }
 
+  // "Puxar do Catálogo": copia os textos do agente escolhido para os campos,
+  // sobrescrevendo o que estiver lá — todos continuam editáveis depois.
+  // Enquadramentos (insalubridade, periculosidade, aposentadoria especial)
+  // só são preenchidos quando ainda estão em branco.
+  const puxarDoCatalogo = () => {
+    const agente = agentes.find((a) => a.id === f.agente_id)
+    if (!agente) return toast.error('Escolha primeiro o risco no catálogo (seção 1)')
+    setF((v) => ({
+      ...v,
+      perigo_descricao: agente.nome,
+      fonte_geradora: agente.fonte_geradora_tipica || v.fonte_geradora,
+      meio_propagacao: agente.meio_propagacao || v.meio_propagacao,
+      danos_possiveis: agente.danos_saude_tipicos || v.danos_possiveis,
+      efeito_saude_aiha: agente.efeito_saude_aiha || v.efeito_saude_aiha,
+      insalubridade_final: v.insalubridade_final ?? agente.grau_insalubridade_nr15,
+      periculosidade_final: v.periculosidade_final ?? (agente.anexo_nr16 ? true : undefined),
+      ltcat_enquadra_final:
+        v.ltcat_enquadra_final ??
+        (agente.anos_aposentadoria_especial
+          ? `Sim - ${agente.anos_aposentadoria_especial} anos`
+          : undefined),
+    }))
+    toast.success('Dados puxados do catálogo. Você pode editar o que quiser.')
+  }
+
   // Sugestão calculada em tempo real a partir do formulário aberto.
   const sugestao = useMemo(() => {
     const p = sugerirProbabilidade(
@@ -302,6 +395,19 @@ export function RiscosOcupacionaisPainel({
     const celula = matriz && p != null && s != null ? resolverCelula(matriz, p, s) : null
     return { p, s, celula }
   }, [f, dimensao, matriz])
+
+  // Valores que valem agora no formulário (o que o técnico ajustou, ou a
+  // sugestão do sistema) e o grau de risco resultante, mostrado na seção 3.
+  const pAtual = f.probabilidade_final ?? sugestao.p ?? null
+  const sAtual = f.severidade_final ?? sugestao.s ?? null
+  const celulaAtual =
+    matriz && pAtual != null && sAtual != null ? resolverCelula(matriz, pAtual, sAtual) : null
+  const pontuacaoAtual =
+    matriz && pAtual != null && sAtual != null
+      ? (matriz.celulas.find((c) => c.p === pAtual && c.s === sAtual)?.pontuacao ?? pAtual * sAtual)
+      : null
+  const nomesP = dimensao === 5 ? NOMES_PROBABILIDADE_5 : NOMES_3
+  const nomesS = dimensao === 5 ? NOMES_SEVERIDADE_5 : NOMES_3
 
   const salvar = async () => {
     if (!f.trilha_probabilidade) return toast.error('Selecione a trilha de probabilidade')
@@ -494,517 +600,210 @@ export function RiscosOcupacionaisPainel({
           <DialogHeader>
             <DialogTitle>{emEdicao ? 'Editar risco' : 'Adicionar risco'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Agente do catálogo</Label>
-              <Select value={f.agente_id || '__nenhum'} onValueChange={escolherAgente}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Sem agente (perigo avulso)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__nenhum">Sem agente (perigo avulso)</SelectItem>
-                  {agentes.map((ag) => (
-                    <SelectItem key={ag.id} value={ag.id}>
-                      {ag.tipo} — {ag.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Descrição do perigo</Label>
-              <Input
-                className="mt-1.5"
-                value={f.perigo_descricao || ''}
-                onChange={(e) => setF((v) => ({ ...v, perigo_descricao: e.target.value }))}
-              />
-            </div>
-
-            <div className="rounded-lg border p-3">
-              <Label className="mb-2 block text-sm font-semibold">
-                Levantamento preliminar (manual do MTE, item 9)
-              </Label>
-              <div className="grid grid-cols-3 gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={!!f.risco_evidente}
-                    onCheckedChange={(c) => setF((v) => ({ ...v, risco_evidente: !!c }))}
-                  />
-                  Risco evidente
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={!!f.perigo_externo}
-                    onCheckedChange={(c) => setF((v) => ({ ...v, perigo_externo: !!c }))}
-                  />
-                  Perigo externo
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={!!f.atividade_nao_rotineira}
-                    onCheckedChange={(c) => setF((v) => ({ ...v, atividade_nao_rotineira: !!c }))}
-                  />
-                  Atividade não rotineira
-                </label>
+          <div>
+            <SecaoRisco numero={1} titulo="Identificação e Vinculação" defaultOpen>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <Label>{funcaoId ? 'Função / Cargo' : 'Grupo (GHE)'}</Label>
+                  <Input className="mt-1.5" value={nomeContexto || ''} disabled />
+                </div>
+                <div>
+                  <Label>Risco (Catálogo)</Label>
+                  <Select value={f.agente_id || '__nenhum'} onValueChange={escolherAgente}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Selecione o risco..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhum">Sem agente (perigo avulso)</SelectItem>
+                      {agentes.map((ag) => (
+                        <SelectItem key={ag.id} value={ag.id}>
+                          {ag.tipo} — {ag.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              {f.risco_evidente && (
-                <div className="mt-3">
-                  <div className="mb-2 flex items-start gap-1.5 text-xs text-amber-700">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    Risco evidente exige ação imediata, antes da conclusão da avaliação formal pela
-                    matriz (não espera a categoria de P × S).
-                  </div>
-                  <Label className="text-xs">Ação imediata adotada</Label>
-                  <Textarea
-                    className="mt-1"
-                    value={f.risco_evidente_acao_imediata || ''}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <Label>Tipo de Exposição</Label>
+                  <Select
+                    value={f.frequencia_exposicao || ''}
+                    onValueChange={(v) => setF((s) => ({ ...s, frequencia_exposicao: v }))}
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FREQUENCIAS.map((v) => (
+                        <SelectItem key={v} value={v}>
+                          {v}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Nº de expostos</Label>
+                  <Input
+                    className="mt-1.5"
+                    type="number"
+                    value={f.numero_expostos ?? ''}
                     onChange={(e) =>
-                      setF((v) => ({ ...v, risco_evidente_acao_imediata: e.target.value }))
+                      setF((v) => ({ ...v, numero_expostos: Number(e.target.value) || undefined }))
                     }
                   />
                 </div>
-              )}
-            </div>
+              </div>
+            </SecaoRisco>
 
-            <div className="rounded-lg border p-3">
-              <Label className="mb-2 block text-sm font-semibold">
-                Requisito específico de NR (manual do MTE, item 11.4)
-              </Label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={!!f.nr_especifica_aplicavel}
-                  onCheckedChange={(c) => setF((v) => ({ ...v, nr_especifica_aplicavel: !!c }))}
-                />
-                Há um requisito específico de NR aplicável a este perigo
-              </label>
-              {f.nr_especifica_aplicavel && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label className="text-xs">Referência (ex.: NR-17, item 17.3.5)</Label>
-                    <Input
-                      className="mt-1"
-                      value={f.nr_especifica_referencia || ''}
-                      onChange={(e) =>
-                        setF((v) => ({ ...v, nr_especifica_referencia: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={!!f.nr_especifica_atendida}
-                      onCheckedChange={(c) => setF((v) => ({ ...v, nr_especifica_atendida: !!c }))}
-                    />
-                    O requisito está atendido
-                  </label>
-                  {!f.nr_especifica_atendida && (
-                    <div className="flex items-start gap-1.5 text-xs text-amber-700">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Requisito não atendido: a probabilidade é elevada ao teto da matriz,
-                      independente da trilha escolhida (exemplo dos assentos da NR-17 no manual).
-                    </div>
-                  )}
-                  <div>
-                    <Label className="text-xs">Justificativa</Label>
-                    <Textarea
-                      className="mt-1"
-                      value={f.nr_especifica_justificativa || ''}
-                      onChange={(e) =>
-                        setF((v) => ({ ...v, nr_especifica_justificativa: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Frequência de exposição</Label>
-                <Select
-                  value={f.frequencia_exposicao || ''}
-                  onValueChange={(v) => setF((s) => ({ ...s, frequencia_exposicao: v }))}
+            <SecaoRisco numero={2} titulo="Caracterização do Risco" defaultOpen>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Puxe os textos do catálogo e ajuste ao caso: tudo continua editável.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-green-700 text-white hover:bg-green-800"
+                  onClick={puxarDoCatalogo}
                 >
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FREQUENCIAS.map((v) => (
-                      <SelectItem key={v} value={v}>
-                        {v}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                  Puxar do Catálogo
+                </Button>
               </div>
               <div>
-                <Label>Nº de expostos</Label>
-                <Input
+                <Label>Descrição do Agente Nocivo</Label>
+                <Textarea
                   className="mt-1.5"
-                  type="number"
-                  value={f.numero_expostos ?? ''}
-                  onChange={(e) =>
-                    setF((v) => ({ ...v, numero_expostos: Number(e.target.value) || undefined }))
-                  }
+                  value={f.perigo_descricao || ''}
+                  onChange={(e) => setF((v) => ({ ...v, perigo_descricao: e.target.value }))}
                 />
               </div>
-            </div>
+              <div>
+                <Label>Perigos / Fontes Geradoras</Label>
+                <Textarea
+                  className="mt-1.5"
+                  value={f.fonte_geradora || ''}
+                  onChange={(e) => setF((v) => ({ ...v, fonte_geradora: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Possíveis Danos à Saúde</Label>
+                <Textarea
+                  className="mt-1.5"
+                  value={f.danos_possiveis || ''}
+                  onChange={(e) => setF((v) => ({ ...v, danos_possiveis: e.target.value }))}
+                />
+              </div>
+            </SecaoRisco>
 
-            <div className="rounded-lg border p-3">
-              <Label className="mb-2 block text-sm font-semibold">Trilha de probabilidade</Label>
-              <Select
-                value={f.trilha_probabilidade}
-                onValueChange={(v) =>
-                  setF((s) => ({ ...s, trilha_probabilidade: v as TrilhaProbabilidade }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRILHAS.map((t) => (
-                    <SelectItem key={t} value={t} disabled={TRILHAS_DESLIGADAS.includes(t)}>
-                      {t}
-                      {TRILHAS_DESLIGADAS.includes(t) ? ' (em breve)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {TRILHAS_DESLIGADAS.includes(f.trilha_probabilidade as TrilhaProbabilidade) && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  A análise psicossocial ainda não é feita pelo Labora Vistorias — o campo já existe
-                  para reservar o lugar dela no inventário, e será habilitado em uma versão futura.
-                </p>
-              )}
-
-              {f.trilha_probabilidade === 'Quantitativa (medição)' && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label>Categoria de exposição AIHA (0-4)</Label>
-                    <Select
-                      value={f.categoria_aiha_exposicao || ''}
-                      onValueChange={(v) =>
-                        setF((s) => ({
-                          ...s,
-                          categoria_aiha_exposicao: v as '0' | '1' | '2' | '3' | '4',
-                        }))
-                      }
+            <SecaoRisco numero={3} titulo="Avaliação de Risco" defaultOpen>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <Label>Probabilidade (1 a {dimensao})</Label>
+                  <Select
+                    value={pAtual != null ? String(pAtual) : ''}
+                    onValueChange={(v) => setF((s) => ({ ...s, probabilidade_final: Number(v) }))}
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nomesP.map((nome, i) => (
+                        <SelectItem key={nome} value={String(i + 1)}>
+                          {i + 1} - {nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Severidade (1 a {dimensao})</Label>
+                  <Select
+                    value={sAtual != null ? String(sAtual) : ''}
+                    onValueChange={(v) => setF((s) => ({ ...s, severidade_final: Number(v) }))}
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nomesS.map((nome, i) => (
+                        <SelectItem key={nome} value={String(i + 1)}>
+                          {i + 1} - {nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-muted/40 p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                  <AlertTriangle className="h-4 w-4" />
+                  Grau de Risco (Cálculo Automático)
+                </div>
+                {celulaAtual && pAtual != null && sAtual != null ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span
+                      className="inline-flex items-center rounded-full px-5 py-2 text-lg font-bold text-white"
+                      style={{ backgroundColor: celulaAtual.cor }}
                     >
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CATEGORIA_AIHA_LABEL).map(([v, l]) => (
-                          <SelectItem key={v} value={v}>
-                            {l}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {pontuacaoAtual} - {celulaAtual.categoria}
+                    </span>
+                    {celulaAtual.prazo_dias != null && (
+                      <span className="text-xs text-muted-foreground">
+                        prazo sugerido para ação: {celulaAtual.prazo_dias} dias
+                      </span>
+                    )}
                   </div>
-
-                  {!emEdicao ? (
-                    <p className="text-xs text-muted-foreground">
-                      Salve o risco para poder lançar medições de campo.
-                    </p>
-                  ) : (
-                    <div className="rounded-lg border p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <Label className="text-sm font-semibold">
-                          Medições ({medicoes.length})
-                        </Label>
-                        <Button
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Escolha a probabilidade e a severidade para calcular o grau de risco.
+                  </p>
+                )}
+                {sugestao.p != null && sugestao.s != null && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Sugestão do sistema pelos dados da seção 4: probabilidade {sugestao.p} e
+                    severidade {sugestao.s}.
+                    {(pAtual !== sugestao.p || sAtual !== sugestao.s) && (
+                      <>
+                        {' '}
+                        <button
                           type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => abrirMedicao(null)}
+                          className="underline"
+                          onClick={() =>
+                            setF((v) => ({
+                              ...v,
+                              probabilidade_final: sugestao.p ?? undefined,
+                              severidade_final: sugestao.s ?? undefined,
+                            }))
+                          }
                         >
-                          <Plus className="mr-1 h-3.5 w-3.5" />
-                          Lançar medição
-                        </Button>
-                      </div>
-                      {medicoes.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                          Nenhuma medição lançada ainda.
-                        </p>
-                      ) : (
-                        <div className="divide-y text-sm">
-                          {medicoes.map((m) => (
-                            <div
-                              key={m.id}
-                              className="flex items-center justify-between gap-2 py-1.5"
-                            >
-                              <div className="min-w-0">
-                                <span className="tabular-nums">{formatBrazilianDate(m.data)}</span>
-                                {' · '}
-                                {m.resultado_valor != null
-                                  ? `${m.resultado_valor} ${m.resultado_unidade || ''}`
-                                  : 'sem resultado'}
-                                {m.metodologia && ` · ${m.metodologia}`}
-                              </div>
-                              <div className="flex shrink-0 gap-0.5">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => abrirMedicao(m)}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => setMedicaoExcluir(m)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {!f.agente_id && medicoes.length > 0 && (
-                        <p className="mt-2 text-xs text-amber-700">
-                          Selecione o agente do catálogo para comparar as medições com o limite de
-                          tolerância.
-                        </p>
-                      )}
-                      {estatisticaMedicoes && (
-                        <div className="mt-2 rounded-md bg-muted/50 p-2 text-xs">
-                          <div>
-                            n = {estatisticaMedicoes.estatistica.n}
-                            {estatisticaMedicoes.estatistica.suficiente
-                              ? ` · UCL95 do P95 = ${estatisticaMedicoes.estatistica.limiteSuperior95.toFixed(2)}`
-                              : ' · menos de 6 amostras: usando o maior valor medido, incerteza alta'}
-                          </div>
-                          <div className="mt-1 flex items-center gap-2">
-                            <span>
-                              Categoria calculada:{' '}
-                              <strong>{CATEGORIA_AIHA_LABEL[estatisticaMedicoes.categoria]}</strong>
-                            </span>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-xs"
-                              onClick={() =>
-                                setF((v) => ({
-                                  ...v,
-                                  categoria_aiha_exposicao: estatisticaMedicoes.categoria,
-                                  incerteza: estatisticaMedicoes.estatistica.suficiente
-                                    ? v.incerteza
-                                    : '2',
-                                }))
-                              }
-                            >
-                              Usar esta categoria
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {f.trilha_probabilidade === 'Sem dados suficientes' && (
-                <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Sem base para avaliar ainda (nem medição, nem julgamento sobre um controle
-                  existente). A probabilidade fica no teto da matriz até essa trilha ser trocada por
-                  uma das outras, com dado de apoio.
-                </div>
-              )}
-
-              {(f.trilha_probabilidade === 'Qualitativa (controle)' ||
-                f.trilha_probabilidade === 'Acidente/mecânico') && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label>Nível de controle existente</Label>
-                    <Select
-                      value={f.controle_nivel || ''}
-                      onValueChange={(v) => setF((s) => ({ ...s, controle_nivel: v }))}
-                    >
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {NIVEIS_CONTROLE.map((v) => (
-                          <SelectItem key={v} value={v}>
-                            {v}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                          Usar a sugestão
+                        </button>
+                      </>
+                    )}
+                  </p>
+                )}
+                {avisosComplementares({
+                  incerteza: f.incerteza,
+                  categoria_aiha_exposicao: f.categoria_aiha_exposicao,
+                  trilha_probabilidade: f.trilha_probabilidade || 'Qualitativa (controle)',
+                  nr_especifica_aplicavel: f.nr_especifica_aplicavel,
+                  nr_especifica_atendida: f.nr_especifica_atendida,
+                  risco_evidente: f.risco_evidente,
+                }).map((aviso) => (
+                  <div key={aviso} className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {aviso}
                   </div>
-                  <div>
-                    <Label>Descrição do controle</Label>
-                    <Textarea
-                      className="mt-1.5"
-                      value={f.controle_descricao || ''}
-                      onChange={(e) => setF((v) => ({ ...v, controle_descricao: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {(f.trilha_probabilidade === 'Ergonômica (AEP/AET)' ||
-                f.trilha_probabilidade === 'Psicossocial') && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label>Resultado da análise (AEP/AET)</Label>
-                    <Select
-                      value={f.resultado_aep_aet || ''}
-                      onValueChange={(v) =>
-                        setF((s) => ({
-                          ...s,
-                          resultado_aep_aet: v as 'Baixo' | 'Médio' | 'Alto' | 'Não avaliado',
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RESULTADOS_AEP.map((v) => (
-                          <SelectItem key={v} value={v}>
-                            {v}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Observações</Label>
-                    <Textarea
-                      className="mt-1.5"
-                      value={f.observacoes_aep_aet || ''}
-                      onChange={(e) => setF((v) => ({ ...v, observacoes_aep_aet: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-3">
-                <Label>Incerteza da avaliação</Label>
-                <Select
-                  value={f.incerteza || '0'}
-                  onValueChange={(v) =>
-                    setF((s) => ({ ...s, incerteza: v as '0' | '1' | '2' | '3' }))
-                  }
-                >
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0 — baixa</SelectItem>
-                    <SelectItem value="1">1</SelectItem>
-                    <SelectItem value="2">2</SelectItem>
-                    <SelectItem value="3">3 — alta (poucos dados)</SelectItem>
-                  </SelectContent>
-                </Select>
+                ))}
               </div>
-            </div>
-
-            <div className="rounded-lg border p-3">
-              <Label className="mb-2 block text-sm font-semibold">
-                Efeito à saúde e severidade
-              </Label>
-              <Select
-                value={f.efeito_saude_aiha || ''}
-                onValueChange={(v) =>
-                  setF((s) => ({ ...s, efeito_saude_aiha: v as '0' | '1' | '2' | '3' | '4' }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o efeito à saúde (AIHA)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(EFEITO_AIHA_LABEL).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Textarea
-                className="mt-2"
-                placeholder="Danos possíveis à saúde"
-                value={f.danos_possiveis || ''}
-                onChange={(e) => setF((v) => ({ ...v, danos_possiveis: e.target.value }))}
-              />
-            </div>
-
-            <div className="rounded-lg border bg-muted/40 p-3">
-              <Label className="mb-2 block text-sm font-semibold">
-                Sugestão calculada (matriz {dimensao}x{dimensao})
-              </Label>
-              {sugestao.p == null || sugestao.s == null ? (
-                <p className="text-sm text-muted-foreground">
-                  Preencha a trilha de probabilidade e o efeito à saúde para calcular a sugestão.
-                </p>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">P{sugestao.p}</Badge>
-                  <Badge variant="outline">S{sugestao.s}</Badge>
-                  {sugestao.celula && (
-                    <Badge style={{ backgroundColor: sugestao.celula.cor, color: '#fff' }}>
-                      {sugestao.celula.categoria}
-                      {sugestao.celula.prazo_dias != null &&
-                        ` · prazo ${sugestao.celula.prazo_dias}d`}
-                    </Badge>
-                  )}
-                </div>
-              )}
-              {avisosComplementares({
-                incerteza: f.incerteza,
-                categoria_aiha_exposicao: f.categoria_aiha_exposicao,
-                trilha_probabilidade: f.trilha_probabilidade || 'Qualitativa (controle)',
-                nr_especifica_aplicavel: f.nr_especifica_aplicavel,
-                nr_especifica_atendida: f.nr_especifica_atendida,
-                risco_evidente: f.risco_evidente,
-              }).map((aviso) => (
-                <div key={aviso} className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  {aviso}
-                </div>
-              ))}
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              {sugestao.p != null &&
+              sugestao.s != null &&
+              (pAtual !== sugestao.p || sAtual !== sugestao.s) ? (
                 <div>
-                  <Label className="text-xs">Probabilidade final (confirmar/ajustar)</Label>
-                  <Input
-                    className="mt-1"
-                    type="number"
-                    min={1}
-                    max={dimensao}
-                    value={f.probabilidade_final ?? sugestao.p ?? ''}
-                    onChange={(e) =>
-                      setF((v) => ({
-                        ...v,
-                        probabilidade_final: Number(e.target.value) || undefined,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Severidade final (confirmar/ajustar)</Label>
-                  <Input
-                    className="mt-1"
-                    type="number"
-                    min={1}
-                    max={dimensao}
-                    value={f.severidade_final ?? sugestao.s ?? ''}
-                    onChange={(e) =>
-                      setF((v) => ({ ...v, severidade_final: Number(e.target.value) || undefined }))
-                    }
-                  />
-                </div>
-              </div>
-              {(f.probabilidade_final != null && f.probabilidade_final !== sugestao.p) ||
-              (f.severidade_final != null && f.severidade_final !== sugestao.s) ? (
-                <div className="mt-2">
-                  <Label className="text-xs">Justificativa do ajuste</Label>
+                  <Label className="text-xs">Justificativa do ajuste (diferente da sugestão)</Label>
                   <Textarea
                     className="mt-1"
                     value={f.justificativa_ajuste || ''}
@@ -1012,111 +811,609 @@ export function RiscosOcupacionaisPainel({
                   />
                 </div>
               ) : null}
-            </div>
+            </SecaoRisco>
 
-            <div className="rounded-lg border p-3">
-              <Label className="mb-2 block text-sm font-semibold">Medidas de controle e EPI</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={!!f.epc_eficaz}
-                    onCheckedChange={(c) => setF((v) => ({ ...v, epc_eficaz: !!c }))}
-                  />
-                  EPC eficaz
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={!!f.epc_plano_manutencao}
-                    onCheckedChange={(c) => setF((v) => ({ ...v, epc_plano_manutencao: !!c }))}
-                  />
-                  Tem plano de manutenção
-                </label>
-              </div>
-              <Textarea
-                className="mt-2"
-                placeholder="EPIs utilizados"
-                value={f.epis_utilizados || ''}
-                onChange={(e) => setF((v) => ({ ...v, epis_utilizados: e.target.value }))}
-              />
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {(
-                  [
-                    ['epi_condicao_funcionamento', 'Em condição de funcionamento'],
-                    ['epi_uso_ininterrupto', 'Uso ininterrupto na exposição'],
-                    ['epi_validade_ca_ok', 'CA dentro da validade'],
-                    ['epi_periodicidade_troca_ok', 'Troca respeita periodicidade'],
-                    ['epi_higienizacao_ok', 'Higienização adequada'],
-                  ] as const
-                ).map(([campo, label]) => (
-                  <label key={campo} className="flex items-center gap-2 text-sm">
+            <SecaoRisco numero={4} titulo="Complementação">
+              <p className="text-xs text-muted-foreground">
+                Dados de apoio que ajudam o sistema a sugerir probabilidade e severidade: como o
+                risco foi levantado, requisito de NR, controles existentes e efeito à saúde.
+              </p>
+              <div className="rounded-lg border p-3">
+                <Label className="mb-2 block text-sm font-semibold">
+                  Levantamento preliminar (manual do MTE, item 9)
+                </Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 text-sm">
                     <Checkbox
-                      checked={!!f[campo]}
-                      onCheckedChange={(c) => setF((v) => ({ ...v, [campo]: !!c }))}
+                      checked={!!f.risco_evidente}
+                      onCheckedChange={(c) => setF((v) => ({ ...v, risco_evidente: !!c }))}
                     />
-                    {label}
+                    Risco evidente
                   </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-lg border p-3">
-              <Label className="mb-2 block text-sm font-semibold">
-                Conclusões dos documentos (sugestão do técnico)
-              </Label>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Insalubridade (NR-15)</Label>
-                  <Select
-                    value={f.insalubridade_final || '__vazio'}
-                    onValueChange={(v) =>
-                      setF((s) => ({ ...s, insalubridade_final: v === '__vazio' ? undefined : v }))
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="—" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__vazio">—</SelectItem>
-                      {INSALUBRIDADE_OPCOES.map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Periculosidade (NR-16)</Label>
-                  <div className="mt-1.5 flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm">
                     <Checkbox
-                      checked={!!f.periculosidade_final}
-                      onCheckedChange={(c) => setF((v) => ({ ...v, periculosidade_final: !!c }))}
+                      checked={!!f.perigo_externo}
+                      onCheckedChange={(c) => setF((v) => ({ ...v, perigo_externo: !!c }))}
                     />
-                    <span className="text-sm">Enquadra</span>
-                  </div>
+                    Perigo externo
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!!f.atividade_nao_rotineira}
+                      onCheckedChange={(c) => setF((v) => ({ ...v, atividade_nao_rotineira: !!c }))}
+                    />
+                    Atividade não rotineira
+                  </label>
                 </div>
-                <div>
-                  <Label className="text-xs">LTCAT / aposentadoria especial</Label>
+                {f.risco_evidente && (
+                  <div className="mt-3">
+                    <div className="mb-2 flex items-start gap-1.5 text-xs text-amber-700">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Risco evidente exige ação imediata, antes da conclusão da avaliação formal
+                      pela matriz (não espera a categoria de P × S).
+                    </div>
+                    <Label className="text-xs">Ação imediata adotada</Label>
+                    <Textarea
+                      className="mt-1"
+                      value={f.risco_evidente_acao_imediata || ''}
+                      onChange={(e) =>
+                        setF((v) => ({ ...v, risco_evidente_acao_imediata: e.target.value }))
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <Label className="mb-2 block text-sm font-semibold">
+                  Requisito específico de NR (manual do MTE, item 11.4)
+                </Label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={!!f.nr_especifica_aplicavel}
+                    onCheckedChange={(c) => setF((v) => ({ ...v, nr_especifica_aplicavel: !!c }))}
+                  />
+                  Há um requisito específico de NR aplicável a este perigo
+                </label>
+                {f.nr_especifica_aplicavel && (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <Label className="text-xs">Referência (ex.: NR-17, item 17.3.5)</Label>
+                      <Input
+                        className="mt-1"
+                        value={f.nr_especifica_referencia || ''}
+                        onChange={(e) =>
+                          setF((v) => ({ ...v, nr_especifica_referencia: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={!!f.nr_especifica_atendida}
+                        onCheckedChange={(c) =>
+                          setF((v) => ({ ...v, nr_especifica_atendida: !!c }))
+                        }
+                      />
+                      O requisito está atendido
+                    </label>
+                    {!f.nr_especifica_atendida && (
+                      <div className="flex items-start gap-1.5 text-xs text-amber-700">
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        Requisito não atendido: a probabilidade é elevada ao teto da matriz,
+                        independente da trilha escolhida (exemplo dos assentos da NR-17 no manual).
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-xs">Justificativa</Label>
+                      <Textarea
+                        className="mt-1"
+                        value={f.nr_especifica_justificativa || ''}
+                        onChange={(e) =>
+                          setF((v) => ({ ...v, nr_especifica_justificativa: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <Label className="mb-2 block text-sm font-semibold">Trilha de probabilidade</Label>
+                <Select
+                  value={f.trilha_probabilidade}
+                  onValueChange={(v) =>
+                    setF((s) => ({ ...s, trilha_probabilidade: v as TrilhaProbabilidade }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRILHAS.map((t) => (
+                      <SelectItem key={t} value={t} disabled={TRILHAS_DESLIGADAS.includes(t)}>
+                        {t}
+                        {TRILHAS_DESLIGADAS.includes(t) ? ' (em breve)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {TRILHAS_DESLIGADAS.includes(f.trilha_probabilidade as TrilhaProbabilidade) && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    A análise psicossocial ainda não é feita pelo Labora Vistorias — o campo já
+                    existe para reservar o lugar dela no inventário, e será habilitado em uma versão
+                    futura.
+                  </p>
+                )}
+
+                {f.trilha_probabilidade === 'Quantitativa (medição)' && (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <Label>Categoria de exposição AIHA (0-4)</Label>
+                      <Select
+                        value={f.categoria_aiha_exposicao || ''}
+                        onValueChange={(v) =>
+                          setF((s) => ({
+                            ...s,
+                            categoria_aiha_exposicao: v as '0' | '1' | '2' | '3' | '4',
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CATEGORIA_AIHA_LABEL).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>
+                              {l}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {!emEdicao ? (
+                      <p className="text-xs text-muted-foreground">
+                        Salve o risco para poder lançar medições de campo.
+                      </p>
+                    ) : (
+                      <div className="rounded-lg border p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <Label className="text-sm font-semibold">
+                            Medições ({medicoes.length})
+                          </Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => abrirMedicao(null)}
+                          >
+                            <Plus className="mr-1 h-3.5 w-3.5" />
+                            Lançar medição
+                          </Button>
+                        </div>
+                        {medicoes.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            Nenhuma medição lançada ainda.
+                          </p>
+                        ) : (
+                          <div className="divide-y text-sm">
+                            {medicoes.map((m) => (
+                              <div
+                                key={m.id}
+                                className="flex items-center justify-between gap-2 py-1.5"
+                              >
+                                <div className="min-w-0">
+                                  <span className="tabular-nums">
+                                    {formatBrazilianDate(m.data)}
+                                  </span>
+                                  {' · '}
+                                  {m.resultado_valor != null
+                                    ? `${m.resultado_valor} ${m.resultado_unidade || ''}`
+                                    : 'sem resultado'}
+                                  {m.metodologia && ` · ${m.metodologia}`}
+                                </div>
+                                <div className="flex shrink-0 gap-0.5">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => abrirMedicao(m)}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => setMedicaoExcluir(m)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {!f.agente_id && medicoes.length > 0 && (
+                          <p className="mt-2 text-xs text-amber-700">
+                            Selecione o agente do catálogo para comparar as medições com o limite de
+                            tolerância.
+                          </p>
+                        )}
+                        {estatisticaMedicoes && (
+                          <div className="mt-2 rounded-md bg-muted/50 p-2 text-xs">
+                            <div>
+                              n = {estatisticaMedicoes.estatistica.n}
+                              {estatisticaMedicoes.estatistica.suficiente
+                                ? ` · UCL95 do P95 = ${estatisticaMedicoes.estatistica.limiteSuperior95.toFixed(2)}`
+                                : ' · menos de 6 amostras: usando o maior valor medido, incerteza alta'}
+                            </div>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span>
+                                Categoria calculada:{' '}
+                                <strong>
+                                  {CATEGORIA_AIHA_LABEL[estatisticaMedicoes.categoria]}
+                                </strong>
+                              </span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-xs"
+                                onClick={() =>
+                                  setF((v) => ({
+                                    ...v,
+                                    categoria_aiha_exposicao: estatisticaMedicoes.categoria,
+                                    incerteza: estatisticaMedicoes.estatistica.suficiente
+                                      ? v.incerteza
+                                      : '2',
+                                  }))
+                                }
+                              >
+                                Usar esta categoria
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {f.trilha_probabilidade === 'Sem dados suficientes' && (
+                  <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Sem base para avaliar ainda (nem medição, nem julgamento sobre um controle
+                    existente). A probabilidade fica no teto da matriz até essa trilha ser trocada
+                    por uma das outras, com dado de apoio.
+                  </div>
+                )}
+
+                {(f.trilha_probabilidade === 'Qualitativa (controle)' ||
+                  f.trilha_probabilidade === 'Acidente/mecânico') && (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <Label>Nível de controle existente</Label>
+                      <Select
+                        value={f.controle_nivel || ''}
+                        onValueChange={(v) => setF((s) => ({ ...s, controle_nivel: v }))}
+                      >
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NIVEIS_CONTROLE.map((v) => (
+                            <SelectItem key={v} value={v}>
+                              {v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Descrição do controle</Label>
+                      <Textarea
+                        className="mt-1.5"
+                        value={f.controle_descricao || ''}
+                        onChange={(e) =>
+                          setF((v) => ({ ...v, controle_descricao: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {(f.trilha_probabilidade === 'Ergonômica (AEP/AET)' ||
+                  f.trilha_probabilidade === 'Psicossocial') && (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <Label>Resultado da análise (AEP/AET)</Label>
+                      <Select
+                        value={f.resultado_aep_aet || ''}
+                        onValueChange={(v) =>
+                          setF((s) => ({
+                            ...s,
+                            resultado_aep_aet: v as 'Baixo' | 'Médio' | 'Alto' | 'Não avaliado',
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RESULTADOS_AEP.map((v) => (
+                            <SelectItem key={v} value={v}>
+                              {v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Observações</Label>
+                      <Textarea
+                        className="mt-1.5"
+                        value={f.observacoes_aep_aet || ''}
+                        onChange={(e) =>
+                          setF((v) => ({ ...v, observacoes_aep_aet: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-3">
+                  <Label>Incerteza da avaliação</Label>
                   <Select
-                    value={f.ltcat_enquadra_final || '__vazio'}
+                    value={f.incerteza || '0'}
                     onValueChange={(v) =>
-                      setF((s) => ({ ...s, ltcat_enquadra_final: v === '__vazio' ? undefined : v }))
+                      setF((s) => ({ ...s, incerteza: v as '0' | '1' | '2' | '3' }))
                     }
                   >
                     <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="—" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__vazio">—</SelectItem>
-                      {LTCAT_OPCOES.map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="0">0 — baixa</SelectItem>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="3">3 — alta (poucos dados)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
+              <div className="rounded-lg border p-3">
+                <Label className="mb-2 block text-sm font-semibold">
+                  Efeito à saúde e severidade
+                </Label>
+                <Select
+                  value={f.efeito_saude_aiha || ''}
+                  onValueChange={(v) =>
+                    setF((s) => ({ ...s, efeito_saude_aiha: v as '0' | '1' | '2' | '3' | '4' }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o efeito à saúde (AIHA)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(EFEITO_AIHA_LABEL).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </SecaoRisco>
+
+            <SecaoRisco numero={5} titulo="Enquadramentos Legais">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <Label>Gera Insalubridade?</Label>
+                  <Select
+                    value={
+                      f.insalubridade_final && f.insalubridade_final !== 'Não caracteriza'
+                        ? 'sim'
+                        : 'nao'
+                    }
+                    onValueChange={(v) =>
+                      setF((s) => ({
+                        ...s,
+                        insalubridade_final: v === 'sim' ? 'Mínimo (10%)' : 'Não caracteriza',
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nao">Não</SelectItem>
+                      <SelectItem value="sim">Sim</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Gera Periculosidade?</Label>
+                  <Select
+                    value={f.periculosidade_final ? 'sim' : 'nao'}
+                    onValueChange={(v) =>
+                      setF((s) => ({ ...s, periculosidade_final: v === 'sim' }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nao">Não</SelectItem>
+                      <SelectItem value="sim">Sim</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Aposentadoria Especial</Label>
+                  <Select
+                    value={f.ltcat_enquadra_final?.startsWith('Sim') ? 'sim' : 'nao'}
+                    onValueChange={(v) =>
+                      setF((s) => ({
+                        ...s,
+                        ltcat_enquadra_final: v === 'sim' ? 'Sim - 25 anos' : 'Não',
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nao">Não</SelectItem>
+                      <SelectItem value="sim">Sim</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {(f.insalubridade_final && f.insalubridade_final !== 'Não caracteriza') ||
+              f.ltcat_enquadra_final?.startsWith('Sim') ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {f.insalubridade_final && f.insalubridade_final !== 'Não caracteriza' && (
+                    <div>
+                      <Label className="text-xs">Grau de insalubridade (NR-15)</Label>
+                      <Select
+                        value={f.insalubridade_final}
+                        onValueChange={(v) => setF((s) => ({ ...s, insalubridade_final: v }))}
+                      >
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INSALUBRIDADE_OPCOES.filter((o) => o !== 'Não caracteriza').map((o) => (
+                            <SelectItem key={o} value={o}>
+                              {o}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {f.ltcat_enquadra_final?.startsWith('Sim') && (
+                    <div>
+                      <Label className="text-xs">Tempo para aposentadoria especial</Label>
+                      <Select
+                        value={f.ltcat_enquadra_final}
+                        onValueChange={(v) => setF((s) => ({ ...s, ltcat_enquadra_final: v }))}
+                      >
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LTCAT_OPCOES.filter((o) => o !== 'Não').map((o) => (
+                            <SelectItem key={o} value={o}>
+                              {o}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                São sugestões do técnico: as conclusões entram nos laudos (insalubridade,
+                periculosidade) e no LTCAT. Ao puxar do catálogo, o sistema já sugere o
+                enquadramento do agente.
+              </p>
+            </SecaoRisco>
+
+            <SecaoRisco numero={6} titulo="Proteções (EPC / EPI)">
+              <div className="rounded-lg border p-3">
+                <Label className="mb-2 block text-sm font-semibold">
+                  Medidas de controle e EPI
+                </Label>
+                <Textarea
+                  className="mb-2"
+                  placeholder="EPCs existentes (proteção coletiva)"
+                  value={f.epc_lista || ''}
+                  onChange={(e) => setF((v) => ({ ...v, epc_lista: e.target.value }))}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!!f.epc_eficaz}
+                      onCheckedChange={(c) => setF((v) => ({ ...v, epc_eficaz: !!c }))}
+                    />
+                    EPC eficaz
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!!f.epc_plano_manutencao}
+                      onCheckedChange={(c) => setF((v) => ({ ...v, epc_plano_manutencao: !!c }))}
+                    />
+                    Tem plano de manutenção
+                  </label>
+                </div>
+                <Textarea
+                  className="mt-2"
+                  placeholder="EPIs utilizados"
+                  value={f.epis_utilizados || ''}
+                  onChange={(e) => setF((v) => ({ ...v, epis_utilizados: e.target.value }))}
+                />
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['epi_condicao_funcionamento', 'Em condição de funcionamento'],
+                      ['epi_uso_ininterrupto', 'Uso ininterrupto na exposição'],
+                      ['epi_validade_ca_ok', 'CA dentro da validade'],
+                      ['epi_periodicidade_troca_ok', 'Troca respeita periodicidade'],
+                      ['epi_higienizacao_ok', 'Higienização adequada'],
+                    ] as const
+                  ).map(([campo, label]) => (
+                    <label key={campo} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={!!f[campo]}
+                        onCheckedChange={(c) => setF((v) => ({ ...v, [campo]: !!c }))}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </SecaoRisco>
+
+            <div className="mt-4 rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label className="text-sm font-semibold">
+                  Plano de ação deste risco ({acoesRisco.length})
+                </Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!emEdicao}
+                  onClick={() => setAcaoDialog(true)}
+                >
+                  <ListChecks className="mr-1.5 h-3.5 w-3.5" />
+                  Adicionar ação
+                </Button>
+              </div>
+              {!emEdicao ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Salve o risco primeiro; depois reabra para adicionar ações do plano de ação.
+                </p>
+              ) : acoesRisco.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Nenhuma ação vinculada a este risco ainda.
+                </p>
+              ) : (
+                <div className="mt-2 divide-y text-sm">
+                  {acoesRisco.map((acao) => (
+                    <div key={acao.id} className="flex items-start justify-between gap-2 py-1.5">
+                      <span className="min-w-0">{acao.medida}</span>
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">
+                        {acao.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -1127,6 +1424,19 @@ export function RiscosOcupacionaisPainel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {emEdicao && (
+        <AcaoPlanoDialog
+          open={acaoDialog}
+          onOpenChange={setAcaoDialog}
+          empresaId={empresaId}
+          avaliacaoId={emEdicao.id}
+          contexto={f.perigo_descricao || undefined}
+          prioridadePadrao={celulaAtual?.categoria as PrioridadeAcaoPlano | undefined}
+          numeroExpostosPadrao={f.numero_expostos}
+          onSalvo={() => carregarAcoesRisco(emEdicao.id)}
+        />
+      )}
 
       <AlertDialog open={descartarDialog} onOpenChange={setDescartarDialog}>
         <AlertDialogContent>
