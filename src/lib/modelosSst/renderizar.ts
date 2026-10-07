@@ -22,12 +22,16 @@ export type ElRender =
   | { tipo: 'lista'; itens: Run[][] }
   | {
       tipo: 'tabela'
+      /** Id do bloco "preenchido pelo app" que gerou a tabela (ausente nas tabelas fixas). */
+      blocoId?: string
       titulo?: string
       cabecalho: string[]
       linhas: string[][]
       /** Bloco sem dado nenhum: sai a frase "Não há registros". */
       vazia?: boolean
       manual?: boolean
+      /** Desligado pelo técnico (blocos_config.incluir = false): não sai no documento. */
+      excluido?: boolean
       observacao?: string
     }
 
@@ -194,18 +198,31 @@ function renderBloco(
     col.registrar(`BLOCO_${id}`, titulo)
     return {
       tipo: 'tabela',
+      blocoId: id,
       titulo,
       cabecalho: ['Bloco não encontrado no modelo'],
       linhas: [],
       vazia: true,
     }
   }
-  if (config?.incluir === false) return null
+  if (config?.incluir === false) {
+    // Mantém o bloco na lista do painel (para poder religar), mas sem linhas e sem sair no PDF.
+    return {
+      tipo: 'tabela',
+      blocoId: id,
+      titulo: def.titulo,
+      cabecalho: def.cabecalho,
+      linhas: [],
+      vazia: true,
+      excluido: true,
+    }
+  }
   const resultado = gerarBloco(modelo.tipo, id, dados)
   if (!resultado) {
     col.registrar(`BLOCO_${id}`, titulo)
     return {
       tipo: 'tabela',
+      blocoId: id,
       titulo,
       cabecalho: def.cabecalho,
       linhas: [],
@@ -220,6 +237,7 @@ function renderBloco(
   )
   return {
     tipo: 'tabela',
+    blocoId: id,
     titulo: def.titulo,
     cabecalho: def.cabecalho,
     linhas,

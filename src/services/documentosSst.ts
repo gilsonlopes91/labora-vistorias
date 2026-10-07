@@ -387,6 +387,16 @@ export const revisarDocumentoSst = (documento: DocumentoSst, motivoRevisao: stri
     elaboradores: documento.elaboradores,
     responsaveis_tecnicos_ids: documento.responsaveis_tecnicos_ids,
     secoes: documento.secoes,
+    planos_acao_ids: documento.planos_acao_ids,
+    autor_rt_id: documento.autor_rt_id,
+    coordenador_rt_id: documento.coordenador_rt_id,
+    alternativas: documento.alternativas,
+    blocos_config: documento.blocos_config,
+    campos_manuais: documento.campos_manuais,
+    data_levantamento: documento.data_levantamento,
+    cidade_emissao: documento.cidade_emissao,
+    numero_art: documento.numero_art,
+    modelo_versao: documento.modelo_versao,
     documento_anterior_id: documento.id,
   })
 

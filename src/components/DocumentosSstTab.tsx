@@ -44,7 +44,21 @@ import { avaliacoesDaFuncao } from '@/lib/riscoFuncao'
 import { getAcoesPlano, getAcoesDosPlanos, type AcaoPlano } from '@/services/acoesPlano'
 import { getPlanosAcao, type PlanoAcao } from '@/services/planosAcao'
 import { getMatrizOficial } from '@/services/matrizesRisco'
-import { buscarResponsavelDoUsuario, formatarRegistroRT } from '@/services/responsaveisTecnicos'
+import {
+  buscarResponsavelDoUsuario,
+  formatarRegistroRT,
+  getResponsaveisTecnicos,
+  type ResponsavelTecnico,
+} from '@/services/responsaveisTecnicos'
+import {
+  carregarModelo,
+  carregarDadosDocumento,
+  resolverEscolhas,
+  montarSecoesHtml,
+  renderizarDocumento,
+} from '@/lib/modelosSst'
+import { gerarPdfModeloSst } from '@/lib/pdfModeloSst'
+import { PainelModeloSst } from '@/components/PainelModeloSst'
 import {
   getDocumentosSst,
   createDocumentoSst,
@@ -99,6 +113,22 @@ const TIPOS: TipoDocumentoSst[] = ['pgr', 'ltcat', 'insalubridade', 'periculosid
 /** Tempo de inatividade antes de salvar automaticamente o rascunho. */
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
+/** Campos do rascunho que o autosave/“Salvar rascunho” gravam. */
+const camposParaSalvar = (f: Partial<DocumentoSst>): Partial<DocumentoSst> => ({
+  titulo: f.titulo,
+  elaboradores: f.elaboradores,
+  secoes: f.secoes,
+  planos_acao_ids: f.planos_acao_ids,
+  autor_rt_id: f.autor_rt_id,
+  coordenador_rt_id: f.coordenador_rt_id,
+  alternativas: f.alternativas,
+  blocos_config: f.blocos_config,
+  campos_manuais: f.campos_manuais,
+  data_levantamento: f.data_levantamento,
+  cidade_emissao: f.cidade_emissao,
+  numero_art: f.numero_art,
+})
+
 export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const { user } = useAuth()
   // A organização do documento é sempre a da empresa, não a do usuário
@@ -134,6 +164,14 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   // Planos de ação da empresa, para o técnico escolher quais entram neste
   // documento (vazio = entram todos, comportamento anterior).
   const [planosDisponiveis, setPlanosDisponiveis] = useState<PlanoAcao[]>([])
+  const [rts, setRts] = useState<ResponsavelTecnico[]>([])
+
+  useEffect(() => {
+    if (!organizacaoId) return
+    getResponsaveisTecnicos(organizacaoId)
+      .then(setRts)
+      .catch(() => setRts([]))
+  }, [organizacaoId])
 
   useEffect(() => {
     getPlanosAcao(empresaId)
@@ -201,12 +239,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     const t = setTimeout(async () => {
       setAutosalvando(true)
       try {
-        const atualizado = await updateDocumentoSst(selecionado.id, {
-          titulo: f.titulo,
-          elaboradores: f.elaboradores,
-          secoes: f.secoes,
-          planos_acao_ids: f.planos_acao_ids,
-        })
+        const atualizado = await updateDocumentoSst(selecionado.id, camposParaSalvar(f))
         setDocumentos((v) => v.map((d) => (d.id === atualizado.id ? atualizado : d)))
         setUltimoAutosalvamento(new Date())
       } catch (error) {
@@ -220,7 +253,20 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     }, AUTOSAVE_DEBOUNCE_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [f.titulo, f.elaboradores, f.secoes, f.planos_acao_ids])
+  }, [
+    f.titulo,
+    f.elaboradores,
+    f.secoes,
+    f.planos_acao_ids,
+    f.autor_rt_id,
+    f.coordenador_rt_id,
+    f.alternativas,
+    f.blocos_config,
+    f.campos_manuais,
+    f.data_levantamento,
+    f.cidade_emissao,
+    f.numero_art,
+  ])
 
   useEffect(() => {
     setUrlPdf(null)
@@ -261,12 +307,109 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     await emitirPdf()
   }
 
+  // Emissão dos documentos criados a partir dos Modelos Gerais Labora.
+  const emitirPdfModelo = async () => {
+    if (!selecionado) return
+    setEmitindo(true)
+    try {
+      const confirmadaEm = new Date()
+      const chaveVerificacao = crypto.randomUUID()
+      const rtEmissor = await buscarResponsavelDoUsuario(organizacaoId, user?.id || '').catch(
+        () => null,
+      )
+      const proximaVersao = (selecionado.versao || 0) + 1
+      const dados = await carregarDadosDocumento(
+        empresaId,
+        { ...selecionado, ...f },
+        selecionado.tipo,
+      )
+      dados.versao = proximaVersao
+      dados.dataEmissao = new Date()
+      const modelo = carregarModelo(selecionado.tipo)
+      const escolhas = resolverEscolhas(modelo, dados, f.alternativas)
+      const renderizado = renderizarDocumento(modelo, f.secoes || [], dados, escolhas)
+      if (renderizado.camposCriticosVazios.length > 0) {
+        toast.error('Faltam dados obrigatórios para emitir', {
+          description: renderizado.camposCriticosVazios.join(', '),
+        })
+        return
+      }
+      const nomeEmpresa = dados.empresa.nome_fantasia || dados.empresa.razao_social
+      const pdf = await gerarPdfModeloSst({
+        renderizado,
+        dados,
+        titulo: f.titulo || TIPO_DOCUMENTO_TITULO_PADRAO[selecionado.tipo],
+        versao: proximaVersao,
+        dataEmissao: new Date(),
+        assinatura: {
+          nome: rtEmissor?.nome || user?.name || 'Responsável',
+          registro: rtEmissor ? formatarRegistroRT(rtEmissor) : undefined,
+          confirmadaEm,
+          linkVerificacao: `${window.location.origin}/verificar/${chaveVerificacao}`,
+        },
+      })
+      const blob = pdf.output('blob')
+      const nomeArquivo = nomeArquivoDocumentoSst(selecionado.tipo, nomeEmpresa, proximaVersao)
+      const hash = await hashSha256(blob)
+      // grava antes o estado final do rascunho (alternativas, campos etc.)
+      await updateDocumentoSst(selecionado.id, {
+        ...camposParaSalvar(f),
+        pendencias: renderizado.pendencias.map((p) => ({ campo: p.campo, motivo: p.descricao })),
+      })
+      const matriz = dados.matriz
+      const emitido = await emitirDocumentoSst(
+        selecionado,
+        {
+          matriz_id: matriz?.id,
+          matriz_snapshot: matriz
+            ? {
+                nome: matriz.nome,
+                metodologia: matriz.metodologia,
+                dimensao: matriz.dimensao,
+                categorias: matriz.categorias,
+                celulas: matriz.celulas,
+              }
+            : undefined,
+          dados_emissao: {
+            unidades_avaliacao: dados.ghes.length,
+            avaliacoes_risco: dados.avaliacoes.length,
+            acoes_plano: dados.acoes.length,
+            modelo_versao: selecionado.modelo_versao,
+            pendencias: renderizado.pendencias.length,
+          },
+          emitido_por: user?.id || '',
+          assinatura_confirmada_em: confirmadaEm.toISOString(),
+          link_publico_chave: chaveVerificacao,
+        },
+        blob,
+        nomeArquivo,
+        hash,
+      )
+      setDocumentos((v) =>
+        v.map((d) => {
+          if (d.id === emitido.id) return emitido
+          if (selecionado.documento_anterior_id && d.id === selecionado.documento_anterior_id) {
+            return { ...d, status: 'substituido' }
+          }
+          return d
+        }),
+      )
+      setSelecionadoId(emitido.id)
+      toast.success(`${TIPO_DOCUMENTO_LABEL[selecionado.tipo]} emitido em PDF`)
+    } catch (error) {
+      toast.error('Não foi possível emitir o PDF', { description: getErrorMessage(error) })
+    } finally {
+      setEmitindo(false)
+    }
+  }
+
   const emitirPdf = async () => {
     if (!selecionado) return
     if (selecionado.tipo === 'ltcat' && !checklistLtcatCompleto) {
       toast.error('Complete o checklist do art. 276 (aba Conclusões por função) antes de emitir')
       return
     }
+    if (selecionado.modelo_versao) return emitirPdfModelo()
     setEmitindo(true)
     try {
       const confirmadaEm = new Date()
@@ -493,15 +636,41 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
       return
     }
     try {
+      let extra: Partial<DocumentoSst> = { secoes: secoesPadrao(tipo) }
+      try {
+        const modelo = carregarModelo(tipo)
+        const rtUser = await buscarResponsavelDoUsuario(organizacaoId, user?.id || '').catch(
+          () => null,
+        )
+        const base: Partial<DocumentoSst> = {
+          tipo,
+          empresa_id: empresaId,
+          organizacao_id: organizacaoId,
+          autor_rt_id: rtUser?.id,
+        }
+        const dados = await carregarDadosDocumento(empresaId, base, tipo)
+        const escolhas = resolverEscolhas(modelo, dados)
+        const { secoes: secoesModelo } = montarSecoesHtml(modelo, escolhas)
+        extra = {
+          secoes: secoesModelo,
+          alternativas: escolhas,
+          modelo_versao: modelo.versaoTexto,
+          autor_rt_id: rtUser?.id,
+        }
+      } catch (e) {
+        toast.warning('Não foi possível montar o modelo geral; criado com o modelo básico', {
+          description: getErrorMessage(e),
+        })
+      }
       const criado = await createDocumentoSst({
         organizacao_id: organizacaoId,
         empresa_id: empresaId,
         tipo,
         titulo: TIPO_DOCUMENTO_TITULO_PADRAO[tipo],
         status: 'rascunho',
-        secoes: secoesPadrao(tipo),
+        ...extra,
       })
-      toast.success(`Rascunho de ${TIPO_DOCUMENTO_LABEL[tipo]} criado com o modelo básico`)
+      toast.success(`Rascunho de ${TIPO_DOCUMENTO_LABEL[tipo]} criado a partir do modelo`)
       setDocumentos((v) => [criado, ...v])
       setSelecionadoId(criado.id)
     } catch (error) {
@@ -513,12 +682,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     if (!selecionado) return
     setSalvando(true)
     try {
-      const atualizado = await updateDocumentoSst(selecionado.id, {
-        titulo: f.titulo,
-        elaboradores: f.elaboradores,
-        secoes: f.secoes,
-        planos_acao_ids: f.planos_acao_ids,
-      })
+      const atualizado = await updateDocumentoSst(selecionado.id, camposParaSalvar(f))
       setDocumentos((v) => v.map((d) => (d.id === atualizado.id ? atualizado : d)))
       setUltimoAutosalvamento(new Date())
       toast.success('Rascunho salvo')
@@ -712,6 +876,17 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                       />
                     </div>
                   </div>
+
+                  {selecionado.modelo_versao && (
+                    <PainelModeloSst
+                      empresaId={empresaId}
+                      documento={{ ...selecionado, ...f }}
+                      travado={travado}
+                      rts={rts}
+                      onChange={(patch) => setF((v) => ({ ...v, ...patch }))}
+                      onReaplicarTexto={(novas) => setF((v) => ({ ...v, secoes: novas }))}
+                    />
+                  )}
 
                   <div className="space-y-3">
                     {secoes.map((secao, i) => (
