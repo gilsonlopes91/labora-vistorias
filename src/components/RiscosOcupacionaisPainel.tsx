@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   BookOpen,
   ChevronDown,
-  ListChecks,
   Pencil,
   Plus,
   ShieldAlert,
@@ -25,11 +24,7 @@ import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
 import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
 import { getMatrizOficial, type MatrizRisco } from '@/services/matrizesRisco'
-import {
-  getAcoesDaAvaliacao,
-  type AcaoPlano,
-  type PrioridadeAcaoPlano,
-} from '@/services/acoesPlano'
+
 import {
   createAvaliacaoRisco,
   deleteAvaliacaoRisco,
@@ -60,7 +55,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { AcaoPlanoDialog } from '@/components/AcaoPlanoDialog'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -268,14 +262,6 @@ export function RiscosOcupacionaisPainel({
         }),
       )
 
-  // ---- Ações do plano de ação ligadas ao risco aberto ----
-  const [acoesRisco, setAcoesRisco] = useState<AcaoPlano[]>([])
-  const [acaoDialog, setAcaoDialog] = useState(false)
-  const carregarAcoesRisco = (avaliacaoId: string) =>
-    getAcoesDaAvaliacao(avaliacaoId)
-      .then(setAcoesRisco)
-      .catch(() => setAcoesRisco([]))
-
   const abrir = (a: AvaliacaoRisco | null) => {
     setEmEdicao(a)
     const novoF: Partial<AvaliacaoRiscoInput> = a
@@ -284,10 +270,8 @@ export function RiscosOcupacionaisPainel({
     setF(novoF)
     inicialRef.current = JSON.stringify(novoF)
     setMedicoes([])
-    setAcoesRisco([])
     if (a) {
       carregarMedicoes(a.id)
-      carregarAcoesRisco(a.id)
     }
     setDialogAberto(true)
   }
@@ -1378,43 +1362,6 @@ export function RiscosOcupacionaisPainel({
               </div>
             </SecaoRisco>
 
-            <div className="mt-4 rounded-lg border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label className="text-sm font-semibold">
-                  Plano de ação deste risco ({acoesRisco.length})
-                </Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={!emEdicao}
-                  onClick={() => setAcaoDialog(true)}
-                >
-                  <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-                  Adicionar ação
-                </Button>
-              </div>
-              {!emEdicao ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Salve o risco primeiro; depois reabra para adicionar ações do plano de ação.
-                </p>
-              ) : acoesRisco.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Nenhuma ação vinculada a este risco ainda.
-                </p>
-              ) : (
-                <div className="mt-2 divide-y text-sm">
-                  {acoesRisco.map((acao) => (
-                    <div key={acao.id} className="flex items-start justify-between gap-2 py-1.5">
-                      <span className="min-w-0">{acao.medida}</span>
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        {acao.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={tentarFechar}>
@@ -1424,19 +1371,6 @@ export function RiscosOcupacionaisPainel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {emEdicao && (
-        <AcaoPlanoDialog
-          open={acaoDialog}
-          onOpenChange={setAcaoDialog}
-          empresaId={empresaId}
-          avaliacaoId={emEdicao.id}
-          contexto={f.perigo_descricao || undefined}
-          prioridadePadrao={celulaAtual?.categoria as PrioridadeAcaoPlano | undefined}
-          numeroExpostosPadrao={f.numero_expostos}
-          onSalvo={() => carregarAcoesRisco(emEdicao.id)}
-        />
-      )}
 
       <AlertDialog open={descartarDialog} onOpenChange={setDescartarDialog}>
         <AlertDialogContent>
