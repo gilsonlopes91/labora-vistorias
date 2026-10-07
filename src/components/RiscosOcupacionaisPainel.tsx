@@ -1334,12 +1334,13 @@ export function RiscosOcupacionaisPainel({
                     Tem plano de manutenção
                   </label>
                 </div>
-                <Textarea
-                  className="mt-2"
-                  placeholder="EPIs utilizados"
-                  value={f.epis_utilizados || ''}
-                  onChange={(e) => setF((v) => ({ ...v, epis_utilizados: e.target.value }))}
-                />
+                <div className="mt-2">
+                  <EpiRiscoSeletor
+                    empresaId={empresaId}
+                    value={f.epis_utilizados || ''}
+                    onChange={(texto) => setF((v) => ({ ...v, epis_utilizados: texto }))}
+                  />
+                </div>{' '}
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(
                     [

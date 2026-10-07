@@ -10,7 +10,7 @@
    têm código próprio nela). */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Copy, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 
 import { useAuth } from '@/hooks/use-auth'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -55,14 +55,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 
 const TIPOS: TipoAgente[] = [
@@ -86,6 +78,118 @@ const AGENTE_VAZIO: AgenteCatalogoInput = {
 
 // Sentinela pro select do escopo cair em "digitar outro valor".
 const ESCOPO_OUTRO = '__outro__'
+
+const COR_TIPO: Record<string, string> = {
+  Físico: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  Químico: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  Biológico: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  Ergonômico: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+  Acidente: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
+  Psicossocial: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300',
+}
+
+/** Uma linha do catálogo: resumo sempre visível e detalhes (fonte, danos, medidas) ao expandir. */
+function LinhaAgente({
+  agente: a,
+  limite,
+  podeEditar,
+  onEditar,
+  onExcluir,
+  onDuplicar,
+}: {
+  agente: AgenteCatalogo
+  limite: string
+  podeEditar: boolean
+  onEditar: () => void
+  onExcluir: () => void
+  onDuplicar: () => void
+}) {
+  const [aberto, setAberto] = useState(false)
+  const detalhes = [
+    { titulo: 'Fonte geradora', texto: a.fonte_geradora_tipica },
+    { titulo: 'Danos à saúde', texto: a.danos_saude_tipicos },
+    { titulo: 'Medidas de controle', texto: a.medidas_controle_tipicas },
+  ]
+  const meta = [
+    a.cas ? `CAS ${a.cas}` : null,
+    a.anexo_nr15 ? `NR-15 anexo ${a.anexo_nr15}` : null,
+    a.limite_tolerancia_valor != null ? `LT ${limite}` : null,
+    a.efeito_saude_aiha != null ? `efeito AIHA ${a.efeito_saude_aiha}` : null,
+  ].filter(Boolean)
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-start gap-3 p-3">
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          aria-expanded={aberto}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+        >
+          <ChevronRight
+            className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${aberto ? 'rotate-90' : ''}`}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${COR_TIPO[a.tipo] || 'bg-muted'}`}
+              >
+                {a.tipo}
+              </span>
+              <span className="font-semibold leading-snug">{a.nome}</span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <Badge variant="secondary" className="text-[10px] font-normal">
+                {a.escopo || 'Geral'}
+              </Badge>
+              <Badge
+                variant={a.organizacao_id ? 'outline' : 'default'}
+                className="text-[10px] font-normal"
+              >
+                {a.organizacao_id ? 'Organização' : 'Oficial'}
+              </Badge>
+              {a.codigo_esocial && <span className="font-mono">eSocial {a.codigo_esocial}</span>}
+              {meta.map((m) => (
+                <span key={m}>{m}</span>
+              ))}
+            </div>
+          </div>
+        </button>
+        {podeEditar && (
+          <div className="flex shrink-0 items-center gap-1">
+            {a.organizacao_id ? (
+              <>
+                <Button size="icon" variant="ghost" onClick={onEditar} title="Editar">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={onExcluir} title="Excluir">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="outline" onClick={onDuplicar}>
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Duplicar para editar
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      {aberto && (
+        <div className="grid grid-cols-1 gap-4 border-t bg-muted/30 p-4 md:grid-cols-3">
+          {detalhes.map((d) => (
+            <div key={d.titulo}>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {d.titulo}
+              </p>
+              <p className="text-sm leading-relaxed">{d.texto || '—'}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
 
 export function CatalogoAgentesTab() {
   const { user } = useAuth()
@@ -293,80 +397,23 @@ export function CatalogoAgentesTab() {
           Nenhum agente para esse filtro.
         </div>
       ) : (
-        <Card className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Agente / fator de risco</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Escopo</TableHead>
-                <TableHead>eSocial</TableHead>
-                <TableHead>Fonte geradora</TableHead>
-                <TableHead>Danos à saúde</TableHead>
-                <TableHead>Medidas de controle</TableHead>
-                <TableHead>Origem</TableHead>
-                {podeEditar && <TableHead className="text-right">Ações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtrados.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell>
-                    <div className="font-medium">{a.nome}</div>
-                    {a.cas && <div className="text-xs text-muted-foreground">CAS {a.cas}</div>}
-                    <div className="text-xs text-muted-foreground">
-                      {a.anexo_nr15 ? `NR-15 anexo ${a.anexo_nr15}` : null}
-                      {a.efeito_saude_aiha != null && (
-                        <span> · efeito AIHA {a.efeito_saude_aiha}</span>
-                      )}
-                      {a.limite_tolerancia_valor != null && <span> · LT {limite(a)}</span>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{a.tipo}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{a.escopo || 'Geral'}</Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">{a.codigo_esocial || '—'}</TableCell>
-                  <TableCell className="max-w-56 text-sm text-muted-foreground">
-                    {a.fonte_geradora_tipica || '—'}
-                  </TableCell>
-                  <TableCell className="max-w-56 text-sm text-muted-foreground">
-                    {a.danos_saude_tipicos || '—'}
-                  </TableCell>
-                  <TableCell className="max-w-56 text-sm text-muted-foreground">
-                    {a.medidas_controle_tipicas || '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={a.organizacao_id ? 'secondary' : 'default'}>
-                      {a.organizacao_id ? 'Organização' : 'Oficial'}
-                    </Badge>
-                  </TableCell>
-                  {podeEditar && (
-                    <TableCell className="text-right">
-                      {a.organizacao_id ? (
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => abrirEdicao(a)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => setExcluir(a)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={() => duplicar(a)}>
-                          <Copy className="mr-2 h-3.5 w-3.5" />
-                          Duplicar para editar
-                        </Button>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            {filtrados.length} {filtrados.length === 1 ? 'agente' : 'agentes'}. Clique em um agente
+            para ver fonte geradora, danos à saúde e medidas de controle.
+          </p>
+          {filtrados.map((a) => (
+            <LinhaAgente
+              key={a.id}
+              agente={a}
+              limite={limite(a)}
+              podeEditar={podeEditar}
+              onEditar={() => abrirEdicao(a)}
+              onExcluir={() => setExcluir(a)}
+              onDuplicar={() => duplicar(a)}
+            />
+          ))}
+        </div>
       )}
 
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>

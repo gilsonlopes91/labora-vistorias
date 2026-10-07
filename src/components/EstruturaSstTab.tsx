@@ -41,6 +41,7 @@ import { RiscosOcupacionaisPainel } from '@/components/RiscosOcupacionaisPainel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -186,24 +187,54 @@ export function EstruturaSstTab({
   const [gheEdit, setGheEdit] = useState<Ghe | null>(null)
   const [gheExcluir, setGheExcluir] = useState<Ghe | null>(null)
   const [fGhe, setFGhe] = useState<Partial<GheInput>>({})
+  // Funções que pertencem ao GHE em edição (o GHE exige pelo menos uma).
+  const [gheFuncoesIds, setGheFuncoesIds] = useState<string[]>([])
 
   const abrirGhe = (g: Ghe | null) => {
     setGheEdit(g)
     const novoF = g ? { ...g } : { tipo_agrupamento: 'GHE' }
+    const idsIniciais = g ? funcoes.filter((f) => f.ghe_id === g.id).map((f) => f.id) : []
     setFGhe(novoF)
-    gheInicialRef.current = JSON.stringify(novoF)
+    setGheFuncoesIds(idsIniciais)
+    gheInicialRef.current = JSON.stringify({ f: novoF, ids: idsIniciais })
     setGheDialog(true)
   }
+  const alternarFuncaoDoGhe = (id: string) =>
+    setGheFuncoesIds((atuais) =>
+      atuais.includes(id) ? atuais.filter((x) => x !== id) : [...atuais, id],
+    )
   const salvarGhe = async () => {
     if (!fGhe.nome?.trim()) return toast.error('Informe o nome do GHE')
+    if (gheFuncoesIds.length === 0) {
+      return toast.error('Vincule ao menos uma função ao GHE', {
+        description:
+          funcoes.length === 0
+            ? 'Cadastre as funções da empresa primeiro (aba Função).'
+            : 'Marque, na lista de funções, quem faz parte deste grupo.',
+      })
+    }
     try {
+      let gheId = gheEdit?.id || ''
       if (gheEdit) await updateGhe(gheEdit.id, fGhe)
-      else
-        await createGhe({
+      else {
+        const criado = await createGhe({
           ...fGhe,
           organizacao_id: organizacaoId,
           empresa_id: empresaId,
         } as GheInput)
+        gheId = criado.id
+      }
+      const anteriores = gheEdit
+        ? funcoes.filter((f) => f.ghe_id === gheEdit.id).map((f) => f.id)
+        : []
+      await Promise.all([
+        ...gheFuncoesIds
+          .filter((id) => !anteriores.includes(id))
+          .map((id) => updateFuncaoSst(id, { ghe_id: gheId })),
+        ...anteriores
+          .filter((id) => !gheFuncoesIds.includes(id))
+          .map((id) => updateFuncaoSst(id, { ghe_id: '' })),
+      ])
       toast.success('GHE salvo')
       setGheDialog(false)
       carregar()
@@ -271,7 +302,8 @@ export function EstruturaSstTab({
     }
   }
 
-  const sujoGhe = gheDialog && JSON.stringify(fGhe) !== gheInicialRef.current
+  const sujoGhe =
+    gheDialog && JSON.stringify({ f: fGhe, ids: gheFuncoesIds }) !== gheInicialRef.current
   const tentarFecharGhe = () => {
     if (sujoGhe) setGheDescartarDialog(true)
     else setGheDialog(false)
@@ -592,6 +624,42 @@ export function EstruturaSstTab({
                       onChange={(e) => setFGhe((v) => ({ ...v, nome: e.target.value }))}
                     />
                   </div>
+                </div>
+                <div>
+                  <Label>Funções do grupo (obrigatório: ao menos uma)</Label>
+                  <div className="mt-1.5 max-h-44 space-y-1.5 overflow-y-auto rounded-md border p-3">
+                    {funcoes.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Esta empresa ainda não tem funções. Cadastre primeiro na aba Função e depois
+                        monte o GHE.
+                      </p>
+                    ) : (
+                      funcoes.map((f) => {
+                        const emOutroGhe = !!f.ghe_id && f.ghe_id !== gheEdit?.id
+                        return (
+                          <label
+                            key={f.id}
+                            className={`flex items-center gap-2 text-sm ${emOutroGhe ? 'opacity-50' : ''}`}
+                          >
+                            <Checkbox
+                              checked={gheFuncoesIds.includes(f.id)}
+                              disabled={emOutroGhe}
+                              onCheckedChange={() => alternarFuncaoDoGhe(f.id)}
+                            />
+                            <span>{f.nome}</span>
+                            {emOutroGhe && (
+                              <span className="text-xs text-muted-foreground">
+                                (já está em {f.expand?.ghe_id?.nome || 'outro GHE'})
+                              </span>
+                            )}
+                          </label>
+                        )
+                      })
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Cada função pertence a um só GHE. As funções marcadas herdam os riscos do grupo.
+                  </p>
                 </div>
                 <div>
                   <Label>Setor</Label>

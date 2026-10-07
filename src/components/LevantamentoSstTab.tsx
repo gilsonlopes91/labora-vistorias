@@ -450,8 +450,8 @@ export function LevantamentoSstTab() {
                 Planejamento
               </TabsTrigger>
               <TabsTrigger value="ambiente">Ambiente</TabsTrigger>
-              <TabsTrigger value="ghe">GHE</TabsTrigger>
               <TabsTrigger value="funcao">Função</TabsTrigger>
+              <TabsTrigger value="ghe">GHE</TabsTrigger>
               <TabsTrigger value="plano">
                 Plano de ação
                 {saude.acoesPendentes > 0 && (
