@@ -138,6 +138,45 @@ const emptyValues: EmpresaFormValues = {
   contato_email: '',
 }
 
+// Rascunho do cadastro de empresa nova: guardado no navegador enquanto a janela
+// está aberta, para não perder o que foi digitado se ela fechar sem querer.
+const RASCUNHO_KEY = 'labora:rascunho-empresa'
+
+interface Rascunho {
+  values: Partial<EmpresaFormValues>
+  textoCnae: string
+}
+
+const rascunhoTemConteudo = (values: Partial<EmpresaFormValues>, textoCnae: string) =>
+  !!textoCnae.trim() || Object.values(values).some((v) => typeof v === 'string' && v.trim() !== '')
+
+const lerRascunho = (): Rascunho | null => {
+  try {
+    const bruto = localStorage.getItem(RASCUNHO_KEY)
+    if (!bruto) return null
+    const r = JSON.parse(bruto) as Rascunho
+    return r && r.values && rascunhoTemConteudo(r.values, r.textoCnae || '') ? r : null
+  } catch {
+    return null
+  }
+}
+
+const gravarRascunho = (rascunho: Rascunho) => {
+  try {
+    localStorage.setItem(RASCUNHO_KEY, JSON.stringify(rascunho))
+  } catch {
+    // sem armazenamento disponível: segue sem rascunho
+  }
+}
+
+const apagarRascunho = () => {
+  try {
+    localStorage.removeItem(RASCUNHO_KEY)
+  } catch {
+    // nada a apagar
+  }
+}
+
 export default function Empresas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
@@ -162,6 +201,9 @@ export default function Empresas() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [removendoLogo, setRemovendoLogo] = useState(false)
+  // Aviso de que o formulário voltou com um rascunho guardado.
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false)
+  const [confirmarFechar, setConfirmarFechar] = useState(false)
 
   const empresasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -194,6 +236,46 @@ export default function Empresas() {
     resolver: zodResolver(empresaSchema),
     defaultValues: emptyValues,
   })
+  const { isDirty } = form.formState
+
+  // Empresa nova: cada alteração vai para o rascunho.
+  useEffect(() => {
+    if (!dialogOpen || editing) return
+    const gravar = () => {
+      const values = form.getValues()
+      if (rascunhoTemConteudo(values, textoCnae)) gravarRascunho({ values, textoCnae })
+      else apagarRascunho()
+    }
+    gravar()
+    const assinatura = form.watch(gravar)
+    return () => assinatura.unsubscribe()
+  }, [dialogOpen, editing, textoCnae, form])
+
+  // Fechar pelo X (clicar fora e Esc não fecham). Empresa nova guarda o rascunho;
+  // empresa já cadastrada pergunta antes de descartar alterações.
+  const aoMudarDialog = (aberto: boolean) => {
+    if (aberto) {
+      setDialogOpen(true)
+      return
+    }
+    if (editing && (isDirty || logoFile)) {
+      setConfirmarFechar(true)
+      return
+    }
+    if (!editing && rascunhoTemConteudo(form.getValues(), textoCnae)) {
+      toast.info('Rascunho guardado', {
+        description: 'Ao clicar em Nova empresa, o que você digitou volta para a tela.',
+      })
+    }
+    setDialogOpen(false)
+  }
+
+  const descartarRascunho = () => {
+    apagarRascunho()
+    form.reset(emptyValues)
+    setTextoCnae('')
+    setRascunhoRestaurado(false)
+  }
 
   const loadData = useCallback(async () => {
     try {
@@ -219,8 +301,10 @@ export default function Empresas() {
 
   const openCreate = () => {
     setEditing(null)
-    form.reset(emptyValues)
-    setTextoCnae('')
+    const rascunho = lerRascunho()
+    form.reset({ ...emptyValues, ...(rascunho?.values || {}) })
+    setTextoCnae(rascunho?.textoCnae || '')
+    setRascunhoRestaurado(!!rascunho)
     setLogoFile(null)
     setLogoPreview(null)
     setDialogOpen(true)
@@ -352,6 +436,7 @@ export default function Empresas() {
 
   const openEdit = (empresa: Empresa) => {
     setEditing(empresa)
+    setRascunhoRestaurado(false)
     form.reset({
       razao_social: empresa.razao_social ?? '',
       nome_fantasia: empresa.nome_fantasia ?? '',
@@ -432,6 +517,7 @@ export default function Empresas() {
       } else {
         const criada = await createEmpresa(payload)
         empresaId = criada.id
+        apagarRascunho()
         toast.success('Empresa cadastrada com sucesso')
       }
       if (empresaId && logoFile) {
@@ -657,14 +743,32 @@ export default function Empresas() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <Dialog open={dialogOpen} onOpenChange={aoMudarDialog}>
+        <DialogContent
+          className="max-h-[90vh] max-w-lg overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar empresa' : 'Nova empresa'}</DialogTitle>
             <DialogDescription>
               Informe os dados da empresa. Apenas a razão social é obrigatória.
             </DialogDescription>
           </DialogHeader>
+          {rascunhoRestaurado && !editing && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <span>Voltamos com o que você tinha digitado antes.</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={descartarRascunho}
+              >
+                Começar do zero
+              </Button>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -1060,6 +1164,28 @@ export default function Empresas() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmarFechar} onOpenChange={setConfirmarFechar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fechar sem salvar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações feitas nesta empresa ainda não foram salvas e serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmarFechar(false)
+                setDialogOpen(false)
+              }}
+            >
+              Fechar sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
