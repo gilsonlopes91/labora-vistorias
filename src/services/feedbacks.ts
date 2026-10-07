@@ -24,11 +24,17 @@ export interface Feedback extends RecordModel {
   mensagem: string
   pagina?: string
   navegador?: string
+  anexo?: string
   status?: StatusFeedback
   created: string
 }
 
-export const enviarFeedback = (dados: { tipo: TipoFeedback; mensagem: string; pagina: string }) => {
+export const enviarFeedback = (dados: {
+  tipo: TipoFeedback
+  mensagem: string
+  pagina: string
+  anexo?: File | null
+}) => {
   const u = pb.authStore.record as {
     id?: string
     name?: string
@@ -36,16 +42,27 @@ export const enviarFeedback = (dados: { tipo: TipoFeedback; mensagem: string; pa
     organizacao_id?: string
   } | null
   if (!u?.id) throw new Error('Entre na sua conta para enviar')
-  return pb.collection('feedbacks').create<Feedback>({
-    usuario_id: u.id,
-    organizacao_id: u.organizacao_id || undefined,
-    usuario_nome: u.name || '',
-    usuario_email: u.email || '',
-    tipo: dados.tipo,
-    mensagem: dados.mensagem,
-    pagina: dados.pagina,
-    navegador: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 290) : '',
-  })
+  const form = new FormData()
+  form.append('usuario_id', u.id)
+  if (u.organizacao_id) form.append('organizacao_id', u.organizacao_id)
+  form.append('usuario_nome', u.name || '')
+  form.append('usuario_email', u.email || '')
+  form.append('tipo', dados.tipo)
+  form.append('mensagem', dados.mensagem)
+  form.append('pagina', dados.pagina)
+  form.append(
+    'navegador',
+    typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 290) : '',
+  )
+  if (dados.anexo) form.append('anexo', dados.anexo)
+  return pb.collection('feedbacks').create<Feedback>(form)
+}
+
+/** Endereço da imagem anexada (arquivo protegido: precisa de token do admin). */
+export const urlAnexoFeedback = async (f: Feedback): Promise<string> => {
+  if (!f.anexo) return ''
+  const token = await pb.files.getToken()
+  return pb.files.getURL(f, f.anexo, { token })
 }
 
 export const getFeedbacks = () =>

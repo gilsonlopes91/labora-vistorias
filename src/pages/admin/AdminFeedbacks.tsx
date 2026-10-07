@@ -12,10 +12,34 @@ import {
   apagarFeedback,
   atualizarStatusFeedback,
   getFeedbacks,
+  urlAnexoFeedback,
   TIPOS_FEEDBACK,
   type Feedback,
   type StatusFeedback,
 } from '@/services/feedbacks'
+
+function AnexoFeedback({ f }: { f: Feedback }) {
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    let vivo = true
+    urlAnexoFeedback(f)
+      .then((u) => vivo && setUrl(u))
+      .catch(() => {})
+    return () => {
+      vivo = false
+    }
+  }, [f])
+  if (!f.anexo || !url) return null
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="mt-3 block w-fit">
+      <img
+        src={url}
+        alt="Anexo da sugestão"
+        className="max-h-48 rounded-lg border object-contain"
+      />
+    </a>
+  )
+}
 
 const ROTULO_TIPO = Object.fromEntries(TIPOS_FEEDBACK.map((t) => [t.value, t.label]))
 const ROTULO_STATUS: Record<string, string> = {
@@ -162,6 +186,7 @@ export default function AdminFeedbacks() {
                   </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm">{f.mensagem}</p>
+                <AnexoFeedback f={f} />
                 <p className="mt-3 text-xs text-muted-foreground">
                   {f.usuario_nome || '—'}
                   {f.usuario_email ? ` · ${f.usuario_email}` : ''}
