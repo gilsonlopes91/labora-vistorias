@@ -27,29 +27,3 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
-
-export function isErroDeConexao(error: unknown): boolean {
-  if (!error) return false
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return true
-  if (error instanceof ClientResponseError) {
-    return error.status === 0 || error.status >= 500
-  }
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    return (
-      msg.includes('failed to fetch') ||
-      msg.includes('network') ||
-      msg.includes('connection') ||
-      msg.includes('offline')
-    )
-  }
-  return false
-}
-
-export function isErroTemporario(error: unknown): boolean {
-  if (isErroDeConexao(error)) return true
-  if (error instanceof ClientResponseError) {
-    return error.status === 429 || error.status >= 500
-  }
-  return false
-}

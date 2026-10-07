@@ -24,6 +24,7 @@ import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
 import { getAgentesCatalogo, type AgenteCatalogo } from '@/services/agentesCatalogo'
 import { getMatrizOficial, type MatrizRisco } from '@/services/matrizesRisco'
+import { EpiRiscoSeletor } from '@/components/EpiRiscoSeletor'
 
 import {
   createAvaliacaoRisco,

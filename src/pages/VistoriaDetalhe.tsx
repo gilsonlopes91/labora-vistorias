@@ -21,7 +21,8 @@ import {
 
 import { formatBrazilianDate, formatLocalDate, toPocketBaseDate } from '@/lib/date'
 import { rotuloCurtoNorma, rotuloItemRef } from '@/lib/normas'
-import { getErrorMessage, isErroDeConexao, isErroTemporario } from '@/lib/pocketbase/errors'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { isErroDeConexao, isErroTemporario } from '@/lib/errosConexao'
 import {
   listarPendencias,
   enfileirarAlteracao,
