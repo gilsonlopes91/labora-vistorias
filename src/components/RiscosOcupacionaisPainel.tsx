@@ -1361,7 +1361,6 @@ export function RiscosOcupacionaisPainel({
                 </div>
               </div>
             </SecaoRisco>
-
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={tentarFechar}>
