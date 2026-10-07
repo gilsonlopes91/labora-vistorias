@@ -475,4 +475,5 @@ for (const chave of Object.keys(MODELOS)) {
     `${chave}: ${doc.secoes.length} seções, ${blocos.length} blocos, ${alts.length} alternativas, sha256 ${doc_hash[chave]}`,
   )
 }
+writeFileSync(join(DESTINO, 'hashes.json'), JSON.stringify(doc_hash, null, 1), 'utf-8')
 console.log(resumo.join('\n'))
