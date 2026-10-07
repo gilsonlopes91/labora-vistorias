@@ -27,6 +27,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { parseLocalDate } from '@/lib/date'
 import { getEmpresas } from '@/services/empresas'
+import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getResponsaveisTecnicos, type ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 import { getVistorias, type Vistoria, type StatusVistoria } from '@/services/vistorias'
@@ -193,7 +194,9 @@ const Index = () => {
   ]
 
   // Camada PLATAFORMA: admin total e staff veem os 2 caminhos grandes.
-  const ehPlataforma = user?.papel === 'admin_plataforma' || user?.papel === 'staff_labora'
+  // Usa o papel efetivo: com "Ver como cliente" ligado, o admin cai em "dono".
+  const papelEfetivo = getPapelUsuarioLogado()
+  const ehPlataforma = papelEfetivo === 'admin_plataforma' || papelEfetivo === 'staff_labora'
   const caminhosPlataforma = [
     {
       to: '/',
@@ -201,7 +204,7 @@ const Index = () => {
       titulo: 'Acessar organizações',
       descricao: 'App operacional — empresas, vistorias e agenda das suas organizações.',
     },
-    ...(user?.papel === 'admin_plataforma'
+    ...(papelEfetivo === 'admin_plataforma'
       ? [
           {
             to: '/admin',
