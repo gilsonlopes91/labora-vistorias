@@ -65,6 +65,8 @@ export interface ConviteInput {
   email: string
   nome: string
   papel: 'gerente' | 'gestor' | 'executor' | 'administrativo'
+  /** true = a conta nasce com a senha padrão e a pessoa troca no primeiro acesso. */
+  senha_padrao?: boolean
 }
 
 export const convidarMembro = (data: ConviteInput) =>

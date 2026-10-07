@@ -3,6 +3,7 @@
 import { type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
 import { isGestor } from '@/services/equipe'
 import { isGestorOnlyPath } from '@/config/navigation'
 import AcessoNegado from '@/components/AcessoNegado'
@@ -28,6 +29,14 @@ export default function ProtectedRoute({
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Senha provisória: enquanto não trocar, só a tela de troca de senha abre.
+  const precisaTrocarSenha = Boolean(
+    (pb.authStore.record as { trocar_senha?: boolean } | null)?.trocar_senha,
+  )
+  if (precisaTrocarSenha && location.pathname !== '/trocar-senha') {
+    return <Navigate to="/trocar-senha" replace />
   }
 
   // Cliente final (empresa vistoriada) só usa o portal, nunca o app interno.
