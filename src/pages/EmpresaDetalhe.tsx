@@ -29,6 +29,7 @@ import { getEmpresa, type Empresa } from '@/services/empresas'
 import LoadingScreen from '@/components/LoadingScreen'
 import { getVistorias, type Vistoria } from '@/services/vistorias'
 import { calcularIndicadores, getOrcamentos, type Orcamento } from '@/services/orcamentos'
+import { getFormulariosByEmpresa, type Formulario } from '@/services/registrosFormulario'
 import { OrcamentosTab } from '@/components/OrcamentosTab'
 import AcessoClienteCard from '@/components/AcessoClienteCard'
 
@@ -81,15 +82,22 @@ export default function EmpresaDetalhe() {
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [vistorias, setVistorias] = useState<Vistoria[]>([])
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
+  const [formularios, setFormularios] = useState<Formulario[]>([])
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
     if (!id) return
-    Promise.all([getEmpresa(id), getVistorias(), getOrcamentos()])
-      .then(([emp, vist, orc]) => {
+    Promise.all([
+      getEmpresa(id),
+      getVistorias(),
+      getOrcamentos(),
+      getFormulariosByEmpresa(id).catch(() => [] as Formulario[]),
+    ])
+      .then(([emp, vist, orc, forms]) => {
         setEmpresa(emp)
         setVistorias(vist.filter((v) => v.empresa_id === id))
         setOrcamentos(orc.filter((o) => o.empresa_id === id))
+        setFormularios(forms)
       })
       .catch((error) =>
         toast.error('Não foi possível carregar a empresa', {
@@ -260,6 +268,7 @@ export default function EmpresaDetalhe() {
         <TabsList>
           <TabsTrigger value="vistorias">Vistorias ({vistorias.length})</TabsTrigger>
           <TabsTrigger value="orcamentos">Orçamentos ({orcamentos.length})</TabsTrigger>
+          <TabsTrigger value="formularios">Formulários ({formularios.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vistorias" className="mt-0 focus-visible:outline-none">
@@ -320,6 +329,50 @@ export default function EmpresaDetalhe() {
             titulo="Orçamentos desta empresa"
             descricao="Propostas emitidas para este cliente, com os números restritos a ele."
           />
+        </TabsContent>
+
+        <TabsContent value="formularios" className="mt-0 focus-visible:outline-none">
+          {formularios.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
+              <ClipboardCheck className="mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Nenhum formulário preenchido para esta empresa ainda.
+              </p>
+            </div>
+          ) : (
+            <Card className="overflow-hidden">
+              <div className="divide-y">
+                {formularios.map((registro) => {
+                  const dataRegistro = registro.data_campo || registro.created
+                  return (
+                    <div key={registro.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                      <div className="min-w-48 flex-1">
+                        <div className="font-medium leading-snug">
+                          {registro.expand?.modelo_formulario_id?.nome || 'Formulário'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {dataRegistro ? formatBrazilianDate(dataRegistro) : 'sem data'}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={registro.status === 'concluido' ? 'default' : 'secondary'}
+                        className="shrink-0"
+                      >
+                        {registro.status === 'concluido' ? 'Concluído' : 'Rascunho'}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Para abrir ou editar um registro, use a aba Formulários em{' '}
+            <Link to="/auditoria-formularios?aba=formularios" className="underline">
+              Auditoria e Formulários
+            </Link>
+            .
+          </p>
         </TabsContent>
       </Tabs>
     </div>

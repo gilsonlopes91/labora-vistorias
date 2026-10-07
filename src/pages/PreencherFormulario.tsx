@@ -258,6 +258,15 @@ export default function PreencherFormulario() {
 
   const salvar = async (status: 'rascunho' | 'concluido') => {
     if (!modelo) return
+    if (!empresaId) {
+      toast.error('Escolha a empresa antes de salvar', {
+        description:
+          empresas.length === 0
+            ? 'Cadastre a empresa em Empresas e volte para preencher o formulário.'
+            : 'Todo registro precisa estar ligado a uma empresa (cliente).',
+      })
+      return
+    }
     if (status === 'concluido' && obrigatoriosPendentes.length > 0) {
       toast.error('Campos obrigatórios pendentes', {
         description: obrigatoriosPendentes.join(', '),
@@ -272,7 +281,7 @@ export default function PreencherFormulario() {
       const registro = await createFormulario({
         organizacao_id: org.id,
         modelo_formulario_id: modelo.id,
-        empresa_id: empresaId || undefined,
+        empresa_id: empresaId,
         // resultado dos cálculos técnicos (calor, ruído) vai junto, em texto
         dados: resumoCalculosTecnicos(modelo.campos, dados),
         status,
@@ -718,10 +727,11 @@ export default function PreencherFormulario() {
           <Label>
             <Building2 className="mr-1.5 inline h-3.5 w-3.5" />
             Empresa (cliente)
+            <span className="text-destructive"> *</span>
           </Label>
           <Select value={empresaId || undefined} onValueChange={setEmpresaId}>
             <SelectTrigger>
-              <SelectValue placeholder="Vincular a uma empresa (opcional)" />
+              <SelectValue placeholder="Escolha a empresa" />
             </SelectTrigger>
             <SelectContent>
               {empresas.map((emp) => (
@@ -732,7 +742,7 @@ export default function PreencherFormulario() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Vinculando, o registro aparece na página da empresa e nos relatórios dela.
+            Todo registro fica ligado a uma empresa: aparece na página dela e nos relatórios.
           </p>
         </div>
       </Card>

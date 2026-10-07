@@ -1,5 +1,9 @@
 // Revoga o acesso do cliente a uma empresa (não apaga a conta — ela pode ter
 // acesso a outras empresas). Só um gestor da organização da empresa.
+// O registro de acesso é apagado, em vez de ficar marcado como inativo: as
+// regras de leitura do portal olham todos os acessos da empresa, então um
+// acesso inativo parado ali tirava o acesso dos outros usuários da mesma
+// empresa. Para dar o acesso de novo, basta convidar a pessoa outra vez.
 routerAdd(
   'POST',
   '/backend/v1/cliente/revogar',
@@ -35,8 +39,7 @@ routerAdd(
       auth.getString('organizacao_id') === orgId || ehStaff || papelAuth === 'admin_plataforma'
     if (!podeGerenciar) return e.json(403, { error: 'acesso fora da sua organização' })
 
-    acesso.set('ativo', false)
-    $app.save(acesso)
+    $app.delete(acesso)
     return e.json(200, { ok: true })
   },
   $apis.requireAuth(),

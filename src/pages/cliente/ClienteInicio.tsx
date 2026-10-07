@@ -7,8 +7,13 @@ import { CalendarClock, ClipboardList, Receipt } from 'lucide-react'
 import { formatBrazilianDate } from '@/lib/date'
 import { useEmpresaCliente } from '@/components/LayoutCliente'
 import { getAcoesPlano, type AcaoPlano } from '@/services/acoesPlano'
-import { getVistorias, type Vistoria } from '@/services/vistorias'
-import { getOrcamentos, STATUS_LABEL, type Orcamento } from '@/services/orcamentos'
+import { STATUS_LABEL } from '@/services/orcamentos'
+import {
+  getAgendaCliente,
+  getOrcamentosCliente,
+  type OrcamentoCliente,
+  type VistoriaAgendaCliente,
+} from '@/services/portalCliente'
 import LoadingScreen from '@/components/LoadingScreen'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,17 +23,21 @@ const ABERTOS = ['enviado', 'aguardando_retorno', 'em_negociacao']
 export default function ClienteInicio() {
   const { empresa } = useEmpresaCliente()
   const [acoes, setAcoes] = useState<AcaoPlano[]>([])
-  const [vistorias, setVistorias] = useState<Vistoria[]>([])
-  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
+  const [vistorias, setVistorias] = useState<VistoriaAgendaCliente[]>([])
+  const [orcamentos, setOrcamentos] = useState<OrcamentoCliente[]>([])
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
     setCarregando(true)
-    Promise.all([getAcoesPlano(empresa.id), getVistorias(), getOrcamentos()])
+    Promise.all([
+      getAcoesPlano(empresa.id),
+      getAgendaCliente(empresa.id).catch(() => [] as VistoriaAgendaCliente[]),
+      getOrcamentosCliente(empresa.id).catch(() => [] as OrcamentoCliente[]),
+    ])
       .then(([a, v, o]) => {
         setAcoes(a)
-        setVistorias(v.filter((x) => x.empresa_id === empresa.id))
-        setOrcamentos(o.filter((x) => x.empresa_id === empresa.id))
+        setVistorias(v)
+        setOrcamentos(o)
       })
       .finally(() => setCarregando(false))
   }, [empresa.id])
@@ -43,9 +52,9 @@ export default function ClienteInicio() {
       a.prazo &&
       a.prazo.slice(0, 10) <= hoje,
   )
-  const proximaVisita = vistorias
-    .filter((v) => v.status === 'agendada' || v.status === 'em_andamento')
-    .sort((a, b) => (a.data_agendada || '').localeCompare(b.data_agendada || ''))[0]
+  const proximaVisita = [...vistorias].sort((a, b) =>
+    (a.data_agendada || '').localeCompare(b.data_agendada || ''),
+  )[0]
   const propostasAbertas = orcamentos.filter((o) => ABERTOS.includes(o.status))
 
   return (
