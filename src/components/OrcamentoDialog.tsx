@@ -31,6 +31,9 @@ import { getModelosProposta, LAYOUT_LABEL, type ModeloProposta } from '@/service
 import {
   camposAoMudarStatus,
   createOrcamento,
+  isItemTreinamento,
+  normalizarItem,
+  TIPO_LABEL,
   statusFinanceiroPorValores,
   updateOrcamento,
   subtotalItem,
@@ -82,6 +85,7 @@ const itemTreinamentoVazio = (): ItemTreinamento => ({
   pessoas: 1,
   turmas: 1,
   valor_unitario: 0,
+  valor_fixo: true,
 })
 
 const linhasParaLista = (texto: string): string[] =>
@@ -203,7 +207,7 @@ export function OrcamentoDialog({
       setValidadeDias(String(orcamento.validade_dias ?? 30))
       setItens(
         orcamento.itens && orcamento.itens.length
-          ? orcamento.itens
+          ? orcamento.itens.map(normalizarItem)
           : [orcamento.tipo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio()],
       )
       setValorEntrada(orcamento.valor_entrada ? String(orcamento.valor_entrada) : '')
@@ -312,20 +316,28 @@ export function OrcamentoDialog({
     setExclusos((atual) => (atual.trim() ? atual : listaParaLinhas(modelo.itens_exclusos_padrao)))
   }, [open, editando, modeloId, modelos])
 
+  // Ao trocar o tipo, os itens que ainda cabem no novo tipo ficam.
   const trocarTipo = (novo: TipoOrcamento) => {
     if (novo === tipo) return
     setTipo(novo)
-    setItens([novo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio()])
+    if (novo === 'misto') return
+    setItens((atual) => {
+      const ficam = atual.filter((item) =>
+        novo === 'treinamento' ? isItemTreinamento(item) : !isItemTreinamento(item),
+      )
+      if (ficam.length) return ficam
+      return [novo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio()]
+    })
   }
 
   const atualizarItem = (indice: number, campo: string, valor: string | number) => {
     setItens((atual) => atual.map((item, i) => (i === indice ? { ...item, [campo]: valor } : item)))
   }
 
-  const adicionarItem = () =>
+  const adicionarItem = (qual: 'servico' | 'treinamento') =>
     setItens((atual) => [
       ...atual,
-      tipo === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio(),
+      qual === 'treinamento' ? itemTreinamentoVazio() : itemServicoVazio(),
     ])
 
   const removerItem = (indice: number) =>
@@ -501,7 +513,7 @@ export function OrcamentoDialog({
             <div>
               <Label>Tipo</Label>
               <div className="mt-1.5 flex h-10 rounded-md border p-0.5" role="group">
-                {(['servico', 'treinamento'] as TipoOrcamento[]).map((t) => (
+                {(['servico', 'treinamento', 'misto'] as TipoOrcamento[]).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -512,7 +524,7 @@ export function OrcamentoDialog({
                     )}
                     aria-pressed={tipo === t}
                   >
-                    {t === 'servico' ? 'Serviço' : 'Treinamento'}
+                    {t === 'misto' ? 'Os dois' : TIPO_LABEL[t]}
                   </button>
                 ))}
               </div>
@@ -547,17 +559,44 @@ export function OrcamentoDialog({
 
           {/* Itens */}
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <Label>{tipo === 'treinamento' ? 'Turmas e valores *' : 'Itens e valores *'}</Label>
-              <Button type="button" variant="outline" size="sm" onClick={adicionarItem}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Item
-              </Button>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label>
+                {tipo === 'treinamento' ? 'Treinamentos e valores *' : 'Itens e valores *'}
+              </Label>
+              <div className="flex gap-1.5">
+                {tipo !== 'treinamento' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adicionarItem('servico')}
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    {tipo === 'misto' ? 'Serviço' : 'Item'}
+                  </Button>
+                )}
+                {tipo !== 'servico' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adicionarItem('treinamento')}
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    {tipo === 'misto' ? 'Treinamento' : 'Item'}
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               {itens.map((item, indice) => (
                 <div key={indice} className="rounded-xl border p-2.5">
-                  {tipo === 'treinamento' ? (
+                  {tipo === 'misto' && (
+                    <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {isItemTreinamento(item) ? 'Treinamento' : 'Serviço'}
+                    </div>
+                  )}
+                  {isItemTreinamento(item) ? (
                     <div className="grid grid-cols-6 gap-2 sm:grid-cols-12">
                       <Input
                         className="col-span-6 sm:col-span-4"
@@ -591,8 +630,8 @@ export function OrcamentoDialog({
                       />
                       <CampoMoeda
                         className="col-span-5 sm:col-span-2"
-                        placeholder="por pessoa"
-                        title="Valor por pessoa"
+                        placeholder="Valor"
+                        title="Valor do treinamento (fixo, não é por pessoa)"
                         valor={item.valor_unitario || 0}
                         onChange={(v) => atualizarItem(indice, 'valor_unitario', v)}
                       />

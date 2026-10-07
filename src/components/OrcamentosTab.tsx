@@ -45,6 +45,7 @@ import {
   STATUS_FINANCEIRO_ORDEM,
   STATUS_LABEL,
   STATUS_ORDEM,
+  TIPO_LABEL,
   type Orcamento,
   type StatusFinanceiro,
   type StatusOrcamento,
@@ -452,7 +453,7 @@ export function OrcamentosTab({
                         </Badge>
                       )}
                       <Badge variant="secondary" className="text-[10px]">
-                        {orcamento.tipo === 'treinamento' ? 'Treinamento' : 'Serviço'}
+                        {TIPO_LABEL[orcamento.tipo] || 'Serviço'}
                       </Badge>
                     </div>
                     <div className="font-medium leading-snug">{orcamento.titulo}</div>

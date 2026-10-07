@@ -3,7 +3,14 @@ import pb from '@/lib/pocketbase/client'
 import type { Empresa } from '@/services/empresas'
 import type { ModeloProposta } from '@/services/modelosProposta'
 
-export type TipoOrcamento = 'servico' | 'treinamento'
+/** "misto" = a mesma proposta traz serviços e treinamentos. */
+export type TipoOrcamento = 'servico' | 'treinamento' | 'misto'
+
+export const TIPO_LABEL: Record<TipoOrcamento, string> = {
+  servico: 'Serviço',
+  treinamento: 'Treinamento',
+  misto: 'Serviços e treinamentos',
+}
 
 export type StatusOrcamento =
   | 'rascunho'
@@ -80,13 +87,16 @@ export interface ItemServico {
   valor_unitario: number
 }
 
-/** Item de proposta do tipo Treinamento: carga horária, pessoas e turmas. */
+/** Item de proposta do tipo Treinamento: carga horária, pessoas e turmas.
+ *  Com valor_fixo, o valor é do treinamento inteiro (pessoas e turmas só
+ *  informam). Itens antigos, sem esse campo, eram cobrados por pessoa. */
 export interface ItemTreinamento {
   nome: string
   carga_horaria: string
   pessoas: number
   turmas: number
   valor_unitario: number
+  valor_fixo?: boolean
 }
 
 export type ItemOrcamento = ItemServico | ItemTreinamento
@@ -94,13 +104,21 @@ export type ItemOrcamento = ItemServico | ItemTreinamento
 export const isItemTreinamento = (item: ItemOrcamento): item is ItemTreinamento =>
   (item as ItemTreinamento).pessoas !== undefined
 
-/** Subtotal de um item: serviço é quantidade x valor; treinamento é pessoas x turmas x valor. */
+/** Subtotal de um item: serviço é quantidade x valor; treinamento é o valor
+ *  fixo (itens antigos, sem valor_fixo: pessoas x turmas x valor). */
 export const subtotalItem = (item: ItemOrcamento): number => {
   if (isItemTreinamento(item)) {
+    if (item.valor_fixo) return item.valor_unitario || 0
     return (item.pessoas || 0) * (item.turmas || 0) * (item.valor_unitario || 0)
   }
   return (item.quantidade || 0) * (item.valor_unitario || 0)
 }
+
+/** Converte treinamento antigo (por pessoa) para valor fixo, sem mudar o total. */
+export const normalizarItem = (item: ItemOrcamento): ItemOrcamento =>
+  isItemTreinamento(item) && !item.valor_fixo
+    ? { ...item, valor_unitario: subtotalItem(item), valor_fixo: true }
+    : item
 
 export const totalItens = (itens: ItemOrcamento[]): number =>
   itens.reduce((soma, item) => soma + subtotalItem(item), 0)

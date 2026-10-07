@@ -395,39 +395,14 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<PdfGerad
   if (secaoAtiva(modelo, 'tabela_valores')) {
     titulo('Valores')
     const itens = orcamento.itens || []
-    const ehTreinamento = orcamento.tipo === 'treinamento'
-
-    const head = ehTreinamento
-      ? [['Treinamento', 'Carga horária', 'Pessoas', 'Turmas', 'Valor unit.', 'Subtotal']]
-      : [['Descrição', 'Qtd.', 'Un.', 'Valor unit.', 'Subtotal']]
-
-    const body = itens.map((item) => {
-      if (isItemTreinamento(item)) {
-        const it = item as ItemTreinamento
-        return [
-          it.nome,
-          it.carga_horaria,
-          String(it.pessoas ?? ''),
-          String(it.turmas ?? ''),
-          moeda.format(it.valor_unitario || 0),
-          moeda.format(subtotalItem(item)),
-        ]
-      }
-      const it = item as ItemServico
-      return [
-        it.descricao,
-        String(it.quantidade ?? ''),
-        it.unidade || '',
-        moeda.format(it.valor_unitario || 0),
-        moeda.format(subtotalItem(item)),
-      ]
-    })
+    // Uma tabela para serviços e outra para treinamentos, quando houver os dois.
+    // O valor do treinamento é fixo (não é por pessoa).
+    const servicos = itens.filter((item) => !isItemTreinamento(item)) as ItemServico[]
+    const treinamentos = itens.filter(isItemTreinamento) as ItemTreinamento[]
+    const doisGrupos = servicos.length > 0 && treinamentos.length > 0
 
     const tema = layout === 'minimalista' ? 'plain' : layout === 'moderno' ? 'striped' : 'grid'
-    const finalY = executarAutoTable(doc, {
-      startY: y,
-      head,
-      body,
+    const estiloTabela = {
       theme: tema,
       styles: { fontSize: 9, cellPadding: 6, overflow: 'linebreak' },
       headStyles:
@@ -441,22 +416,63 @@ export async function gerarPdfProposta(entrada: DadosProposta): Promise<PdfGerad
             }
           : { fillColor: primaria, textColor: [255, 255, 255], fontStyle: 'bold' },
       alternateRowStyles: layout === 'moderno' ? { fillColor: [246, 248, 243] } : undefined,
-      columnStyles: ehTreinamento
-        ? {
-            2: { halign: 'center' },
-            3: { halign: 'center' },
-            4: { halign: 'right' },
-            5: { halign: 'right' },
-          }
-        : {
-            1: { halign: 'center' },
-            2: { halign: 'center' },
-            3: { halign: 'right' },
-            4: { halign: 'right' },
-          },
       margin: { left: margem, right: margem },
-    })
-    y = (finalY || y) + 16
+    }
+
+    const subtitulo = (texto: string) => {
+      novaPaginaSePreciso(40)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
+      doc.text(texto, margem, y)
+      doc.setTextColor(0, 0, 0)
+      y += 8
+    }
+
+    if (servicos.length) {
+      if (doisGrupos) subtitulo('Serviços')
+      const finalY = executarAutoTable(doc, {
+        ...estiloTabela,
+        startY: y,
+        head: [['Descrição', 'Qtd.', 'Un.', 'Valor unit.', 'Subtotal']],
+        body: servicos.map((it) => [
+          it.descricao,
+          String(it.quantidade ?? ''),
+          it.unidade || '',
+          moeda.format(it.valor_unitario || 0),
+          moeda.format(subtotalItem(it)),
+        ]),
+        columnStyles: {
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+        },
+      })
+      y = (finalY || y) + 16
+    }
+
+    if (treinamentos.length) {
+      if (doisGrupos) subtitulo('Treinamentos')
+      const finalY = executarAutoTable(doc, {
+        ...estiloTabela,
+        startY: y,
+        head: [['Treinamento', 'Carga horária', 'Participantes', 'Turmas', 'Valor']],
+        body: treinamentos.map((it) => [
+          it.nome,
+          it.carga_horaria,
+          String(it.pessoas ?? ''),
+          String(it.turmas ?? ''),
+          moeda.format(subtotalItem(it)),
+        ]),
+        columnStyles: {
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'right' },
+        },
+      })
+      y = (finalY || y) + 16
+    }
 
     // Total em destaque
     novaPaginaSePreciso(60)

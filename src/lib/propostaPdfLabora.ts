@@ -17,6 +17,7 @@ import type { Empresa } from '@/services/empresas'
 import {
   isItemTreinamento,
   subtotalItem,
+  TIPO_LABEL,
   type ItemServico,
   type ItemTreinamento,
   type Orcamento,
@@ -631,55 +632,18 @@ export async function gerarPdfPropostaLabora(
   let y4 = cabecalhoInterno(
     fotoValores,
     'Investimento e condições',
-    `Proposta de valores (${orcamento.tipo === 'treinamento' ? 'Treinamento' : 'Serviço'})`,
+    `Proposta de valores (${TIPO_LABEL[orcamento.tipo] || 'Serviço'})`,
   )
 
   if (secaoAtiva(modelo, 'tabela_valores')) {
     const itens = orcamento.itens || []
-    const ehTreinamento = orcamento.tipo === 'treinamento'
-    const head = ehTreinamento
-      ? [
-          [
-            'Item',
-            'Treinamento',
-            'Carga horária',
-            'Participantes',
-            'Turmas',
-            'Unitário',
-            'Subtotal',
-          ],
-        ]
-      : [['Item', 'Descrição do serviço', 'Qtd.', 'Unidade', 'Valor unitário', 'Subtotal']]
+    // Serviços e treinamentos têm colunas diferentes: uma tabela para cada
+    // grupo presente. O valor do treinamento é fixo (não é por pessoa).
+    const servicos = itens.filter((item) => !isItemTreinamento(item)) as ItemServico[]
+    const treinamentos = itens.filter(isItemTreinamento) as ItemTreinamento[]
+    const doisGrupos = servicos.length > 0 && treinamentos.length > 0
 
-    const body = itens.map((item, i) => {
-      const ordem = String(i + 1).padStart(2, '0')
-      if (isItemTreinamento(item)) {
-        const it = item as ItemTreinamento
-        return [
-          ordem,
-          it.nome,
-          it.carga_horaria || '—',
-          it.pessoas ? `${it.pessoas} part.` : '—',
-          it.turmas ? `${it.turmas} turma(s)` : '1 turma',
-          moeda.format(it.valor_unitario || 0),
-          moeda.format(subtotalItem(item)),
-        ]
-      }
-      const it = item as ItemServico
-      return [
-        ordem,
-        it.descricao,
-        String(it.quantidade ?? ''),
-        it.unidade || '—',
-        moeda.format(it.valor_unitario || 0),
-        moeda.format(subtotalItem(item)),
-      ]
-    })
-
-    const fim = executarAutoTable(doc, {
-      startY: y4,
-      head,
-      body,
+    const estiloTabela = {
       margin: { left: margem, right: margem },
       theme: 'grid',
       headStyles: {
@@ -697,27 +661,68 @@ export async function gerarPdfPropostaLabora(
         lineWidth: 0.2,
         overflow: 'linebreak',
       },
-      columnStyles: ehTreinamento
-        ? {
-            0: { halign: 'center', cellWidth: 10 },
-            1: { cellWidth: 'auto' },
-            2: { halign: 'center', cellWidth: 22 },
-            3: { halign: 'center', cellWidth: 22 },
-            4: { halign: 'center', cellWidth: 18 },
-            5: { halign: 'right', cellWidth: 26 },
-            6: { halign: 'right', cellWidth: 26, fontStyle: 'bold' },
-          }
-        : {
-            0: { halign: 'center', cellWidth: 12 },
-            1: { cellWidth: 'auto' },
-            2: { halign: 'center', cellWidth: 15 },
-            3: { halign: 'center', cellWidth: 20 },
-            4: { halign: 'right', cellWidth: 32 },
-            5: { halign: 'right', cellWidth: 32, fontStyle: 'bold' },
-          },
       alternateRowStyles: { fillColor: [252, 254, 250] },
-    })
-    y4 = (fim || y4) + 6
+    }
+
+    const subtitulo = (texto: string) => {
+      doc.setTextColor(escura[0], escura[1], escura[2])
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8.5)
+      doc.text(texto, margem, y4 + 3)
+      y4 += 5
+    }
+
+    if (servicos.length) {
+      if (doisGrupos) subtitulo('SERVIÇOS')
+      const fim = executarAutoTable(doc, {
+        ...estiloTabela,
+        startY: y4,
+        head: [['Item', 'Descrição do serviço', 'Qtd.', 'Unidade', 'Valor unitário', 'Subtotal']],
+        body: servicos.map((it, i) => [
+          String(i + 1).padStart(2, '0'),
+          it.descricao,
+          String(it.quantidade ?? ''),
+          it.unidade || '—',
+          moeda.format(it.valor_unitario || 0),
+          moeda.format(subtotalItem(it)),
+        ]),
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          1: { cellWidth: 'auto' },
+          2: { halign: 'center', cellWidth: 15 },
+          3: { halign: 'center', cellWidth: 20 },
+          4: { halign: 'right', cellWidth: 32 },
+          5: { halign: 'right', cellWidth: 32, fontStyle: 'bold' },
+        },
+      })
+      y4 = (fim || y4) + 6
+    }
+
+    if (treinamentos.length) {
+      if (doisGrupos) subtitulo('TREINAMENTOS')
+      const fim = executarAutoTable(doc, {
+        ...estiloTabela,
+        startY: y4,
+        head: [['Item', 'Treinamento', 'Carga horária', 'Participantes', 'Turmas', 'Valor']],
+        body: treinamentos.map((it, i) => [
+          String(i + 1).padStart(2, '0'),
+          it.nome,
+          it.carga_horaria || '—',
+          it.pessoas ? String(it.pessoas) : '—',
+          it.turmas ? String(it.turmas) : '1',
+          moeda.format(subtotalItem(it)),
+        ]),
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          1: { cellWidth: 'auto' },
+          2: { halign: 'center', cellWidth: 24 },
+          3: { halign: 'center', cellWidth: 24 },
+          4: { halign: 'center', cellWidth: 18 },
+          5: { halign: 'right', cellWidth: 32, fontStyle: 'bold' },
+        },
+      })
+      y4 = (fim || y4) + 6
+    }
 
     const entrada = orcamento.valor_entrada || 0
     const larguraTotal = 95

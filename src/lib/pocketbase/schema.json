@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T20:47:02.768Z",
+  "generatedAt": "2026-10-07T12:41:00.956Z",
   "collections": [
     {
       "name": "users",
@@ -1949,7 +1949,8 @@
           "system": false,
           "selectValues": [
             "servico",
-            "treinamento"
+            "treinamento",
+            "misto"
           ]
         },
         {
