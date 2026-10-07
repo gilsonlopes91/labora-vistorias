@@ -29,7 +29,9 @@ function* textos(segs) {
   }
 }
 
-for (const arquivo of readdirSync(dirGerados).filter((f) => f.endsWith('.json'))) {
+for (const arquivo of readdirSync(dirGerados).filter(
+  (f) => f.endsWith('.json') && f !== 'hashes.json',
+)) {
   const doc = JSON.parse(readFileSync(join(dirGerados, arquivo), 'utf-8'))
   const campos = new Set()
   const blocos = []

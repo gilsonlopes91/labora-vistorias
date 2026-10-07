@@ -204,7 +204,9 @@ function converter(chave) {
     : readFileSync(join(ORIGEM, cfg.arquivo), 'utf-8')
   const linhas = texto.split('\n')
   // Impressão digital do texto-fonte, para conferir que o modelo publicado é o mesmo do original.
-  doc_hash[chave] = createHash('sha256').update(texto).digest('hex').slice(0, 16)
+  // (normalizado: ignora espaços, traços e o estilo de itálico, que o formatador do build altera)
+  const normalizado = texto.replace(/[\s|\-]/g, '').replace(/_/g, '*')
+  doc_hash[chave] = createHash('sha256').update(normalizado).digest('hex').slice(0, 16)
 
   let nAlt = 0
   let nCond = 0
@@ -308,7 +310,7 @@ function converter(chave) {
     }
 
     // marcador de bloco (pode vir com condicional na frente e nota depois)
-    const mb = t.match(/^(\[[^\]]+\]\s*)?\*Bloco preenchido pelo app: (.+?)\*\s*(.*)$/)
+    const mb = t.match(/^(\[[^\]]+\]\s*)?[*_]Bloco preenchido pelo app: (.+?)[*_]\s*(.*)$/)
     if (mb) {
       const condBloco = mb[1] ? mb[1].trim().replace(/^\[|\]$/g, '') : null
       blocoPendente = {
@@ -428,7 +430,7 @@ function converter(chave) {
             lj.startsWith('#') ||
             lj.startsWith('|') ||
             lj.startsWith('- ') ||
-            lj.startsWith('*Bloco')
+            /^[*_]Bloco/.test(lj)
           )
             break
           if (lj.startsWith('- [')) break

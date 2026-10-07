@@ -46,6 +46,7 @@ function inlineMd(s: string): string {
   return escapar(s)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s.,;:)]|$)/g, '$1<em>$2</em>')
+    .replace(/(^|[\s(])_([^_\s][^_]*?)_(?=[\s.,;:)]|$)/g, '$1<em>$2</em>')
 }
 
 export function textoDosSegmentos(
