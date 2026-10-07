@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Camera, ImagePlus, MessageSquarePlus, X } from 'lucide-react'
+import { ImagePlus, MessageSquarePlus, X } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { enviarFeedback, TIPOS_FEEDBACK, type TipoFeedback } from '@/services/feedbacks'
@@ -20,32 +20,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-const pausa = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-/** Fotografa a aba atual (o navegador pede permissão para compartilhar a tela). */
-async function capturarTela(): Promise<File> {
-  const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: true,
-    preferCurrentTab: true,
-  } as DisplayMediaStreamOptions)
-  try {
-    const video = document.createElement('video')
-    video.srcObject = stream
-    video.muted = true
-    await video.play()
-    await pausa(500)
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')?.drawImage(video, 0, 0)
-    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.85))
-    if (!blob) throw new Error('Não foi possível gerar a imagem')
-    return new File([blob], 'print-da-tela.jpg', { type: 'image/jpeg' })
-  } finally {
-    stream.getTracks().forEach((t) => t.stop())
-  }
-}
-
 export default function FeedbackFlutuante() {
   const location = useLocation()
   const [aberto, setAberto] = useState(false)
@@ -54,9 +28,7 @@ export default function FeedbackFlutuante() {
   const [enviando, setEnviando] = useState(false)
   const [anexo, setAnexo] = useState<File | null>(null)
   const [previa, setPrevia] = useState('')
-  const [capturando, setCapturando] = useState(false)
   const inputArquivo = useRef<HTMLInputElement>(null)
-  const podeCapturar = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
 
   useEffect(() => {
     if (!anexo) {
@@ -79,23 +51,6 @@ export default function FeedbackFlutuante() {
       return
     }
     setAnexo(file)
-  }
-
-  const tirarPrint = async () => {
-    setCapturando(true)
-    setAberto(false)
-    try {
-      await pausa(350)
-      setAnexo(await capturarTela())
-    } catch (error) {
-      // Cancelar a janela de compartilhamento não é erro.
-      if ((error as { name?: string })?.name !== 'NotAllowedError') {
-        toast.error('Não foi possível tirar o print', { description: getErrorMessage(error) })
-      }
-    } finally {
-      setCapturando(false)
-      setAberto(true)
-    }
   }
 
   const enviar = async () => {
@@ -121,17 +76,15 @@ export default function FeedbackFlutuante() {
 
   return (
     <>
-      {!capturando && (
-        <button
-          type="button"
-          onClick={() => setAberto(true)}
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-elevation transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
-          aria-label="Enviar sugestão, dica ou relatar um problema"
-        >
-          <MessageSquarePlus className="h-5 w-5" />
-          <span className="hidden sm:inline">Sugestões e problemas</span>
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-elevation transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
+        aria-label="Enviar sugestão, dica ou relatar um problema"
+      >
+        <MessageSquarePlus className="h-5 w-5" />
+        <span className="hidden sm:inline">Sugestões e problemas</span>
+      </button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent>
@@ -187,12 +140,6 @@ export default function FeedbackFlutuante() {
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {podeCapturar && (
-                    <Button type="button" variant="outline" size="sm" onClick={tirarPrint}>
-                      <Camera className="mr-1.5 h-4 w-4" />
-                      Tirar print da tela
-                    </Button>
-                  )}
                   <Button
                     type="button"
                     variant="outline"
