@@ -166,19 +166,23 @@ export default function Videos() {
       )}
 
       <Dialog open={!!assistindo} onOpenChange={(v) => !v && setAssistindo(null)}>
-        <DialogContent className="w-[96vw] max-w-5xl gap-3 p-4 sm:p-5">
+        <DialogContent className="w-[96vw] max-w-2xl gap-3 p-4 sm:p-5">
           <DialogHeader>
             <DialogTitle className="pr-6">{assistindo?.titulo}</DialogTitle>
             <DialogDescription className="sr-only">Reprodução do vídeo</DialogDescription>
           </DialogHeader>
           {idAssistindo && (
-            <iframe
-              className="aspect-video w-full rounded-lg bg-black"
-              src={`https://www.youtube-nocookie.com/embed/${idAssistindo}?autoplay=1&rel=0`}
-              title={assistindo?.titulo}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-              allowFullScreen
-            />
+            <div className="mx-auto w-full max-w-xl">
+              <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-black">
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src={`https://www.youtube-nocookie.com/embed/${idAssistindo}?autoplay=1&rel=0`}
+                  title={assistindo?.titulo}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            </div>
           )}
           {assistindo?.descricao && (
             <p className="whitespace-pre-wrap text-sm text-muted-foreground">
