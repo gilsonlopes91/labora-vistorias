@@ -1,17 +1,16 @@
 /* Vídeos — tutoriais da plataforma. Todo usuário logado assiste; o administrador
- * da plataforma tem o botão de enviar vídeo e de apagar. */
-import { useCallback, useEffect, useRef, useState } from 'react'
+ * da plataforma cadastra o link do YouTube e pode apagar. */
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Trash2, Upload, Video } from 'lucide-react'
+import { Plus, Trash2, Video } from 'lucide-react'
 
 import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   apagarVideo,
-  enviarVideo,
+  cadastrarVideo,
   getVideos,
-  TAMANHO_MAXIMO_VIDEO_MB,
-  urlVideo,
+  youtubeId,
   type VideoItem,
 } from '@/services/videos'
 import { Button } from '@/components/ui/button'
@@ -28,15 +27,16 @@ import {
 } from '@/components/ui/dialog'
 
 export default function Videos() {
-  const podeEnviar = getPapelUsuarioLogado() === 'admin_plataforma'
+  const podeCadastrar = getPapelUsuarioLogado() === 'admin_plataforma'
   const [videos, setVideos] = useState<VideoItem[]>([])
   const [carregando, setCarregando] = useState(true)
   const [aberto, setAberto] = useState(false)
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [arquivo, setArquivo] = useState<File | null>(null)
-  const [enviando, setEnviando] = useState(false)
-  const inputArquivo = useRef<HTMLInputElement>(null)
+  const [link, setLink] = useState('')
+  const [salvando, setSalvando] = useState(false)
+
+  const idDoLink = youtubeId(link)
 
   const carregar = useCallback(async () => {
     try {
@@ -52,35 +52,25 @@ export default function Videos() {
     carregar()
   }, [carregar])
 
-  const escolher = (file?: File) => {
-    if (!file) return
-    if (!file.type.startsWith('video/')) {
-      toast.error('Escolha um arquivo de vídeo (MP4, WebM ou MOV).')
-      return
-    }
-    if (file.size > TAMANHO_MAXIMO_VIDEO_MB * 1024 * 1024) {
-      toast.error(`O vídeo passa de ${TAMANHO_MAXIMO_VIDEO_MB} MB. Comprima e tente de novo.`)
-      return
-    }
-    setArquivo(file)
-    if (!titulo) setTitulo(file.name.replace(/\.[^.]+$/, ''))
-  }
-
-  const enviar = async () => {
-    if (!arquivo) return
-    setEnviando(true)
+  const salvar = async () => {
+    if (!idDoLink) return
+    setSalvando(true)
     try {
-      await enviarVideo({ titulo: titulo.trim(), descricao: descricao.trim(), arquivo })
-      toast.success('Vídeo enviado.')
+      await cadastrarVideo({
+        titulo: titulo.trim(),
+        descricao: descricao.trim(),
+        url: link.trim(),
+      })
+      toast.success('Vídeo adicionado.')
       setAberto(false)
       setTitulo('')
       setDescricao('')
-      setArquivo(null)
+      setLink('')
       await carregar()
     } catch (error) {
-      toast.error('Não foi possível enviar o vídeo', { description: getErrorMessage(error) })
+      toast.error('Não foi possível adicionar o vídeo', { description: getErrorMessage(error) })
     } finally {
-      setEnviando(false)
+      setSalvando(false)
     }
   }
 
@@ -100,10 +90,10 @@ export default function Videos() {
           <h1 className="text-2xl font-bold">Vídeos</h1>
           <p className="text-sm text-muted-foreground">Vídeos e tutoriais da plataforma.</p>
         </div>
-        {podeEnviar && (
+        {podeCadastrar && (
           <Button onClick={() => setAberto(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            Enviar vídeo
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar vídeo
           </Button>
         )}
       </div>
@@ -117,80 +107,74 @@ export default function Videos() {
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2">
-          {videos.map((v) => (
-            <div key={v.id} className="overflow-hidden rounded-2xl border bg-card">
-              <video
-                controls
-                preload="metadata"
-                src={urlVideo(v)}
-                className="aspect-video w-full bg-black"
-              />
-              <div className="flex items-start justify-between gap-2 p-4">
-                <div className="min-w-0">
-                  <div className="font-semibold">{v.titulo}</div>
-                  {v.descricao && (
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                      {v.descricao}
-                    </p>
+          {videos.map((v) => {
+            const id = youtubeId(v.url || '')
+            return (
+              <div key={v.id} className="overflow-hidden rounded-2xl border bg-card">
+                {id ? (
+                  <iframe
+                    className="aspect-video w-full bg-black"
+                    src={`https://www.youtube-nocookie.com/embed/${id}`}
+                    title={v.titulo}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="flex aspect-video items-center justify-center bg-muted text-sm text-muted-foreground">
+                    Link do vídeo inválido
+                  </div>
+                )}
+                <div className="flex items-start justify-between gap-2 p-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold">{v.titulo}</div>
+                    {v.descricao && (
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                        {v.descricao}
+                      </p>
+                    )}
+                  </div>
+                  {podeCadastrar && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => apagar(v)}
+                      title="Apagar vídeo"
+                      aria-label="Apagar vídeo"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
                 </div>
-                {podeEnviar && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => apagar(v)}
-                    title="Apagar vídeo"
-                    aria-label="Apagar vídeo"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      <Dialog open={aberto} onOpenChange={(v) => !enviando && setAberto(v)}>
+      <Dialog open={aberto} onOpenChange={(v) => !salvando && setAberto(v)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enviar vídeo</DialogTitle>
+            <DialogTitle>Adicionar vídeo</DialogTitle>
             <DialogDescription>
-              MP4, WebM ou MOV, até {TAMANHO_MAXIMO_VIDEO_MB} MB. Todos os usuários logados poderão
-              assistir.
+              Cole o link do vídeo no YouTube. Pode ser "não listado": só quem estiver logado na
+              plataforma verá o vídeo aqui.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Arquivo</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => inputArquivo.current?.click()}
-                  disabled={enviando}
-                >
-                  <Upload className="mr-1.5 h-4 w-4" />
-                  Escolher vídeo
-                </Button>
-                <span className="min-w-0 truncate text-sm text-muted-foreground">
-                  {arquivo
-                    ? `${arquivo.name} (${(arquivo.size / 1024 / 1024).toFixed(1)} MB)`
-                    : 'Nenhum arquivo escolhido'}
-                </span>
-              </div>
-              <input
-                ref={inputArquivo}
-                type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                className="hidden"
-                onChange={(e) => {
-                  escolher(e.target.files?.[0])
-                  e.target.value = ''
-                }}
+              <Label>Link do YouTube</Label>
+              <Input
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
               />
+              {link.trim() && !idDoLink && (
+                <p className="text-xs text-destructive">
+                  Não reconheci esse link. Use o endereço do vídeo no YouTube.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Título</Label>
@@ -211,14 +195,9 @@ export default function Videos() {
               />
             </div>
           </div>
-          <DialogFooter className="items-center gap-3">
-            {enviando && (
-              <span className="text-xs text-muted-foreground">
-                Enviando, não feche esta janela...
-              </span>
-            )}
-            <Button onClick={enviar} disabled={enviando || !arquivo || titulo.trim().length < 2}>
-              {enviando ? 'Enviando...' : 'Enviar'}
+          <DialogFooter>
+            <Button onClick={salvar} disabled={salvando || !idDoLink || titulo.trim().length < 2}>
+              {salvando ? 'Salvando...' : 'Adicionar'}
             </Button>
           </DialogFooter>
         </DialogContent>
