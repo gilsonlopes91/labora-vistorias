@@ -59,13 +59,17 @@ routerAdd(
       }
       if (existe) return e.json(409, { error: 'já existe uma conta com este e-mail' })
 
+      // Sem senha padrão: a conta nasce com uma senha aleatória que ninguém
+      // conhece; a pessoa define a própria pelo link enviado por e-mail.
+      const semSenha = body.sem_senha === true
+      const senhaInicial = semSenha ? $security.randomString(32) : SENHA_PADRAO
       const novo = new Record($app.findCollectionByNameOrId('users'))
       novo.set('email', email)
       novo.set('name', nome)
-      novo.set('password', SENHA_PADRAO)
-      novo.set('passwordConfirm', SENHA_PADRAO)
+      novo.set('password', senhaInicial)
+      novo.set('passwordConfirm', senhaInicial)
       novo.set('verified', true)
-      novo.set('trocar_senha', true)
+      novo.set('trocar_senha', !semSenha)
       $app.save(novo)
 
       let org
