@@ -155,6 +155,8 @@ export async function criarConta(dados: {
   email: string
   org_nome?: string
   plano: PlanoOrg
+  /** true: sem senha padrão (a pessoa cria a senha pelo link do e-mail). */
+  sem_senha?: boolean
 }): Promise<{ ok: boolean; user_id: string; org_id: string }> {
   return acao({ acao: 'nova_conta', ...dados })
 }

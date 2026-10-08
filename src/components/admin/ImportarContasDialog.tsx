@@ -1,6 +1,7 @@
 /* Importar várias contas de uma vez: cola a planilha (nome e e-mail por linha)
-   e cada pessoa vira usuário + organização própria, com a senha padrão e troca
-   obrigatória no primeiro acesso. A senha fica só no servidor. */
+   e cada pessoa vira usuário + organização própria. Dois modos: senha padrão com
+   troca obrigatória no primeiro acesso (a senha fica só no servidor) ou sem senha,
+   com e-mail de "criar senha" para cada pessoa. */
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Users } from 'lucide-react'
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { criarConta, PLANOS, type PlanoOrg } from '@/services/admin'
+import { enviarLinkDeAcesso } from '@/services/equipe'
 
 interface Linha {
   nome: string
@@ -53,6 +55,7 @@ export default function ImportarContasDialog({ onConcluido }: { onConcluido: () 
   const [aberto, setAberto] = useState(false)
   const [texto, setTexto] = useState('')
   const [plano, setPlano] = useState<PlanoOrg>('individual')
+  const [semSenha, setSemSenha] = useState(false)
   const [rodando, setRodando] = useState(false)
   const [feitos, setFeitos] = useState(0)
   const [falhas, setFalhas] = useState<{ email: string; motivo: string }[]>([])
@@ -69,8 +72,18 @@ export default function ImportarContasDialog({ onConcluido }: { onConcluido: () 
     const erros: { email: string; motivo: string }[] = []
     for (const l of validas) {
       try {
-        await criarConta({ nome: l.nome, email: l.email, plano })
+        await criarConta({ nome: l.nome, email: l.email, plano, sem_senha: semSenha })
         ok++
+        if (semSenha) {
+          try {
+            await enviarLinkDeAcesso(l.email)
+          } catch (error) {
+            erros.push({
+              email: l.email,
+              motivo: `conta criada, mas o e-mail não saiu (${getErrorMessage(error)}). Use "Esqueci minha senha".`,
+            })
+          }
+        }
       } catch (error) {
         erros.push({ email: l.email, motivo: getErrorMessage(error) })
       }
@@ -97,8 +110,7 @@ export default function ImportarContasDialog({ onConcluido }: { onConcluido: () 
             <DialogTitle>Importar contas em lote</DialogTitle>
             <DialogDescription>
               Cole a planilha com nome e e-mail (uma pessoa por linha). Cada uma ganha a própria
-              organização, com a senha padrão, e precisa trocá-la no primeiro acesso. Nenhum e-mail
-              é enviado. E-mails que já existem são ignorados com aviso.
+              organização. E-mails que já existem são ignorados com aviso.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -134,6 +146,28 @@ export default function ImportarContasDialog({ onConcluido }: { onConcluido: () 
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Como a pessoa entra</Label>
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={semSenha ? 'link' : 'padrao'}
+                disabled={rodando}
+                onChange={(e) => setSemSenha(e.target.value === 'link')}
+              >
+                <option value="padrao">
+                  Senha padrão, com troca obrigatória no primeiro acesso
+                </option>
+                <option value="link">
+                  Sem senha: cada pessoa recebe um e-mail para criar a sua
+                </option>
+              </select>
+              {semSenha && (
+                <p className="text-xs text-muted-foreground">
+                  O e-mail sai do sistema, em nome da plataforma. O link de criar senha vale por
+                  pouco tempo; se vencer, a pessoa usa "Esqueci minha senha" na tela de login.
+                </p>
+              )}
             </div>
             {invalidas.length > 0 && (
               <p className="text-xs text-destructive">
