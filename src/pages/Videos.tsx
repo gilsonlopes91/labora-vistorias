@@ -2,7 +2,7 @@
  * da plataforma cadastra o link do YouTube e pode apagar. */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2, Video } from 'lucide-react'
+import { Play, Plus, Trash2, Video } from 'lucide-react'
 
 import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -35,6 +35,8 @@ export default function Videos() {
   const [descricao, setDescricao] = useState('')
   const [link, setLink] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [assistindo, setAssistindo] = useState<VideoItem | null>(null)
+  const idAssistindo = youtubeId(assistindo?.url || '')
 
   const idDoLink = youtubeId(link)
 
@@ -112,14 +114,24 @@ export default function Videos() {
             return (
               <div key={v.id} className="overflow-hidden rounded-2xl border bg-card">
                 {id ? (
-                  <iframe
-                    className="aspect-video w-full bg-black"
-                    src={`https://www.youtube-nocookie.com/embed/${id}`}
-                    title={v.titulo}
-                    loading="lazy"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setAssistindo(v)}
+                    className="group relative block aspect-video w-full bg-black"
+                    aria-label={`Assistir: ${v.titulo}`}
+                  >
+                    <img
+                      src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevation transition-transform group-hover:scale-110">
+                        <Play className="ml-0.5 h-6 w-6" fill="currentColor" />
+                      </span>
+                    </span>
+                  </button>
                 ) : (
                   <div className="flex aspect-video items-center justify-center bg-muted text-sm text-muted-foreground">
                     Link do vídeo inválido
@@ -152,6 +164,29 @@ export default function Videos() {
           })}
         </div>
       )}
+
+      <Dialog open={!!assistindo} onOpenChange={(v) => !v && setAssistindo(null)}>
+        <DialogContent className="w-[96vw] max-w-5xl gap-3 p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle className="pr-6">{assistindo?.titulo}</DialogTitle>
+            <DialogDescription className="sr-only">Reprodução do vídeo</DialogDescription>
+          </DialogHeader>
+          {idAssistindo && (
+            <iframe
+              className="aspect-video w-full rounded-lg bg-black"
+              src={`https://www.youtube-nocookie.com/embed/${idAssistindo}?autoplay=1&rel=0`}
+              title={assistindo?.titulo}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+          )}
+          {assistindo?.descricao && (
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+              {assistindo.descricao}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={aberto} onOpenChange={(v) => !salvando && setAberto(v)}>
         <DialogContent>
