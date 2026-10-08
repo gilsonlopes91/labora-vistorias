@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import AdminNav from '@/components/admin/AdminNav'
+import ImportarContasDialog from '@/components/admin/ImportarContasDialog'
 import {
   criarConta,
   listarOrganizacoes,
@@ -125,10 +126,13 @@ export default function AdminOrganizacoes() {
             Clique numa organização para abrir plano, módulos, equipe, uso e histórico.
           </p>
         </div>
-        <Button className="rounded-full" onClick={() => setNovaAberta(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Nova organização
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ImportarContasDialog onConcluido={carregar} />
+          <Button className="rounded-full" onClick={() => setNovaAberta(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Nova organização
+          </Button>
+        </div>
       </div>
       <Dialog open={novaAberta} onOpenChange={setNovaAberta}>
         <DialogContent>
