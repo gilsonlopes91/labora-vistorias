@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   ClipboardCheck,
   DollarSign,
+  Download,
+  Files,
   FileBadge,
   Mail,
   MapPin,
@@ -30,6 +32,12 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { getVistorias, type Vistoria } from '@/services/vistorias'
 import { calcularIndicadores, getOrcamentos, type Orcamento } from '@/services/orcamentos'
 import { getFormulariosByEmpresa, type Formulario } from '@/services/registrosFormulario'
+import {
+  camposDoRegistro,
+  gerarPdfFormularios,
+  nomeArquivoFormularios,
+  type FormularioParaPdf,
+} from '@/lib/pdfFormulario'
 import { OrcamentosTab } from '@/components/OrcamentosTab'
 import AcessoClienteCard from '@/components/AcessoClienteCard'
 
@@ -84,6 +92,7 @@ export default function EmpresaDetalhe() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
   const [formularios, setFormularios] = useState<Formulario[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -125,6 +134,39 @@ export default function EmpresaDetalhe() {
   }, [vistorias])
 
   const comercial = useMemo(() => calcularIndicadores(orcamentos), [orcamentos])
+
+  // PDF de formulários desta empresa: um só (individual) ou todos os
+  // concluídos juntos, cada um começando numa página.
+  const baixarPdfFormularios = async (registros: Formulario[], titulo: string) => {
+    if (!empresa || registros.length === 0) return
+    setGerandoPdf(true)
+    toast.info('Gerando o PDF...')
+    try {
+      const dataDe = (v: Vistoria) => formatBrazilianDate(v.data_realizada || v.data_agendada)
+      const itens: FormularioParaPdf[] = registros.map((r) => {
+        const v = r.vistoria_id ? vistorias.find((x) => x.id === r.vistoria_id) : undefined
+        return {
+          registro: r,
+          campos: camposDoRegistro(r),
+          titulo: r.expand?.modelo_formulario_id?.nome || 'Formulário',
+          detalhe: v ? `Vistoria de ${dataDe(v)}` : undefined,
+        }
+      })
+      const nomeEmpresa = empresa.nome_fantasia || empresa.razao_social
+      const doc = await gerarPdfFormularios({
+        formularios: itens,
+        empresa: { nome: nomeEmpresa, cnpj: empresa.cnpj, endereco: empresa.endereco },
+        titulo,
+      })
+      doc.save(nomeArquivoFormularios(nomeEmpresa, titulo))
+    } catch (error) {
+      toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
+    } finally {
+      setGerandoPdf(false)
+    }
+  }
+
+  const formulariosConcluidos = formularios.filter((f) => f.status === 'concluido')
 
   if (carregando) {
     return (
@@ -332,6 +374,24 @@ export default function EmpresaDetalhe() {
         </TabsContent>
 
         <TabsContent value="formularios" className="mt-0 focus-visible:outline-none">
+          {formularios.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Formulários preenchidos nas vistorias desta empresa. Cada um pode ser baixado em
+                PDF, ou todos os concluídos juntos.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={gerandoPdf || formulariosConcluidos.length === 0}
+                onClick={() => baixarPdfFormularios(formulariosConcluidos, 'Avaliações de campo')}
+              >
+                <Files className="h-3.5 w-3.5" />
+                Todos em um PDF ({formulariosConcluidos.length})
+              </Button>
+            </div>
+          )}
           {formularios.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card py-16 text-center">
               <ClipboardCheck className="mb-3 h-10 w-10 text-muted-foreground" />
@@ -352,6 +412,7 @@ export default function EmpresaDetalhe() {
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {dataRegistro ? formatBrazilianDate(dataRegistro) : 'sem data'}
+                          {registro.vistoria_id ? '' : ' · preenchido fora de vistoria'}
                         </div>
                       </div>
                       <Badge
@@ -360,6 +421,26 @@ export default function EmpresaDetalhe() {
                       >
                         {registro.status === 'concluido' ? 'Concluído' : 'Rascunho'}
                       </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 shrink-0 gap-1.5"
+                        disabled={gerandoPdf}
+                        onClick={() =>
+                          baixarPdfFormularios(
+                            [registro],
+                            registro.expand?.modelo_formulario_id?.nome || 'Formulário',
+                          )
+                        }
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        PDF
+                      </Button>
+                      {registro.vistoria_id && (
+                        <Button asChild size="sm" variant="outline" className="h-8 shrink-0">
+                          <Link to={`/vistorias/${registro.vistoria_id}`}>Abrir vistoria</Link>
+                        </Button>
+                      )}
                     </div>
                   )
                 })}
@@ -367,11 +448,7 @@ export default function EmpresaDetalhe() {
             </Card>
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            Para abrir ou editar um registro, use a aba Formulários em{' '}
-            <Link to="/auditoria-formularios?aba=formularios" className="underline">
-              Auditoria e Formulários
-            </Link>
-            .
+            Para preencher ou corrigir um formulário, abra a vistoria em que ele foi feito.
           </p>
         </TabsContent>
       </Tabs>

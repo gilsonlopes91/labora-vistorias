@@ -70,9 +70,25 @@ export const updateFormulario = (id: string, data: Partial<Omit<FormularioInput,
 
 export const deleteFormulario = (id: string) => pb.collection('formularios').delete(id)
 
-// Upload de anexos (fotos/assinatura) num formulário já criado.
-export const enviarAnexos = (id: string, arquivos: File[]) => {
+// Acrescenta anexos (fotos/assinatura) ao registro sem apagar os que já estão
+// lá ("anexos+"). Devolve o registro e os nomes com que o servidor gravou os
+// arquivos novos — são esses nomes que ficam nos dados do campo.
+export const adicionarAnexos = async (registro: Formulario, arquivos: File[]) => {
+  const antes = new Set(registro.anexos || [])
   const fd = new FormData()
-  for (const arquivo of arquivos) fd.append('anexos', arquivo)
+  for (const arquivo of arquivos) fd.append('anexos+', arquivo)
+  const atualizado = await pb.collection('formularios').update<Formulario>(registro.id, fd)
+  const novos = (atualizado.anexos || []).filter((nome) => !antes.has(nome))
+  return { registro: atualizado, novos }
+}
+
+export const removerAnexos = (id: string, nomes: string[]) => {
+  const fd = new FormData()
+  for (const nome of nomes) fd.append('anexos-', nome)
   return pb.collection('formularios').update<Formulario>(id, fd)
 }
+
+// Anexos são arquivos protegidos: o link precisa do token temporário
+// (pb.files.getToken()).
+export const urlAnexo = (registro: Formulario, nome: string, token?: string) =>
+  pb.files.getURL(registro, nome, token ? { token } : undefined)

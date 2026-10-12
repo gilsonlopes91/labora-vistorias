@@ -97,12 +97,15 @@ interface NovaVistoriaDialogProps {
   defaultDate?: string
   onCreated?: (vistoriaId: string) => void
   trigger?: React.ReactNode
+  /** Formulários já escolhidos ao abrir ("Usar numa vistoria" na biblioteca). */
+  formulariosIniciais?: string[]
 }
 
 export default function NovaVistoriaDialog({
   defaultDate,
   onCreated,
   trigger,
+  formulariosIniciais,
 }: NovaVistoriaDialogProps) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -122,7 +125,7 @@ export default function NovaVistoriaDialog({
   useEffect(() => {
     if (!open) return
     form.reset({ ...VALORES_INICIAIS, data_agendada: defaultDate || '' })
-    setFormulariosSel([])
+    setFormulariosSel(formulariosIniciais || [])
     setChecklistsSel([])
     setDetalhesAbertos(false)
     getEmpresas()

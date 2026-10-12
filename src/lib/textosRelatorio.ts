@@ -11,6 +11,12 @@ export const METODOLOGIA_PADRAO =
   'multa segue a NR-28 (gradação do Anexo I e classificação das infrações do Anexo II), com o ' +
   'número de empregados informado no cadastro da empresa.'
 
+/** Metodologia padrão de vistoria só com formulários de campo (sem checklist de NR). */
+export const METODOLOGIA_FORMULARIOS =
+  'Avaliação em campo registrada nos formulários deste relatório, com as medições, os ' +
+  'cálculos e as fotografias feitos na data da vistoria. Os dados de cada amostragem, os ' +
+  'critérios de comparação e o resultado estão descritos no próprio formulário.'
+
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 export interface DadosConclusao {
@@ -25,6 +31,8 @@ export interface DadosConclusao {
   multaMax: number
   /** Prazos (AAAA-MM-DD) das não conformidades que já têm prazo. */
   prazos: string[]
+  /** Nomes dos formulários de campo da vistoria. */
+  formularios?: string[]
 }
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`
@@ -42,6 +50,24 @@ export function rascunhoConclusao(d: DadosConclusao): string {
     : 'F'
 
   const partes: string[] = []
+  const formularios = d.formularios || []
+  const fraseFormularios =
+    formularios.length === 0
+      ? ''
+      : `${formularios.length === 1 ? 'A avaliação de campo' : 'As avaliações de campo'} (${formularios.join(', ')}) ${formularios.length === 1 ? 'está registrada' : 'estão registradas'} neste relatório, com as medições e o resultado de cada uma.`
+
+  // Vistoria só com formulários: não há itens de checklist para contar.
+  if (d.checklists.length === 0) {
+    partes.push(
+      `${d.dataVistoria ? `Na vistoria de ${formatarDataCalendario(d.dataVistoria)}, f` : 'F'}oram realizadas avaliações de campo. ${fraseFormularios}`.trim(),
+    )
+    partes.push(
+      'Este relatório retrata as condições observadas na data da avaliação. ' +
+        'Mudanças no processo, nas instalações ou no quadro de pessoal pedem nova avaliação.',
+    )
+    return partes.join('\n\n')
+  }
+
   partes.push(
     `${quando}oram avaliados ${plural(avaliados, 'item', 'itens')}${origem}: ` +
       `${plural(d.conforme, 'conforme', 'conformes')}, ` +
@@ -66,6 +92,7 @@ export function rascunhoConclusao(d: DadosConclusao): string {
   } else {
     partes.push('Não foram encontradas não conformidades nos itens avaliados.')
   }
+  if (fraseFormularios) partes.push(fraseFormularios)
 
   partes.push(
     'Este relatório retrata as condições observadas na data da vistoria e nos documentos apresentados. ' +

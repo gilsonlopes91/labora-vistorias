@@ -31,7 +31,7 @@ import DocumentacaoSst from './pages/DocumentacaoSst'
 import ModelosVistoria from './pages/ModelosVistoria'
 import Formularios from './pages/Formularios'
 import BuilderFormulario from './pages/BuilderFormulario'
-import PreencherFormulario from './pages/PreencherFormulario'
+
 import Agenda from './pages/Agenda'
 import Orcamentos from './pages/Orcamentos'
 import ModelosProposta from './pages/ModelosProposta'
@@ -207,13 +207,11 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Formulário só se preenche dentro de uma vistoria: o endereço
+                antigo de preenchimento avulso leva à biblioteca. */}
             <Route
               path="/formularios/:id/preencher"
-              element={
-                <ProtectedRoute>
-                  <PreencherFormulario />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/auditoria-formularios?aba=formularios" replace />}
             />
             <Route
               path="/agenda"

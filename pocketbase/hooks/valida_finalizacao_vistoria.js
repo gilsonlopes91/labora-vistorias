@@ -65,5 +65,41 @@ onRecordUpdateRequest((e) => {
     )
   }
 
+  // Todo formulário de campo vinculado precisa estar preenchido e concluído
+  // dentro desta vistoria — senão o relatório sairia sem ele.
+  if (temFormularios) {
+    const faltando = []
+    const forms = record.get('formularios') || []
+    for (let i = 0; i < forms.length; i++) {
+      const modeloId = forms[i]
+      let nome = 'Formulário'
+      try {
+        nome = e.app.findRecordById('modelos_formulario', modeloId).getString('nome') || nome
+      } catch (_) {}
+      let concluido = false
+      try {
+        const regs = e.app.findRecordsByFilter(
+          'formularios',
+          'vistoria_id = {:v} && modelo_formulario_id = {:m} && status = "concluido"',
+          '',
+          1,
+          0,
+          { v: record.id, m: modeloId },
+        )
+        concluido = regs.length > 0
+      } catch (_) {
+        concluido = false
+      }
+      if (!concluido) faltando.push(nome)
+    }
+    if (faltando.length > 0) {
+      throw new BadRequestError(
+        'Não é possível finalizar a vistoria: conclua o(s) formulário(s) de campo ' +
+          faltando.join(', ') +
+          '.',
+      )
+    }
+  }
+
   e.next()
 }, 'vistorias')

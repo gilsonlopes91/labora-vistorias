@@ -1,22 +1,39 @@
-/* Formulário de campo reutilizável: usado pela tela de preenchimento
-   independente (/formularios/:id/preencher) e dentro do fluxo da vistoria
-   multi-item (VistoriaDetalhe). Recebe o modelo, os dados carregados e
-   devolve as mudanças via callbacks. */
-import { useMemo, useRef, useState } from 'react'
+/* Formulário de campo preenchido dentro da vistoria. O preenchimento só existe
+   dentro de uma vistoria (a biblioteca de formulários só mostra o modelo).
+   - Salva sozinho enquanto o técnico digita (rascunho), e tem os botões
+     "Salvar rascunho" e "Concluir" no fim — concluir exige os obrigatórios.
+   - Fotos: "Tirar foto" abre a câmera do celular; "Galeria" escolhe arquivos.
+     Toda foto recebe a marca d'água (data/hora, coordenada e logo) e sobe na
+     hora, para não se perder.
+   - Assinatura: desenhada e gravada como anexo.
+   - Vistoria concluída ou em revisão: abre só para leitura. */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Camera, Check, PenTool, Plus, Save, Trash2 } from 'lucide-react'
+import { Camera, Check, ImagePlus, PenTool, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { aplicarMarcaDagua } from '@/lib/marcaDagua'
+import {
+  calcularCampo,
+  campoVisivel,
+  listaArquivos,
+  normalizarInstancias,
+  obrigatoriosPendentes,
+} from '@/lib/formularioCampos'
 import ResultadoTecnicoView, { resumoCalculosTecnicos } from '@/components/ResultadoTecnico'
 import type { CampoFormulario, ModeloFormulario } from '@/services/formularios'
+import { getMinhaOrganizacao } from '@/services/organizacoes'
+import { getTokenArquivos } from '@/services/respostasVistoria'
 import {
+  adicionarAnexos,
   createFormulario,
+  removerAnexos,
   updateFormulario,
-  enviarAnexos,
+  urlAnexo,
   type Formulario,
 } from '@/services/registrosFormulario'
 
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -33,158 +50,305 @@ import {
 interface FormularioPreenchivelProps {
   modelo: ModeloFormulario
   registroExistente?: Formulario | null
-  vistoriaId?: string
-  onSalvo?: (registro: Formulario) => void
-  compacto?: boolean
+  vistoriaId: string
+  /** Vistoria concluída ou aguardando revisão: só leitura. */
+  somenteLeitura?: boolean
+  /** Fotos com coordenada na marca d'água (opção da vistoria). */
+  georreferenciar?: boolean
+  logoUrl?: string
+  /** Chamado a cada gravação (rascunho automático, foto, assinatura). */
+  onAlterado?: (registro: Formulario) => void
+  /** Chamado quando o técnico conclui o formulário. */
+  onConcluido?: (registro: Formulario) => void
+}
+
+type EstadoGravacao = 'salvo' | 'pendente' | 'salvando' | 'erro'
+
+function obterLocalizacao(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocalização não suportada'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      reject,
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  })
 }
 
 export default function FormularioPreenchivel({
   modelo,
   registroExistente,
   vistoriaId,
-  onSalvo,
-  compacto,
+  somenteLeitura,
+  georreferenciar,
+  logoUrl,
+  onAlterado,
+  onConcluido,
 }: FormularioPreenchivelProps) {
-  const [dados, setDados] = useState<Record<string, unknown>>(registroExistente?.dados || {})
   // Registro já existente abre com os campos que o modelo tinha quando foi
   // preenchido (cópia guardada no registro), mesmo que o modelo tenha mudado.
-  const campos =
+  const campos: CampoFormulario[] =
     Array.isArray(registroExistente?.campos_snapshot) && registroExistente.campos_snapshot.length
       ? registroExistente.campos_snapshot
       : modelo.campos
-  const [repetiveis, setRepetiveis] = useState<Record<string, number>>({})
-  const [salvando, setSalvando] = useState(false)
-  const arquivos = useRef<Record<string, File>>({})
 
-  const setValor = (campoId: string, valor: unknown) =>
-    setDados((prev) => ({ ...prev, [campoId]: valor }))
+  const [dados, setDados] = useState<Record<string, unknown>>(registroExistente?.dados || {})
+  const dadosRef = useRef<Record<string, unknown>>(registroExistente?.dados || {})
+  const [registro, setRegistro] = useState<Formulario | null>(registroExistente || null)
+  const registroRef = useRef<Formulario | null>(registroExistente || null)
+  const clientUuid = useRef(crypto.randomUUID())
 
-  const getValor = (campoId: string) => dados[campoId]
+  const [estado, setEstado] = useState<EstadoGravacao>('salvo')
+  const [ultimoSalvo, setUltimoSalvo] = useState<Date | null>(null)
+  const [concluindo, setConcluindo] = useState(false)
+  const [enviandoArquivo, setEnviandoArquivo] = useState<string | null>(null)
+  const [token, setToken] = useState('')
 
-  const normalizarInstancias = (raw: unknown): Record<string, unknown>[] => {
-    if (Array.isArray(raw)) return raw as Record<string, unknown>[]
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) return parsed as Record<string, unknown>[]
-        if (parsed && typeof parsed === 'object') {
-          return Object.values(parsed).filter(
-            (v): v is Record<string, unknown> => typeof v === 'object' && v !== null,
-          )
-        }
-      } catch {
-        return []
-      }
-    }
-    if (raw && typeof raw === 'object') {
-      return Object.values(raw as Record<string, unknown>).filter(
-        (v): v is Record<string, unknown> => typeof v === 'object' && v !== null,
-      )
-    }
-    return []
+  // Uma operação por vez no servidor: evita criar o registro duas vezes e
+  // gravar dados fora de ordem.
+  const filaRef = useRef<Promise<unknown>>(Promise.resolve())
+  const timerRef = useRef<number | null>(null)
+  const alteradoRef = useRef(onAlterado)
+  alteradoRef.current = onAlterado
+
+  const renovarToken = useCallback(() => {
+    getTokenArquivos()
+      .then(setToken)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    renovarToken()
+  }, [renovarToken])
+
+  const enfileirar = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const p = filaRef.current.then(fn)
+    filaRef.current = p.catch(() => {})
+    return p
   }
 
-  const setValorRepetivel = (campoId: string, indice: number, subcampoId: string, valor: unknown) =>
-    setDados((prev) => {
-      const lista = [...normalizarInstancias(prev[campoId])]
-      const item = { ...((lista[indice] as Record<string, unknown>) || {}) }
-      item[subcampoId] = valor
-      lista[indice] = item
-      return { ...prev, [campoId]: lista }
+  const definirRegistro = (r: Formulario) => {
+    registroRef.current = r
+    setRegistro(r)
+    alteradoRef.current?.(r)
+  }
+
+  const garantirRegistro = async (): Promise<Formulario> => {
+    if (registroRef.current) return registroRef.current
+    const org = await getMinhaOrganizacao()
+    const criado = await createFormulario({
+      organizacao_id: org.id,
+      modelo_formulario_id: modelo.id,
+      vistoria_id: vistoriaId,
+      dados: resumoCalculosTecnicos(campos, dadosRef.current),
+      status: 'rascunho',
+      data_campo: new Date().toISOString(),
+      client_uuid: clientUuid.current,
+    })
+    definirRegistro(criado)
+    return criado
+  }
+
+  const gravar = (statusDesejado?: 'rascunho' | 'concluido') =>
+    enfileirar(async () => {
+      setEstado('salvando')
+      try {
+        const reg = await garantirRegistro()
+        const pendentes = obrigatoriosPendentes(campos, dadosRef.current)
+        // Formulário concluído que perdeu um obrigatório volta a rascunho.
+        const status =
+          statusDesejado ??
+          (reg.status === 'concluido' && pendentes.length === 0 ? 'concluido' : 'rascunho')
+        const salvo = await updateFormulario(reg.id, {
+          dados: resumoCalculosTecnicos(campos, dadosRef.current),
+          status,
+        })
+        definirRegistro(salvo)
+        setEstado('salvo')
+        setUltimoSalvo(new Date())
+        return salvo
+      } catch (error) {
+        setEstado('erro')
+        throw error
+      }
     })
 
-  const visivel = (campo: CampoFormulario) => {
-    if (!campo.condicaoCampoId || !campo.condicaoValor) return true
-    return String(getValor(campo.condicaoCampoId) ?? '') === campo.condicaoValor
+  const gravarRef = useRef(gravar)
+  gravarRef.current = gravar
+
+  // Muda os dados e agenda a gravação automática.
+  const atualizarDados = (novos: Record<string, unknown>) => {
+    dadosRef.current = novos
+    setDados(novos)
+    if (somenteLeitura) return
+    setEstado('pendente')
+    if (timerRef.current) window.clearTimeout(timerRef.current)
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null
+      gravarRef.current().catch(() => {})
+    }, 1200)
   }
 
-  const calcular = (campo: CampoFormulario): string => {
-    const valores = (campo.camposOrigem || [])
-      .map((origem) => Number(dados[origem]))
-      .filter((v) => !Number.isNaN(v))
-    if (valores.length === 0) return ''
-    let resultado: number
-    switch (campo.operacao) {
-      case 'media':
-        resultado = valores.reduce((a, b) => a + b, 0) / valores.length
-        break
-      case 'max':
-        resultado = Math.max(...valores)
-        break
-      case 'min':
-        resultado = Math.min(...valores)
-        break
-      default:
-        resultado = valores.reduce((a, b) => a + b, 0)
-    }
-    const unidade = campo.unidade ? ` ${campo.unidade}` : ''
-    return `${resultado.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}${unidade}`
+  // Saiu da tela com alteração esperando: grava antes.
+  useEffect(
+    () => () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current)
+        gravarRef.current().catch(() => {})
+      }
+    },
+    [],
+  )
+
+  const setValor = (campoId: string, valor: unknown) =>
+    atualizarDados({ ...dadosRef.current, [campoId]: valor })
+
+  const setValorRepetivel = (
+    campoId: string,
+    indice: number,
+    subcampoId: string,
+    valor: unknown,
+  ) => {
+    const lista = [...normalizarInstancias(dadosRef.current[campoId])]
+    lista[indice] = { ...(lista[indice] || {}), [subcampoId]: valor }
+    setValor(campoId, lista)
   }
 
-  const obrigatoriosPendentes = useMemo(() => {
-    const pendentes: string[] = []
-    for (const campo of campos) {
-      if (!campo.obrigatorio || !visivel(campo)) continue
-      if (campo.tipo === 'secao') continue
-      const valor = dados[campo.id]
-      if (campo.tipo === 'repetivel') {
-        const lista = normalizarInstancias(valor)
-        if (lista.length === 0) pendentes.push(campo.nome)
-        continue
-      }
-      if (valor === undefined || valor === null || String(valor).trim() === '') {
-        pendentes.push(campo.nome)
-      }
-    }
-    return pendentes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelo, dados])
+  const pendentes = useMemo(() => obrigatoriosPendentes(campos, dados), [campos, dados])
 
-  const salvar = async (status: 'rascunho' | 'concluido') => {
-    if (status === 'concluido' && obrigatoriosPendentes.length > 0) {
-      toast.error('Campos obrigatórios pendentes', {
-        description: obrigatoriosPendentes.join(', '),
-      })
+  const salvarRascunho = async () => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    try {
+      await gravar()
+      toast.success('Rascunho salvo')
+    } catch (error) {
+      toast.error('Não foi possível salvar o formulário', { description: getErrorMessage(error) })
+    }
+  }
+
+  const concluir = async () => {
+    if (pendentes.length > 0) {
+      toast.error('Falta preencher para concluir', { description: pendentes.join('; ') })
       return
     }
-    setSalvando(true)
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    setConcluindo(true)
     try {
-      // Resultado dos cálculos técnicos (calor, ruído) vai junto, em texto,
-      // para aparecer em qualquer lugar que leia o registro.
-      const dadosFinal = resumoCalculosTecnicos(campos, dados)
-      let registro: Formulario
-      if (registroExistente) {
-        registro = await updateFormulario(registroExistente.id, { dados: dadosFinal, status })
-      } else {
-        const { getMinhaOrganizacao } = await import('@/services/organizacoes')
-        const org = await getMinhaOrganizacao()
-        registro = await createFormulario({
-          organizacao_id: org.id,
-          modelo_formulario_id: modelo.id,
-          vistoria_id: vistoriaId,
-          dados: dadosFinal,
-          status,
-          data_campo: new Date().toISOString(),
-          client_uuid: crypto.randomUUID(),
-        })
-      }
-      const listaAnexos = Object.values(arquivos.current)
-      if (listaAnexos.length > 0) {
-        await enviarAnexos(registro.id, listaAnexos)
-      }
-      toast.success(status === 'concluido' ? 'Formulário concluído' : 'Rascunho salvo')
-      onSalvo?.(registro)
+      const salvo = await gravar('concluido')
+      toast.success('Formulário concluído')
+      onConcluido?.(salvo)
     } catch (error) {
-      toast.error('Não foi possível salvar o formulário', {
+      toast.error('Não foi possível concluir o formulário', {
         description: getErrorMessage(error),
       })
     } finally {
-      setSalvando(false)
+      setConcluindo(false)
     }
   }
 
+  // ---------- Fotos e assinatura (anexos) ----------
+
+  const adicionarFotos = async (campoId: string, arquivos: File[]) => {
+    if (!arquivos.length || somenteLeitura) return
+    setEnviandoArquivo(campoId)
+    try {
+      let localizacao: { lat: number; lon: number } | undefined
+      if (georreferenciar) {
+        try {
+          localizacao = await obterLocalizacao()
+        } catch {
+          toast.warning('Não foi possível obter a localização — a foto vai sem coordenada.')
+        }
+      }
+      const agora = new Date()
+      const marcadas = await Promise.all(
+        arquivos.map((f) => aplicarMarcaDagua(f, { dataHora: agora, localizacao, logoUrl })),
+      )
+      await enfileirar(async () => {
+        const reg = await garantirRegistro()
+        const { registro: atualizado, novos } = await adicionarAnexos(reg, marcadas)
+        definirRegistro(atualizado)
+        setValor(campoId, [...listaArquivos(dadosRef.current[campoId]), ...novos])
+      })
+      renovarToken()
+    } catch (error) {
+      toast.error('Não foi possível salvar a foto', { description: getErrorMessage(error) })
+    } finally {
+      setEnviandoArquivo(null)
+    }
+  }
+
+  const removerFoto = async (campoId: string, nome: string) => {
+    if (somenteLeitura) return
+    try {
+      await enfileirar(async () => {
+        const reg = await garantirRegistro()
+        definirRegistro(await removerAnexos(reg.id, [nome]))
+        setValor(
+          campoId,
+          listaArquivos(dadosRef.current[campoId]).filter((n) => n !== nome),
+        )
+      })
+    } catch (error) {
+      toast.error('Não foi possível remover a foto', { description: getErrorMessage(error) })
+    }
+  }
+
+  const salvarAssinatura = async (campoId: string, arquivo: File) => {
+    setEnviandoArquivo(campoId)
+    try {
+      await enfileirar(async () => {
+        const reg = await garantirRegistro()
+        const anterior = listaArquivos(dadosRef.current[campoId])
+        const { registro: atualizado, novos } = await adicionarAnexos(reg, [arquivo])
+        definirRegistro(anterior.length ? await removerAnexos(atualizado.id, anterior) : atualizado)
+        setValor(campoId, novos[0] || '')
+      })
+      renovarToken()
+    } catch (error) {
+      toast.error('Não foi possível salvar a assinatura', { description: getErrorMessage(error) })
+    } finally {
+      setEnviandoArquivo(null)
+    }
+  }
+
+  const apagarAssinatura = async (campoId: string) => {
+    const anterior = listaArquivos(dadosRef.current[campoId])
+    try {
+      await enfileirar(async () => {
+        if (anterior.length && registroRef.current) {
+          definirRegistro(await removerAnexos(registroRef.current.id, anterior))
+        }
+        setValor(campoId, '')
+      })
+    } catch (error) {
+      toast.error('Não foi possível apagar a assinatura', { description: getErrorMessage(error) })
+    }
+  }
+
+  const urlArquivo = (nome: string) => (registro && token ? urlAnexo(registro, nome, token) : '')
+
+  // ---------- Campos ----------
+
+  const rotulo = (campo: CampoFormulario) => (
+    <Label>
+      {campo.nome}
+      {campo.unidade && campo.tipo === 'numero' ? ` (${campo.unidade})` : ''}
+      {campo.obrigatorio && <span className="text-destructive"> *</span>}
+    </Label>
+  )
+
   const renderCampo = (campo: CampoFormulario) => {
-    if (!visivel(campo)) return null
+    if (!campoVisivel(campo, dados)) return null
     const valor = dados[campo.id]
 
     switch (campo.tipo) {
@@ -199,10 +363,7 @@ export default function FormularioPreenchivel({
       case 'texto':
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
+            {rotulo(campo)}
             <Input
               value={String(valor ?? '')}
               onChange={(e) => setValor(campo.id, e.target.value)}
@@ -212,10 +373,7 @@ export default function FormularioPreenchivel({
       case 'texto_longo':
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
+            {rotulo(campo)}
             <Textarea
               rows={3}
               value={String(valor ?? '')}
@@ -226,11 +384,7 @@ export default function FormularioPreenchivel({
       case 'numero':
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.unidade ? ` (${campo.unidade})` : ''}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
+            {rotulo(campo)}
             <Input
               type="number"
               inputMode="decimal"
@@ -240,42 +394,20 @@ export default function FormularioPreenchivel({
           </div>
         )
       case 'sim_nao':
-        return (
-          <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
-            <Select
-              value={valor === undefined ? undefined : String(valor)}
-              onValueChange={(v) => setValor(campo.id, v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Sim">Sim</SelectItem>
-                <SelectItem value="Não">Não</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )
       case 'selecao':
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
+            {rotulo(campo)}
             <Select
-              value={valor === undefined ? undefined : String(valor)}
+              value={valor === undefined || valor === '' ? undefined : String(valor)}
               onValueChange={(v) => setValor(campo.id, v)}
+              disabled={somenteLeitura}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                {(campo.opcoes || []).map((opcao) => (
+                {(campo.tipo === 'sim_nao' ? ['Sim', 'Não'] : campo.opcoes || []).map((opcao) => (
                   <SelectItem key={opcao} value={opcao}>
                     {opcao}
                   </SelectItem>
@@ -284,128 +416,187 @@ export default function FormularioPreenchivel({
             </Select>
           </div>
         )
-      case 'multipla':
+      case 'multipla': {
+        const selecionadas = Array.isArray(valor)
+          ? (valor as string[])
+          : typeof valor === 'string' && valor
+            ? (() => {
+                try {
+                  const p = JSON.parse(valor)
+                  return Array.isArray(p) ? (p as string[]) : [valor]
+                } catch {
+                  return [valor]
+                }
+              })()
+            : []
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
+            {rotulo(campo)}
             <div className="space-y-1">
-              {(campo.opcoes || []).map((opcao) => {
-                const selecionadas = Array.isArray(valor)
-                  ? (valor as string[])
-                  : typeof valor === 'string'
-                    ? (() => {
-                        try {
-                          const parsed = JSON.parse(valor)
-                          return Array.isArray(parsed) ? (parsed as string[]) : [valor]
-                        } catch {
-                          return [valor]
-                        }
-                      })()
-                    : []
-                const marcada = selecionadas.includes(opcao)
-                return (
-                  <label
-                    key={opcao}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={marcada}
-                      onChange={(e) =>
-                        setValor(
-                          campo.id,
-                          e.target.checked
-                            ? [...selecionadas, opcao]
-                            : selecionadas.filter((o) => o !== opcao),
-                        )
-                      }
-                    />
-                    {opcao}
-                  </label>
-                )
-              })}
+              {(campo.opcoes || []).map((opcao) => (
+                <label
+                  key={opcao}
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selecionadas.includes(opcao)}
+                    onChange={(e) =>
+                      setValor(
+                        campo.id,
+                        e.target.checked
+                          ? [...selecionadas, opcao]
+                          : selecionadas.filter((o) => o !== opcao),
+                      )
+                    }
+                  />
+                  {opcao}
+                </label>
+              ))}
             </div>
           </div>
         )
+      }
       case 'data':
-        return (
-          <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
-            <Input
-              type="date"
-              value={String(valor ?? '')}
-              onChange={(e) => setValor(campo.id, e.target.value)}
-            />
-          </div>
-        )
       case 'hora':
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label>
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
+            {rotulo(campo)}
             <Input
-              type="time"
+              type={campo.tipo === 'data' ? 'date' : 'time'}
               value={String(valor ?? '')}
               onChange={(e) => setValor(campo.id, e.target.value)}
             />
           </div>
         )
       case 'foto': {
-        const chave = campo.id
+        const fotos = listaArquivos(valor)
+        const enviando = enviandoArquivo === campo.id
         return (
-          <div key={campo.id} className="space-y-1.5">
-            <Label className="flex items-center gap-1.5">
+          <div key={campo.id} className="space-y-2">
+            <div className="flex items-center gap-1.5">
               <Camera className="h-3.5 w-3.5" />
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
-            <Input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              onChange={(e) => {
-                const files = Array.from(e.target.files || [])
-                files.forEach((f, i) => {
-                  arquivos.current[`${chave}_${i}`] = f
-                })
-                setValor(
-                  chave,
-                  files.map((f) => f.name),
-                )
-              }}
-            />
+              {rotulo(campo)}
+            </div>
+            {fotos.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {fotos.map((nome) => (
+                  <div key={nome} className="relative">
+                    {urlArquivo(nome) ? (
+                      <a href={urlArquivo(nome)} target="_blank" rel="noreferrer">
+                        <img
+                          src={urlArquivo(nome)}
+                          alt="Foto do formulário"
+                          className="h-24 w-24 rounded-lg border object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="h-24 w-24 rounded-lg border bg-muted" />
+                    )}
+                    {!somenteLeitura && (
+                      <button
+                        type="button"
+                        onClick={() => removerFoto(campo.id, nome)}
+                        className="absolute -right-2 -top-2 rounded-full border bg-background p-1 shadow"
+                        aria-label="Remover foto"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!somenteLeitura && (
+              <div className="flex flex-wrap gap-2">
+                {/* capture abre direto a câmera traseira no celular */}
+                <label className={buttonVariants({ size: 'sm' }) + ' cursor-pointer gap-1.5'}>
+                  <Camera className="h-3.5 w-3.5" />
+                  Tirar foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    disabled={enviando}
+                    onChange={(e) => {
+                      adicionarFotos(campo.id, Array.from(e.target.files || []))
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                <label
+                  className={
+                    buttonVariants({ size: 'sm', variant: 'outline' }) + ' cursor-pointer gap-1.5'
+                  }
+                >
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  Galeria
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="sr-only"
+                    disabled={enviando}
+                    onChange={(e) => {
+                      adicionarFotos(campo.id, Array.from(e.target.files || []))
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                {enviando && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    Enviando foto...
+                  </span>
+                )}
+              </div>
+            )}
+            {somenteLeitura && fotos.length === 0 && (
+              <p className="text-xs text-muted-foreground">Sem foto.</p>
+            )}
           </div>
         )
       }
       case 'assinatura': {
-        const chave = campo.id
+        const salva = listaArquivos(valor)[0]
         return (
           <div key={campo.id} className="space-y-1.5">
-            <Label className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <PenTool className="h-3.5 w-3.5" />
-              {campo.nome}
-              {campo.obrigatorio && <span className="text-destructive"> *</span>}
-            </Label>
-            <AssinaturaCanvas
-              valor={String(valor ?? '')}
-              onChange={(arquivo) => {
-                if (arquivo) {
-                  arquivos.current[chave] = arquivo
-                  setValor(chave, arquivo.name)
-                } else {
-                  delete arquivos.current[chave]
-                  setValor(chave, '')
-                }
-              }}
-            />
+              {rotulo(campo)}
+            </div>
+            {salva ? (
+              <div className="space-y-1.5">
+                {urlArquivo(salva) ? (
+                  <img
+                    src={urlArquivo(salva)}
+                    alt="Assinatura"
+                    className="h-28 rounded-xl border bg-white object-contain"
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground">Assinatura gravada.</p>
+                )}
+                {!somenteLeitura && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => apagarAssinatura(campo.id)}
+                  >
+                    Refazer assinatura
+                  </Button>
+                )}
+              </div>
+            ) : somenteLeitura ? (
+              <p className="text-xs text-muted-foreground">Sem assinatura.</p>
+            ) : (
+              <AssinaturaCanvas
+                enviando={enviandoArquivo === campo.id}
+                onConfirmar={(arquivo) => salvarAssinatura(campo.id, arquivo)}
+              />
+            )}
           </div>
         )
       }
@@ -414,7 +605,7 @@ export default function FormularioPreenchivel({
           <div key={campo.id} className="space-y-1.5">
             <Label>{campo.nome} (automático)</Label>
             <div className="rounded-xl bg-muted px-3 py-2 text-lg font-semibold">
-              {calcular(campo) || '—'}
+              {calcularCampo(campo, dados) || '—'}
             </div>
           </div>
         )
@@ -422,30 +613,28 @@ export default function FormularioPreenchivel({
         return <ResultadoTecnicoView key={campo.id} campo={campo} dados={dados} />
       case 'repetivel': {
         const instancias = normalizarInstancias(valor)
-        const total = repetiveis[campo.id] ?? instancias.length ?? 0
         return (
           <div key={campo.id} className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>
-                {campo.nome}
-                {campo.obrigatorio && <span className="text-destructive"> *</span>}
-              </Label>
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => {
-                  setRepetiveis((prev) => ({ ...prev, [campo.id]: total + 1 }))
-                  setValorRepetivel(campo.id, total, '__novo', true)
-                }}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Adicionar
-              </Button>
+              {rotulo(campo)}
+              {!somenteLeitura && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => setValor(campo.id, [...instancias, {}])}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Adicionar
+                </Button>
+              )}
             </div>
             {instancias.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Nenhum registro — toque em "Adicionar" para criar o primeiro.
+                {somenteLeitura
+                  ? 'Nenhum registro.'
+                  : 'Nenhum registro — toque em "Adicionar" para criar o primeiro.'}
               </p>
             )}
             {instancias.map((item, indice) => (
@@ -454,19 +643,22 @@ export default function FormularioPreenchivel({
                   <Badge variant="secondary">
                     {campo.nome} {indice + 1}
                   </Badge>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => {
-                      const lista = normalizarInstancias(dados[campo.id]).filter(
-                        (_, i) => i !== indice,
-                      )
-                      setValor(campo.id, lista)
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {!somenteLeitura && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() =>
+                        setValor(
+                          campo.id,
+                          instancias.filter((_, i) => i !== indice),
+                        )
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
                 <div className="space-y-3">
                   {(campo.subcampos || []).map((sub) => {
@@ -477,46 +669,29 @@ export default function FormularioPreenchivel({
                           {sub.nome}
                           {sub.unidade ? ` (${sub.unidade})` : ''}
                         </Label>
-                        {sub.tipo === 'numero' ? (
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            value={String(valorSub ?? '')}
-                            onChange={(e) =>
-                              setValorRepetivel(campo.id, indice, sub.id, e.target.value)
-                            }
-                          />
-                        ) : sub.tipo === 'sim_nao' ? (
+                        {sub.tipo === 'sim_nao' || sub.tipo === 'selecao' ? (
                           <Select
                             value={valorSub === undefined ? undefined : String(valorSub)}
                             onValueChange={(v) => setValorRepetivel(campo.id, indice, sub.id, v)}
+                            disabled={somenteLeitura}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="—" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Sim">Sim</SelectItem>
-                              <SelectItem value="Não">Não</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : sub.tipo === 'selecao' ? (
-                          <Select
-                            value={valorSub === undefined ? undefined : String(valorSub)}
-                            onValueChange={(v) => setValorRepetivel(campo.id, indice, sub.id, v)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(sub.opcoes || []).map((opcao) => (
-                                <SelectItem key={opcao} value={opcao}>
-                                  {opcao}
-                                </SelectItem>
-                              ))}
+                              {(sub.tipo === 'sim_nao' ? ['Sim', 'Não'] : sub.opcoes || []).map(
+                                (opcao) => (
+                                  <SelectItem key={opcao} value={opcao}>
+                                    {opcao}
+                                  </SelectItem>
+                                ),
+                              )}
                             </SelectContent>
                           </Select>
                         ) : (
                           <Input
+                            type={sub.tipo === 'numero' ? 'number' : 'text'}
+                            inputMode={sub.tipo === 'numero' ? 'decimal' : undefined}
                             value={String(valorSub ?? '')}
                             onChange={(e) =>
                               setValorRepetivel(campo.id, indice, sub.id, e.target.value)
@@ -537,123 +712,164 @@ export default function FormularioPreenchivel({
     }
   }
 
+  const textoEstado =
+    estado === 'salvando'
+      ? 'Salvando...'
+      : estado === 'pendente'
+        ? 'Alterações ainda não salvas'
+        : estado === 'erro'
+          ? 'Não foi possível salvar. Verifique a internet e toque em "Salvar rascunho".'
+          : ultimoSalvo
+            ? `Salvo às ${ultimoSalvo.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+            : registro
+              ? registro.status === 'concluido'
+                ? 'Formulário concluído'
+                : 'Rascunho salvo'
+              : 'Ainda não salvo'
+
   return (
-    <div className={compacto ? 'space-y-3' : 'space-y-4'}>
-      {!compacto && (
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">{modelo.nome}</h1>
-            {modelo.descricao && (
-              <p className="text-sm text-muted-foreground">{modelo.descricao}</p>
-            )}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button variant="outline" onClick={() => salvar('rascunho')} disabled={salvando}>
-              <Save className="mr-2 h-4 w-4" />
-              Rascunho
-            </Button>
-            <Button
-              onClick={() => salvar('concluido')}
-              disabled={salvando}
-              className="rounded-full"
-            >
-              <Check className="mr-2 h-4 w-4" />
-              {salvando ? 'Salvando...' : 'Concluir'}
-            </Button>
-          </div>
+    <div className="space-y-3">
+      {somenteLeitura ? (
+        <p className="text-xs text-muted-foreground">
+          Somente leitura: a vistoria está concluída ou em revisão. Para corrigir, reabra a
+          vistoria.
+        </p>
+      ) : (
+        pendentes.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Falta preencher para concluir: {pendentes.join('; ')}.
+          </p>
+        )
+      )}
+      <fieldset disabled={somenteLeitura} className="min-w-0">
+        <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
+          {campos.map(renderCampo)}
+        </Card>
+      </fieldset>
+      {!somenteLeitura && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span
+            className={
+              'mr-auto text-xs ' +
+              (estado === 'erro' ? 'text-destructive' : 'text-muted-foreground')
+            }
+          >
+            {textoEstado}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={salvarRascunho}
+            disabled={estado === 'salvando' || concluindo}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            Salvar rascunho
+          </Button>
+          <Button
+            type="button"
+            onClick={concluir}
+            disabled={concluindo || !!enviandoArquivo}
+            className="rounded-full"
+          >
+            <Check className="mr-2 h-4 w-4" />
+            {concluindo ? 'Concluindo...' : 'Concluir formulário'}
+          </Button>
         </div>
       )}
-      {obrigatoriosPendentes.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {obrigatoriosPendentes.length} campo(s) obrigatório(s) pendente(s) para concluir.
-        </p>
-      )}
-      <Card className="space-y-4 rounded-2xl border-none bg-card p-5 shadow-subtle">
-        {campos.map(renderCampo)}
-      </Card>
     </div>
   )
 }
 
-// Canvas de assinatura (desenha com mouse/toque e gera um PNG).
+// Canvas de assinatura: desenha com o dedo ou o mouse e grava ao confirmar.
 function AssinaturaCanvas({
-  valor,
-  onChange,
+  enviando,
+  onConfirmar,
 }: {
-  valor: string
-  onChange: (arquivo: File | null) => void
+  enviando: boolean
+  onConfirmar: (arquivo: File) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const desenhando = useRef(false)
-  const [temRascunho, setTemRascunho] = useState(!!valor)
+  const [temTraco, setTemTraco] = useState(false)
 
-  const iniciar = (e: React.PointerEvent) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    desenhando.current = true
+  const ponto = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
+    }
+  }
+
+  const iniciar = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const p = ponto(e)
     ctx.beginPath()
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top)
-  }
-  const mover = (e: React.PointerEvent) => {
-    if (!desenhando.current) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const rect = canvas.getBoundingClientRect()
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top)
-    ctx.stroke()
-    setTemRascunho(true)
-  }
-  const terminar = () => {
-    desenhando.current = false
+    ctx.moveTo(p.x, p.y)
+    desenhando.current = true
   }
 
-  const exportar = () => {
+  const mover = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!desenhando.current) return
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const p = ponto(e)
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#1a1a1a'
+    ctx.lineTo(p.x, p.y)
+    ctx.stroke()
+    setTemTraco(true)
+  }
+
+  const limpar = () => {
     const canvas = canvasRef.current
-    if (!canvas || !temRascunho) return
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      onChange(new File([blob], `assinatura-${Date.now()}.png`, { type: 'image/png' }))
-    })
+    canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
+    setTemTraco(false)
+  }
+
+  const confirmar = () => {
+    canvasRef.current?.toBlob((blob) => {
+      if (blob) onConfirmar(new File([blob], `assinatura-${Date.now()}.png`, { type: 'image/png' }))
+    }, 'image/png')
   }
 
   return (
     <div className="space-y-1.5">
       <canvas
         ref={canvasRef}
-        width={400}
-        height={140}
-        className="w-full rounded-xl border bg-white touch-none"
+        width={500}
+        height={160}
+        className="w-full touch-none rounded-xl border bg-white"
         onPointerDown={iniciar}
         onPointerMove={mover}
-        onPointerUp={() => {
-          terminar()
-          exportar()
-        }}
+        onPointerUp={() => (desenhando.current = false)}
+        onPointerLeave={() => (desenhando.current = false)}
       />
       <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 text-xs"
-          onClick={() => {
-            const canvas = canvasRef.current
-            if (!canvas) return
-            const ctx = canvas.getContext('2d')
-            ctx?.clearRect(0, 0, canvas.width, canvas.height)
-            setTemRascunho(false)
-            onChange(null)
-          }}
-        >
-          Limpar
-        </Button>
-        {temRascunho && (
-          <span className="text-xs text-muted-foreground">Assinatura registrada ✓</span>
+        <p className="mr-auto text-xs text-muted-foreground">Assine com o dedo ou o mouse</p>
+        {temTraco && (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={limpar}
+            >
+              Limpar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={enviando}
+              onClick={confirmar}
+            >
+              {enviando ? 'Gravando...' : 'Gravar assinatura'}
+            </Button>
+          </>
         )}
       </div>
     </div>

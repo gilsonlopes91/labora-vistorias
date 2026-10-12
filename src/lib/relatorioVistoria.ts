@@ -22,10 +22,11 @@ import {
   COR_SECUNDARIA_LABORA,
 } from '@/lib/identidadeVisual'
 import type { AssinaturaEletronica } from '@/lib/gerarPdfPgr'
+import { desenharFormularioNoPdf, type FormularioParaPdf } from '@/lib/pdfFormulario'
 
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
 
-function executarAutoTable(doc: jsPDF, options: Record<string, unknown>): number {
+export function executarAutoTable(doc: jsPDF, options: Record<string, unknown>): number {
   try {
     if (typeof autoTableApplyPlugin === 'function') {
       autoTableApplyPlugin(jsPDF)
@@ -102,6 +103,8 @@ export interface DadosRelatorioVistoria {
   corSecundaria?: string
   /** Carimbo de assinatura eletrônica (etapa 3d) — omitido em laudos antigos. */
   assinatura?: AssinaturaEletronica
+  /** Formulários de campo preenchidos na vistoria, cada um numa seção própria. */
+  formularios?: FormularioParaPdf[]
 }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -135,7 +138,7 @@ interface OpcoesImagem {
   sempreJpeg?: boolean
 }
 
-async function carregarImagemComoDataUrl(
+export async function carregarImagemComoDataUrl(
   url: string,
   opcoes: OpcoesImagem = {},
 ): Promise<ImagemCarregada | null> {
@@ -242,6 +245,10 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
     hexParaRgb(COR_SECUNDARIA_LABORA, [32, 39, 32]),
   )
   const faixaSecao = clarear(primaria, 0.85)
+  // O relatório só tem as partes que existem na vistoria: sem checklist, não
+  // há resumo C/N/C/N/A nem plano de ação — só os formulários de campo.
+  const temChecklist = dados.itens.length > 0 || (dados.checklists?.length || 0) > 0
+  const formularios = dados.formularios || []
 
   // compress: texto e imagens PNG comprimidos no arquivo.
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
@@ -277,9 +284,14 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text('Relatório de Vistoria de Segurança e Saúde no Trabalho', pageWidth - margin, y + 28, {
-    align: 'right',
-  })
+  doc.text(
+    temChecklist
+      ? 'Relatório de Vistoria de Segurança e Saúde no Trabalho'
+      : 'Relatório de Avaliação de Campo',
+    pageWidth - margin,
+    y + 28,
+    { align: 'right' },
+  )
   y += 52
   doc.setDrawColor(primaria[0], primaria[1], primaria[2])
   doc.setLineWidth(1.2)
@@ -295,11 +307,13 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
     !!dados.tipoNrReferencia &&
     dados.tipoNome.trim().toLowerCase().startsWith(dados.tipoNrReferencia.trim().toLowerCase())
   const variosChecklists = (dados.checklists?.length || 0) > 1
-  const titulo = variosChecklists
-    ? `Vistoria com ${dados.checklists!.length} checklists`
-    : dados.tipoNrReferencia && !nomeTipoJaTemReferencia
-      ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
-      : dados.tipoNome || 'Relatório de Vistoria SST'
+  const titulo = !temChecklist
+    ? formularios.map((f) => f.titulo).join(' · ') || 'Relatório de Avaliação de Campo'
+    : variosChecklists
+      ? `Vistoria com ${dados.checklists!.length} checklists`
+      : dados.tipoNrReferencia && !nomeTipoJaTemReferencia
+        ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
+        : dados.tipoNome || 'Relatório de Vistoria SST'
   const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
   doc.text(linhasTitulo, margin, y)
   y += linhasTitulo.length * 17 + 6
@@ -326,6 +340,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
       ['Data da vistoria', dataVistoria],
       ...(variosChecklists
         ? [['Checklists', dados.checklists!.map((c) => c.nome).join('\n')]]
+        : []),
+      ...(formularios.length && temChecklist
+        ? [['Formulários de campo', formularios.map((f) => f.titulo).join('\n')]]
         : []),
       ...(dados.vistoria.acompanhante_nome
         ? [
@@ -372,78 +389,80 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
 
   if (dados.metodologia?.trim()) paragrafos('Metodologia', dados.metodologia)
 
-  // Resumo executivo
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.text('Resumo', margin, y)
-  y += 4
-
-  const finalYResumo = executarAutoTable(doc, {
-    startY: y + 6,
-    head: [['Conforme', 'Não conforme', 'Não se aplica', 'Sem resposta']],
-    body: [
-      [
-        String(dados.resumo.conforme),
-        String(dados.resumo.naoConforme),
-        String(dados.resumo.naoAplica),
-        String(dados.resumo.semResposta),
-      ],
-    ],
-    theme: 'grid',
-    styles: { halign: 'center', fontSize: 10, cellPadding: 6 },
-    headStyles: { fillColor: primaria },
-    margin: { left: margin, right: margin },
-  })
-  y = (finalYResumo || y) + 16
-
-  if (dados.resumo.naoConforme > 0) {
+  // Resumo executivo (só com checklist)
+  if (temChecklist) {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.setTextColor(180, 40, 40)
-    doc.text(
-      `Estimativa de multa: ${currency.format(dados.resumo.multaMin)} a ${currency.format(dados.resumo.multaMax)}`,
-      margin,
-      y,
-    )
-    doc.setTextColor(0, 0, 0)
-    y += 13
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-
-    // A nota de rodapé do resumo tem que refletir os regimes realmente
-    // presentes na vistoria — afirmar "Anexo I" numa vistoria portuária ou
-    // rural seria incorreto.
-    const regimes = new Set(dados.itens.map((item) => regimeDoItem(item)))
-    const notas: string[] = ['Soma dos itens não conformes.']
-    if (regimes.has('anexo_i')) {
-      notas.push('Gradação do Anexo I da NR-28, convertida da UFIR.')
-    }
-    if (regimes.has('anexo_ia_portuario')) {
-      notas.push(
-        'Itens da NR-29 (trabalho portuário) usam o Anexo I-A da NR-28, cujos valores já são fixados em reais.',
-      )
-    }
-    if (regimes.has('rural_art18')) {
-      notas.push(
-        `Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRural)} por empregado em situação irregular (dobrado na reincidência), conforme o nº de empregados informado em cada item.`,
-      )
-    }
-    if (
-      !dados.empresaNumeroEmpregados &&
-      (regimes.has('anexo_i') || regimes.has('anexo_ia_portuario'))
-    ) {
-      notas.push(
-        'Atenção: a empresa não tinha número de empregados no cadastro, e a multa foi estimada pela menor faixa da tabela (1 a 10 empregados). O valor real pode ser maior.',
-      )
-    }
-    doc.setTextColor(120)
-    const linhasNota = doc.splitTextToSize(notas.join(' '), larguraUtil)
-    doc.text(linhasNota, margin, y)
-    doc.setTextColor(0)
-    y += linhasNota.length * 10
-    y += 9
-  } else {
+    doc.setFontSize(12)
+    doc.text('Resumo', margin, y)
     y += 4
+
+    const finalYResumo = executarAutoTable(doc, {
+      startY: y + 6,
+      head: [['Conforme', 'Não conforme', 'Não se aplica', 'Sem resposta']],
+      body: [
+        [
+          String(dados.resumo.conforme),
+          String(dados.resumo.naoConforme),
+          String(dados.resumo.naoAplica),
+          String(dados.resumo.semResposta),
+        ],
+      ],
+      theme: 'grid',
+      styles: { halign: 'center', fontSize: 10, cellPadding: 6 },
+      headStyles: { fillColor: primaria },
+      margin: { left: margin, right: margin },
+    })
+    y = (finalYResumo || y) + 16
+
+    if (dados.resumo.naoConforme > 0) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(180, 40, 40)
+      doc.text(
+        `Estimativa de multa: ${currency.format(dados.resumo.multaMin)} a ${currency.format(dados.resumo.multaMax)}`,
+        margin,
+        y,
+      )
+      doc.setTextColor(0, 0, 0)
+      y += 13
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+
+      // A nota de rodapé do resumo tem que refletir os regimes realmente
+      // presentes na vistoria — afirmar "Anexo I" numa vistoria portuária ou
+      // rural seria incorreto.
+      const regimes = new Set(dados.itens.map((item) => regimeDoItem(item)))
+      const notas: string[] = ['Soma dos itens não conformes.']
+      if (regimes.has('anexo_i')) {
+        notas.push('Gradação do Anexo I da NR-28, convertida da UFIR.')
+      }
+      if (regimes.has('anexo_ia_portuario')) {
+        notas.push(
+          'Itens da NR-29 (trabalho portuário) usam o Anexo I-A da NR-28, cujos valores já são fixados em reais.',
+        )
+      }
+      if (regimes.has('rural_art18')) {
+        notas.push(
+          `Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRural)} por empregado em situação irregular (dobrado na reincidência), conforme o nº de empregados informado em cada item.`,
+        )
+      }
+      if (
+        !dados.empresaNumeroEmpregados &&
+        (regimes.has('anexo_i') || regimes.has('anexo_ia_portuario'))
+      ) {
+        notas.push(
+          'Atenção: a empresa não tinha número de empregados no cadastro, e a multa foi estimada pela menor faixa da tabela (1 a 10 empregados). O valor real pode ser maior.',
+        )
+      }
+      doc.setTextColor(120)
+      const linhasNota = doc.splitTextToSize(notas.join(' '), larguraUtil)
+      doc.text(linhasNota, margin, y)
+      doc.setTextColor(0)
+      y += linhasNota.length * 10
+      y += 9
+    } else {
+      y += 4
+    }
   }
 
   // Fotos são arquivos protegidos: o link precisa de token temporário, renovado
@@ -729,6 +748,21 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
       margin: { left: margin, right: margin },
     })
     y = (fimNA || y) + 12
+  }
+
+  // Formulários de campo: cada um numa seção própria, depois do checklist.
+  for (const formulario of formularios) {
+    if (temChecklist || y > pageHeight - 220) {
+      doc.addPage()
+      y = margin + 12
+    } else {
+      y += 8
+    }
+    y = await desenharFormularioNoPdf(
+      { doc, margin, primaria, secundaria, tokenAtual },
+      formulario,
+      y,
+    )
   }
 
   if (dados.conclusao?.trim()) {

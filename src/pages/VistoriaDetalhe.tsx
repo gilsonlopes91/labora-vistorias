@@ -17,6 +17,8 @@ import {
   RefreshCw,
   Search,
   ImagePlus,
+  ClipboardList,
+  Download,
 } from 'lucide-react'
 
 import { formatBrazilianDate, formatLocalDate, toPocketBaseDate } from '@/lib/date'
@@ -35,7 +37,17 @@ import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria, nomeArquivoVistoria } from '@/lib/relatorioVistoria'
 import { hashSha256, type AssinaturaEletronica } from '@/lib/gerarPdfPgr'
 import pb from '@/lib/pocketbase/client'
-import { METODOLOGIA_PADRAO, rascunhoConclusao } from '@/lib/textosRelatorio'
+import {
+  METODOLOGIA_FORMULARIOS,
+  METODOLOGIA_PADRAO,
+  rascunhoConclusao,
+} from '@/lib/textosRelatorio'
+import {
+  gerarPdfFormularios,
+  nomeArquivoFormularios,
+  type FormularioParaPdf,
+} from '@/lib/pdfFormulario'
+import { obrigatoriosPendentes } from '@/lib/formularioCampos'
 import { ehOrganizacaoLabora } from '@/lib/identidadeVisual'
 import LoadingScreen from '@/components/LoadingScreen'
 import TextoNorma from '@/components/TextoNorma'
@@ -76,7 +88,7 @@ import {
   type ResponsavelTecnico,
   type TipoRegistroRT,
 } from '@/services/responsaveisTecnicos'
-import { getModeloFormulario } from '@/services/formularios'
+import { getModeloFormulario, type ModeloFormulario } from '@/services/formularios'
 import { getFormulariosByVistoria, type Formulario } from '@/services/registrosFormulario'
 import FormularioPreenchivel from '@/components/FormularioPreenchivel'
 import DetalhesAgendamento from '@/components/DetalhesAgendamento'
@@ -247,6 +259,8 @@ export default function VistoriaDetalhe() {
 
   // Itens sem resposta na hora de finalizar (marcar como N/A ou voltar).
   const [pendentesDialogAberto, setPendentesDialogAberto] = useState(false)
+  // Formulários de campo não concluídos na hora de finalizar (bloqueia).
+  const [formsPendentesAberto, setFormsPendentesAberto] = useState(false)
   const [marcandoNA, setMarcandoNA] = useState(false)
 
   // Reabertura de vistoria concluída (dono/gerente).
@@ -852,6 +866,97 @@ export default function VistoriaDetalhe() {
     return temChecklistPrincipal || temChecklistAdicional || temFormulario
   }, [vistoria])
 
+  // Vistoria com checklist de NR? Sem checklist (só formulários), a tela e o
+  // relatório não mostram o bloco C / N/C / N/A.
+  const temChecklist = checklistsInfo.length > 0
+  const modelosForm: ModeloFormulario[] = vistoria?.expand?.formularios || []
+
+  // Campos de um registro: a cópia guardada nele ou, sem ela, os do modelo.
+  const camposDe = (modelo: ModeloFormulario, reg: Formulario) =>
+    Array.isArray(reg.campos_snapshot) && reg.campos_snapshot.length
+      ? reg.campos_snapshot
+      : modelo.campos || []
+
+  // Formulários que impedem a finalização: não preenchidos ou em rascunho,
+  // com o que falta em cada um.
+  const formulariosPendentes = useMemo(
+    () =>
+      (vistoria?.expand?.formularios || [])
+        .map((m) => {
+          const reg = registrosForm[m.id]
+          if (!reg) return { id: m.id, nome: m.nome, falta: ['Ainda não foi preenchido.'] }
+          if (reg.status === 'concluido') return null
+          const faltando = obrigatoriosPendentes(
+            Array.isArray(reg.campos_snapshot) && reg.campos_snapshot.length
+              ? reg.campos_snapshot
+              : m.campos || [],
+            (reg.dados || {}) as Record<string, unknown>,
+          )
+          return {
+            id: m.id,
+            nome: m.nome,
+            falta: faltando.length
+              ? faltando.map((campo) => `Campo obrigatório sem resposta: ${campo}`)
+              : ['Está em rascunho: abra e toque em "Concluir formulário".'],
+          }
+        })
+        .filter((f): f is { id: string; nome: string; falta: string[] } => !!f),
+    [vistoria, registrosForm],
+  )
+
+  const paraPdf = (v: Vistoria, modelo: ModeloFormulario, reg: Formulario): FormularioParaPdf => ({
+    registro: reg,
+    campos: camposDe(modelo, reg),
+    titulo: modelo.nome,
+    detalhe: `Vistoria de ${formatBrazilianDate(v.data_realizada || v.data_agendada)}`,
+  })
+
+  // Metodologia padrão: a da norma (checklist) ou a das avaliações de campo.
+  const metodologiaPadrao = (v: Vistoria) =>
+    v.metodologia || (temChecklist ? metodologiaOrg || METODOLOGIA_PADRAO : METODOLOGIA_FORMULARIOS)
+
+  const nomeArquivoRelatorio = (v: Vistoria) =>
+    nomeArquivoVistoria(
+      v.expand?.empresa_id?.nome_fantasia || v.expand?.empresa_id?.razao_social || 'Empresa',
+      v.expand?.tipo_vistoria_id?.nr_referencia,
+      v.expand?.tipo_vistoria_id?.nome || v.expand?.formularios?.[0]?.nome,
+    )
+
+  const alternarFormulario = async (modeloId: string) => {
+    if (formAberto === modeloId) {
+      setFormAberto(null)
+      setModeloAberto(null)
+      return
+    }
+    setFormAberto(modeloId)
+    setModeloAberto(null)
+    try {
+      setModeloAberto(await getModeloFormulario(modeloId))
+    } catch (error) {
+      setFormAberto(null)
+      toast.error('Não foi possível abrir o formulário', { description: getErrorMessage(error) })
+    }
+  }
+
+  // PDF só deste formulário (para a empresa saber o que precisa).
+  const baixarPdfFormulario = async (modelo: ModeloFormulario) => {
+    const reg = registrosForm[modelo.id]
+    if (!vistoria || !reg) return
+    toast.info('Gerando o PDF...')
+    try {
+      const empresaV = vistoria.expand?.empresa_id
+      const nomeEmpresa = empresaV?.nome_fantasia || empresaV?.razao_social || 'Empresa'
+      const doc = await gerarPdfFormularios({
+        formularios: [paraPdf(vistoria, modelo, reg)],
+        empresa: { nome: nomeEmpresa, cnpj: empresaV?.cnpj, endereco: empresaV?.endereco },
+        titulo: modelo.nome,
+      })
+      doc.save(nomeArquivoFormularios(nomeEmpresa, modelo.nome))
+    } catch (error) {
+      toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
+    }
+  }
+
   // Monta o PDF da vistoria (na finalização ou depois, em "Baixar PDF").
   // Devolve o documento pronto — quem chama decide se baixa, faz hash ou envia.
   const construirPdf = async (
@@ -883,8 +988,11 @@ export default function VistoriaDetalhe() {
       tipoNrReferencia: tipoV?.nr_referencia,
       checklists: checklistsInfo,
       assinaturaRtUrl,
-      metodologia: v.metodologia || metodologiaOrg || METODOLOGIA_PADRAO,
+      metodologia: metodologiaPadrao(v),
       conclusao: v.conclusao,
+      formularios: (v.expand?.formularios || [])
+        .filter((m) => !!registrosForm[m.id])
+        .map((m) => paraPdf(v, m, registrosForm[m.id])),
       organizacaoNome: nomeOrganizacao,
       logoUrl: logoMarcaDagua,
       itens: itensOrdenados,
@@ -917,15 +1025,7 @@ export default function VistoriaDetalhe() {
     toast.info('Gerando o PDF...')
     try {
       const doc = await construirPdf(vistoria, respostas, assinaturaDaVistoria(vistoria))
-      doc.save(
-        nomeArquivoVistoria(
-          vistoria.expand?.empresa_id?.nome_fantasia ||
-            vistoria.expand?.empresa_id?.razao_social ||
-            'Empresa',
-          vistoria.expand?.tipo_vistoria_id?.nr_referencia,
-          vistoria.expand?.tipo_vistoria_id?.nome,
-        ),
-      )
+      doc.save(nomeArquivoRelatorio(vistoria))
     } catch (error) {
       toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
     }
@@ -936,6 +1036,7 @@ export default function VistoriaDetalhe() {
     rascunhoConclusao({
       dataVistoria: vistoria?.data_realizada || formatLocalDate(new Date()),
       checklists: checklistsInfo.map((c) => c.rotulo),
+      formularios: modelosForm.map((m) => m.nome),
       ...resumo,
       prazos: itensOrdenados
         .map((item) => respostasVisiveis[item.id])
@@ -967,7 +1068,7 @@ export default function VistoriaDetalhe() {
     setAcompanhanteCargo(vistoria?.acompanhante_cargo || '')
     setArtNumero(vistoria?.art_numero || '')
     setConclusao(vistoria?.conclusao || '')
-    setMetodologia(vistoria?.metodologia || metodologiaOrg || METODOLOGIA_PADRAO)
+    setMetodologia(vistoria ? metodologiaPadrao(vistoria) : METODOLOGIA_PADRAO)
     setMostrarMetodologia(false)
     setSenhaAssinatura('')
     setErroSenhaAssinatura('')
@@ -992,6 +1093,10 @@ export default function VistoriaDetalhe() {
         description:
           'Conecte-se à internet e toque em "Enviar agora" antes de finalizar, para o relatório sair completo.',
       })
+      return
+    }
+    if (formulariosPendentes.length > 0) {
+      setFormsPendentesAberto(true)
       return
     }
     if (resumo.semResposta > 0) {
@@ -1324,15 +1429,7 @@ export default function VistoriaDetalhe() {
         })
       } else {
         toast.success('Vistoria finalizada — relatório assinado.')
-        docAssinado?.save(
-          nomeArquivoVistoria(
-            vistoria.expand?.empresa_id?.nome_fantasia ||
-              vistoria.expand?.empresa_id?.razao_social ||
-              'Empresa',
-            vistoria.expand?.tipo_vistoria_id?.nr_referencia,
-            vistoria.expand?.tipo_vistoria_id?.nome,
-          ),
-        )
+        docAssinado?.save(nomeArquivoRelatorio(vistoria))
       }
     } catch (error) {
       toast.error('Não foi possível finalizar a vistoria', { description: getErrorMessage(error) })
@@ -1520,6 +1617,12 @@ export default function VistoriaDetalhe() {
   // usa a menor faixa (1 a 10) e o valor sai subestimado.
   const empresaSemEmpregados = !empresa?.numero_funcionarios && (temAnexoI || temPortuario)
   const reaberturas = Array.isArray(vistoria.reaberturas) ? vistoria.reaberturas : []
+  const formulariosConcluidos = modelosForm.filter(
+    (m) => registrosForm[m.id]?.status === 'concluido',
+  ).length
+  const pctFormularios = modelosForm.length
+    ? Math.round((formulariosConcluidos / modelosForm.length) * 100)
+    : 0
 
   return (
     // pb-28: espaço no fim da página para o selo fixo no canto não cobrir o
@@ -1575,26 +1678,7 @@ export default function VistoriaDetalhe() {
               {vistoria.expand.formularios.map((m) => {
                 const reg = registrosForm[m.id]
                 return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={async () => {
-                      if (formAberto === m.id) {
-                        setFormAberto(null)
-                        setModeloAberto(null)
-                        return
-                      }
-                      setFormAberto(m.id)
-                      setModeloAberto(null)
-                      try {
-                        setModeloAberto(await getModeloFormulario(m.id))
-                      } catch (error) {
-                        toast.error('Não foi possível abrir o formulário', {
-                          description: getErrorMessage(error),
-                        })
-                      }
-                    }}
-                  >
+                  <button key={m.id} type="button" onClick={() => alternarFormulario(m.id)}>
                     <Badge
                       variant="secondary"
                       className={
@@ -1802,42 +1886,144 @@ export default function VistoriaDetalhe() {
         </Card>
       )}
 
-      {/* Formulário aberto — preenchimento inline dentro da vistoria */}
-      {formAberto && modeloAberto && (
-        <div className="mb-6 rounded-2xl border bg-card p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">{modeloAberto.nome}</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setFormAberto(null)
-                setModeloAberto(null)
-              }}
-            >
-              Fechar
-            </Button>
-          </div>
-          <FormularioPreenchivel
-            modelo={modeloAberto}
-            registroExistente={registrosForm[formAberto] || null}
-            vistoriaId={vistoria.id}
-            compacto
-            onSalvo={(registro) => {
-              setRegistrosForm((prev) => ({ ...prev, [formAberto]: registro }))
-              setFormAberto(null)
-              setModeloAberto(null)
-            }}
-          />
-        </div>
+      {/* Formulários de campo da vistoria: situação de cada um, preenchimento
+          ali mesmo e PDF individual. O preenchimento só existe aqui. */}
+      {modelosForm.length > 0 && (
+        <Card className="mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Formulários de campo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {modelosForm.map((m) => {
+              const reg = registrosForm[m.id]
+              const aberto = formAberto === m.id
+              const situacao =
+                reg?.status === 'concluido' ? 'Concluído' : reg ? 'Rascunho' : 'Não preenchido'
+              return (
+                <div key={m.id} className="rounded-xl border">
+                  <div className="flex flex-wrap items-center gap-2 p-3">
+                    <ClipboardList className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 text-sm font-medium">{m.nome}</span>
+                    <Badge
+                      variant={reg?.status === 'concluido' ? 'default' : 'secondary'}
+                      className="shrink-0"
+                    >
+                      {situacao}
+                    </Badge>
+                    {reg && modulos?.relatorios !== false && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 gap-1.5"
+                        onClick={() => baixarPdfFormulario(m)}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        PDF
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant={aberto ? 'ghost' : 'outline'}
+                      className="h-8"
+                      onClick={() => alternarFormulario(m.id)}
+                    >
+                      {aberto
+                        ? 'Fechar'
+                        : travada || aguardandoRevisao
+                          ? 'Ver'
+                          : reg
+                            ? 'Continuar'
+                            : 'Preencher'}
+                    </Button>
+                  </div>
+                  {aberto && (
+                    <div className="border-t p-3">
+                      {modeloAberto ? (
+                        <FormularioPreenchivel
+                          key={m.id}
+                          modelo={modeloAberto}
+                          registroExistente={reg || null}
+                          vistoriaId={vistoria.id}
+                          somenteLeitura={travada || aguardandoRevisao}
+                          georreferenciar={!!vistoria.fotos_georreferenciadas}
+                          logoUrl={logoMarcaDagua}
+                          onAlterado={(registro) =>
+                            setRegistrosForm((prev) => ({ ...prev, [m.id]: registro }))
+                          }
+                          onConcluido={(registro) => {
+                            setRegistrosForm((prev) => ({ ...prev, [m.id]: registro }))
+                            setFormAberto(null)
+                            setModeloAberto(null)
+                          }}
+                        />
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Carregando formulário...</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
       )}
+
+      {/* Finalização bloqueada: formulários não concluídos e o que falta. */}
+      <Dialog open={formsPendentesAberto} onOpenChange={setFormsPendentesAberto}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Falta concluir formulário de campo</DialogTitle>
+            <DialogDescription>
+              A vistoria só pode ser finalizada com todos os formulários de campo concluídos. Veja o
+              que falta:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            {formulariosPendentes.map((f) => (
+              <div key={f.id} className="rounded-lg border p-3">
+                <div className="font-medium">{f.nome}</div>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+                  {f.falta.map((texto) => (
+                    <li key={texto}>{texto}</li>
+                  ))}
+                </ul>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-7 text-xs"
+                  onClick={() => {
+                    setFormsPendentesAberto(false)
+                    if (formAberto !== f.id) alternarFormulario(f.id)
+                  }}
+                >
+                  Abrir formulário
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormsPendentesAberto(false)}>
+              Voltar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Progresso — fica visível ao rolar a página pra baixo entre os itens. */}
       <div className="sticky top-0 z-10 mb-3 rounded-lg border bg-background/95 px-4 py-2.5 shadow-subtle backdrop-blur">
         <div className="mb-1.5 flex items-center justify-between gap-3 text-xs font-medium">
           <span>
-            {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
-            respondidos ({progressoPct}%)
+            {temChecklist ? (
+              <>
+                {itensOrdenados.length - resumo.semResposta} de {itensOrdenados.length} itens
+                respondidos ({progressoPct}%)
+              </>
+            ) : (
+              <>
+                {formulariosConcluidos} de {modelosForm.length}{' '}
+                {modelosForm.length === 1 ? 'formulário concluído' : 'formulários concluídos'}
+              </>
+            )}
             {Object.keys(salvandoItem).length > 0 && (
               <span className="ml-2 inline-flex items-center gap-1 text-muted-foreground">
                 <RefreshCw className="h-3 w-3 animate-spin" />
@@ -1863,66 +2049,72 @@ export default function VistoriaDetalhe() {
             </Button>
           )}
         </div>
-        <Progress value={progressoPct} className="h-1.5" />
+        <Progress value={temChecklist ? progressoPct : pctFormularios} className="h-1.5" />
       </div>
 
-      {/* Legenda das situações possíveis do checklist. */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-        <span>
-          <span className="font-semibold text-emerald-600">C</span> — Conforme
-        </span>
-        <span>
-          <span className="font-semibold text-destructive">N/C</span> — Não conforme
-        </span>
-        <span>
-          <span className="font-semibold text-foreground">N/A</span> — Não se aplica
-        </span>
-      </div>
+      {temChecklist && (
+        <>
+          {/* Legenda das situações possíveis do checklist. */}
+          <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <span>
+              <span className="font-semibold text-emerald-600">C</span> — Conforme
+            </span>
+            <span>
+              <span className="font-semibold text-destructive">N/C</span> — Não conforme
+            </span>
+            <span>
+              <span className="font-semibold text-foreground">N/A</span> — Não se aplica
+            </span>
+          </div>
 
-      <Card className="mb-6">
-        <CardContent className="grid grid-cols-2 gap-4 pt-6 sm:grid-cols-4">
-          <div>
-            <div className="text-2xl font-semibold text-emerald-600">{resumo.conforme}</div>
-            <div className="text-xs text-muted-foreground">Conforme</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-destructive">{resumo.naoConforme}</div>
-            <div className="text-xs text-muted-foreground">Não conforme</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-muted-foreground">{resumo.naoAplica}</div>
-            <div className="text-xs text-muted-foreground">Não se aplica</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold">{resumo.semResposta}</div>
-            <div className="text-xs text-muted-foreground">
-              Sem resposta ({itensOrdenados.length} itens)
-            </div>
-          </div>
-        </CardContent>
-        {resumo.naoConforme > 0 && (
-          <>
-            <Separator />
-            <CardContent className="flex items-center gap-3 pt-4">
-              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+          <Card className="mb-6">
+            <CardContent className="grid grid-cols-2 gap-4 pt-6 sm:grid-cols-4">
               <div>
-                <div className="text-sm font-medium">
-                  Estimativa de multa: {currency.format(resumo.multaMin)} a{' '}
-                  {currency.format(resumo.multaMax)}
+                <div className="text-2xl font-semibold text-emerald-600">{resumo.conforme}</div>
+                <div className="text-xs text-muted-foreground">Conforme</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-destructive">{resumo.naoConforme}</div>
+                <div className="text-xs text-muted-foreground">Não conforme</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-muted-foreground">
+                  {resumo.naoAplica}
                 </div>
+                <div className="text-xs text-muted-foreground">Não se aplica</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold">{resumo.semResposta}</div>
                 <div className="text-xs text-muted-foreground">
-                  Soma dos itens marcados como não conforme.
-                  {temAnexoI && ' Gradação do Anexo I da NR-28, convertida da UFIR.'}
-                  {temPortuario &&
-                    ' Itens da NR-29 (trabalho portuário) usam o Anexo I-A da NR-28, cujos valores já são fixados em reais.'}
-                  {temNr31 &&
-                    ` Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRuralPorEmpregado)} por empregado em situação irregular (dobrado na reincidência), calculados pelo nº informado no topo ou no item.`}
+                  Sem resposta ({itensOrdenados.length} itens)
                 </div>
               </div>
             </CardContent>
-          </>
-        )}
-      </Card>
+            {resumo.naoConforme > 0 && (
+              <>
+                <Separator />
+                <CardContent className="flex items-center gap-3 pt-4">
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+                  <div>
+                    <div className="text-sm font-medium">
+                      Estimativa de multa: {currency.format(resumo.multaMin)} a{' '}
+                      {currency.format(resumo.multaMax)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Soma dos itens marcados como não conforme.
+                      {temAnexoI && ' Gradação do Anexo I da NR-28, convertida da UFIR.'}
+                      {temPortuario &&
+                        ' Itens da NR-29 (trabalho portuário) usam o Anexo I-A da NR-28, cujos valores já são fixados em reais.'}
+                      {temNr31 &&
+                        ` Itens da NR-31 (trabalho rural) seguem o art. 18 da Lei 5.889/1973 — ${currency.format(valorRuralPorEmpregado)} por empregado em situação irregular (dobrado na reincidência), calculados pelo nº informado no topo ou no item.`}
+                    </div>
+                  </div>
+                </CardContent>
+              </>
+            )}
+          </Card>
+        </>
+      )}
 
       {temNr31 && (
         <Card className="mb-6 border-amber-300 bg-amber-50">
@@ -2042,48 +2234,52 @@ export default function VistoriaDetalhe() {
       )}
 
       {/* Busca, filtro e índice das seções */}
-      <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar item, código ou trecho do texto"
-            className="pl-9"
-            aria-label="Buscar item"
-          />
-        </div>
-        <Select
-          value={filtroItens}
-          onValueChange={(v) => setFiltroItens(v as 'todos' | 'pendentes' | 'nc')}
-        >
-          <SelectTrigger className="sm:w-[190px]" aria-label="Filtrar itens">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os itens</SelectItem>
-            <SelectItem value="pendentes">Só sem resposta ({resumo.semResposta})</SelectItem>
-            <SelectItem value="nc">Só não conformes ({resumo.naoConforme})</SelectItem>
-          </SelectContent>
-        </Select>
-        {grupos.length > 1 && (
-          <Select value="" onValueChange={irParaSecao}>
-            <SelectTrigger className="sm:w-[190px]" aria-label="Ir para a seção">
-              <SelectValue placeholder="Ir para a seção..." />
+      {temChecklist && (
+        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar item, código ou trecho do texto"
+              className="pl-9"
+              aria-label="Buscar item"
+            />
+          </div>
+          <Select
+            value={filtroItens}
+            onValueChange={(v) => setFiltroItens(v as 'todos' | 'pendentes' | 'nc')}
+          >
+            <SelectTrigger className="sm:w-[190px]" aria-label="Filtrar itens">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {gruposVisiveis.map((g) => (
-                <SelectItem key={g.titulo} value={String(g.indice)}>
-                  {g.titulo}
-                  {g.pendentes.length > 0 ? ` (${g.pendentes.length} sem resposta)` : ' (completa)'}
-                </SelectItem>
-              ))}
+              <SelectItem value="todos">Todos os itens</SelectItem>
+              <SelectItem value="pendentes">Só sem resposta ({resumo.semResposta})</SelectItem>
+              <SelectItem value="nc">Só não conformes ({resumo.naoConforme})</SelectItem>
             </SelectContent>
           </Select>
-        )}
-      </div>
+          {grupos.length > 1 && (
+            <Select value="" onValueChange={irParaSecao}>
+              <SelectTrigger className="sm:w-[190px]" aria-label="Ir para a seção">
+                <SelectValue placeholder="Ir para a seção..." />
+              </SelectTrigger>
+              <SelectContent>
+                {gruposVisiveis.map((g) => (
+                  <SelectItem key={g.titulo} value={String(g.indice)}>
+                    {g.titulo}
+                    {g.pendentes.length > 0
+                      ? ` (${g.pendentes.length} sem resposta)`
+                      : ' (completa)'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
 
-      {gruposVisiveis.length === 0 && (
+      {temChecklist && gruposVisiveis.length === 0 && (
         <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
           {busca.trim()
             ? `Nenhum item encontrado para "${busca.trim()}".`

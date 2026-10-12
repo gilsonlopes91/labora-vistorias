@@ -1,11 +1,15 @@
-/* Formulários — catálogo de modelos (4 fixos do catálogo + customizados da
-   organização) e lista dos registros preenchidos. */
+/* Formulários — biblioteca de modelos (fixos do catálogo + customizados da
+   organização) e lista dos registros preenchidos. Como na auditoria de NRs,
+   aqui só se vê o modelo: o preenchimento acontece dentro de uma vistoria
+   ("Usar numa vistoria" cria a vistoria já com o formulário). */
 import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Link } from 'react-router-dom'
-import { ClipboardList, FilePlus2, Lock, Plus, Trash2 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ClipboardList, Download, Eye, FilePlus2, Lock, Plus, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { camposDoRegistro, gerarPdfFormularios, nomeArquivoFormularios } from '@/lib/pdfFormulario'
+import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
 import { getEmpresas, type Empresa } from '@/services/empresas'
 import {
   getModelosFormulario,
@@ -55,6 +59,24 @@ import {
 
 const iconeDe = (modelo: { icone?: string | null }) => getIconeFormulario(modelo.icone)
 
+const TIPO_CAMPO: Record<string, string> = {
+  texto: 'Texto curto',
+  texto_longo: 'Texto longo',
+  numero: 'Número',
+  sim_nao: 'Sim / Não',
+  selecao: 'Escolha única',
+  multipla: 'Múltipla escolha',
+  data: 'Data',
+  hora: 'Hora',
+  foto: 'Foto',
+  assinatura: 'Assinatura',
+  repetivel: 'Lista de medições',
+  calculo: 'Cálculo automático',
+  calculo_tecnico: 'Cálculo técnico',
+  codigo: 'Código',
+  url: 'Link',
+}
+
 interface CampoRapido {
   nome: string
   tipo: string
@@ -70,6 +92,29 @@ export function FormulariosTab() {
   const [modalNovoAberto, setModalNovoAberto] = useState(false)
   const [salvandoNovo, setSalvandoNovo] = useState(false)
   const [modeloParaExcluir, setModeloParaExcluir] = useState<ModeloFormulario | null>(null)
+  const [modeloVendo, setModeloVendo] = useState<ModeloFormulario | null>(null)
+  const navigate = useNavigate()
+
+  // PDF de um registro preenchido.
+  const baixarPdfRegistro = async (r: Formulario) => {
+    toast.info('Gerando o PDF...')
+    try {
+      const modelo = r.expand?.modelo_formulario_id
+      const empresa = r.expand?.empresa_id as
+        | { razao_social: string; nome_fantasia?: string; cnpj?: string; endereco?: string }
+        | undefined
+      const nomeEmpresa = empresa?.nome_fantasia || empresa?.razao_social || 'Empresa'
+      const titulo = modelo?.nome || 'Formulário'
+      const doc = await gerarPdfFormularios({
+        formularios: [{ registro: r, campos: camposDoRegistro(r), titulo }],
+        empresa: { nome: nomeEmpresa, cnpj: empresa?.cnpj, endereco: empresa?.endereco },
+        titulo,
+      })
+      doc.save(nomeArquivoFormularios(nomeEmpresa, titulo))
+    } catch (error) {
+      toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
+    }
+  }
 
   // Dados do formulário de criação rápida
   const [novoNome, setNovoNome] = useState('')
@@ -222,10 +267,25 @@ export function FormulariosTab() {
         {modelo.descricao && (
           <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{modelo.descricao}</p>
         )}
-        <div className="mt-auto pt-4">
-          <Button asChild size="sm" className="w-full rounded-full">
-            <Link to={`/formularios/${modelo.id}/preencher`}>Preencher</Link>
+        <div className="mt-auto flex gap-2 pt-4">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 rounded-full"
+            onClick={() => setModeloVendo(modelo)}
+          >
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Ver campos
           </Button>
+          <NovaVistoriaDialog
+            formulariosIniciais={[modelo.id]}
+            onCreated={(vistoriaId) => navigate(`/vistorias/${vistoriaId}`)}
+            trigger={
+              <Button size="sm" className="flex-1 rounded-full">
+                Usar numa vistoria
+              </Button>
+            }
+          />
         </div>
       </Card>
     )
@@ -237,7 +297,8 @@ export function FormulariosTab() {
         <div>
           <h2 className="text-xl font-bold tracking-tight">Formulários e Fichas de Campo</h2>
           <p className="text-sm text-muted-foreground">
-            Registros de campo além das vistorias — medições, inspeções e verificações.
+            Modelos de fichas de campo — medições, inspeções e verificações. O preenchimento é feito
+            dentro de uma vistoria.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -320,7 +381,7 @@ export function FormulariosTab() {
                 <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   {registros.length === 0
-                    ? 'Nenhum registro preenchido ainda — preencha um modelo na aba Modelos.'
+                    ? 'Nenhum registro preenchido ainda. Use um modelo numa vistoria para preenchê-lo.'
                     : 'Nenhum registro para a empresa selecionada.'}
                 </p>
               </div>
@@ -331,7 +392,7 @@ export function FormulariosTab() {
                   const empresa = r.expand?.empresa_id
                   const Icone = getIconeFormulario(modelo?.icone)
                   return (
-                    <div key={r.id} className="flex items-center gap-3 px-3 py-3">
+                    <div key={r.id} className="flex flex-wrap items-center gap-3 px-3 py-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                         <Icone className="h-4 w-4" />
                       </div>
@@ -341,8 +402,8 @@ export function FormulariosTab() {
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
                           {empresa ? `${empresa.nome_fantasia || empresa.razao_social} · ` : ''}
-                          {new Date(r.created).toLocaleDateString('pt-BR')} ·{' '}
-                          {r.status === 'concluido' ? 'Concluído' : 'Rascunho'}
+                          {new Date(r.data_campo || r.created).toLocaleDateString('pt-BR')}
+                          {r.vistoria_id ? '' : ' · preenchido fora de vistoria'}
                         </p>
                       </div>
                       <Badge
@@ -351,6 +412,20 @@ export function FormulariosTab() {
                       >
                         {r.status === 'concluido' ? 'Concluído' : 'Rascunho'}
                       </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 shrink-0 gap-1.5"
+                        onClick={() => baixarPdfRegistro(r)}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        PDF
+                      </Button>
+                      {r.vistoria_id && (
+                        <Button asChild size="sm" variant="outline" className="h-8 shrink-0">
+                          <Link to={`/vistorias/${r.vistoria_id}`}>Abrir vistoria</Link>
+                        </Button>
+                      )}
                     </div>
                   )
                 })}
@@ -484,6 +559,51 @@ export function FormulariosTab() {
             </Button>
             <Button type="button" onClick={salvarNovoFormulario} disabled={salvandoNovo}>
               {salvandoNovo ? 'Criando formulário...' : 'Criar formulário'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Campos do modelo, só para consulta (como os itens da auditoria de NRs). */}
+      <Dialog open={!!modeloVendo} onOpenChange={(aberto) => !aberto && setModeloVendo(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{modeloVendo?.nome}</DialogTitle>
+            <DialogDescription>
+              Campos do modelo. Para preencher, use o modelo numa vistoria.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="divide-y text-sm">
+            {(modeloVendo?.campos || []).map((campo) =>
+              campo.tipo === 'secao' ? (
+                <p
+                  key={campo.id}
+                  className="pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pt-0"
+                >
+                  {campo.nome}
+                </p>
+              ) : (
+                <div key={campo.id} className="flex items-start justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <span>{campo.nome}</span>
+                    {campo.obrigatorio && <span className="text-destructive"> *</span>}
+                    {campo.tipo === 'repetivel' && !!campo.subcampos?.length && (
+                      <p className="text-xs text-muted-foreground">
+                        {campo.subcampos.map((s) => s.nome).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="shrink-0 text-[10px]">
+                    {TIPO_CAMPO[campo.tipo] || campo.tipo}
+                    {campo.unidade ? ` (${campo.unidade})` : ''}
+                  </Badge>
+                </div>
+              ),
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModeloVendo(null)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
