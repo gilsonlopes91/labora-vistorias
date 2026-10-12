@@ -30,9 +30,13 @@ import {
   enfileirarAlteracao,
   removerPendencia,
   marcarErroPendencia,
+  alterarFormularioPendente,
+  listarFormulariosPendentes,
   type PendenciaResposta,
   type AlteracaoResposta,
+  type PendenciaFormulario,
 } from '@/lib/filaOffline'
+import { enviarFormularioPendente } from '@/lib/sincronizarFormularios'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
 import { gerarPdfVistoria, nomeArquivoVistoria } from '@/lib/relatorioVistoria'
 import { hashSha256, type AssinaturaEletronica } from '@/lib/gerarPdfPgr'
@@ -261,6 +265,11 @@ export default function VistoriaDetalhe() {
   const [pendentesDialogAberto, setPendentesDialogAberto] = useState(false)
   // Formulários de campo não concluídos na hora de finalizar (bloqueia).
   const [formsPendentesAberto, setFormsPendentesAberto] = useState(false)
+  // Formulários de campo guardados neste aparelho (sem internet), por modelo.
+  const [formsPendentes, setFormsPendentes] = useState<Record<string, PendenciaFormulario>>({})
+  const sincronizandoFormsRef = useRef(false)
+  const formAbertoRef = useRef<string | null>(null)
+  formAbertoRef.current = formAberto
   const [marcandoNA, setMarcandoNA] = useState(false)
 
   // Reabertura de vistoria concluída (dono/gerente).
@@ -377,6 +386,12 @@ export default function VistoriaDetalhe() {
         setRegistrosForm(map)
       } catch (_) {
         setRegistrosForm({})
+      }
+      try {
+        const guardados = await listarFormulariosPendentes(v.id)
+        setFormsPendentes(Object.fromEntries(guardados.map((p) => [p.modelo_formulario_id, p])))
+      } catch (_) {
+        setFormsPendentes({})
       }
       const map: Record<string, RespostaVistoria> = {}
       for (const r of respostasVistoria) map[r.item_checklist_id] = r
@@ -768,6 +783,72 @@ export default function VistoriaDetalhe() {
     if (temPendencias && navigator.onLine) sincronizar()
   }, [temPendencias, sincronizar])
 
+  // Formulários de campo feitos sem internet: sobem sozinhos quando a conexão
+  // volta. O que está aberto na tela é enviado pelo próprio formulário.
+  const recarregarFormsPendentes = useCallback(async () => {
+    if (!id) return
+    const guardados = await listarFormulariosPendentes(id)
+    setFormsPendentes(Object.fromEntries(guardados.map((p) => [p.modelo_formulario_id, p])))
+  }, [id])
+
+  const sincronizarFormularios = useCallback(
+    async (forcar = false) => {
+      if (!id || sincronizandoFormsRef.current || !navigator.onLine) return
+      const lista = (await listarFormulariosPendentes(id)).filter(
+        (p) => p.modelo_formulario_id !== formAbertoRef.current && (forcar || !p.erro),
+      )
+      if (lista.length === 0) return
+      sincronizandoFormsRef.current = true
+      let enviados = 0
+      try {
+        for (const p of lista) {
+          try {
+            const { registro } = await enviarFormularioPendente(p)
+            setRegistrosForm((prev) => ({ ...prev, [p.modelo_formulario_id]: registro }))
+            enviados++
+          } catch (error) {
+            if (isErroTemporario(error)) break
+            const msg = getErrorMessage(error)
+            await alterarFormularioPendente(p.chave, (atual) =>
+              atual ? { ...atual, erro: msg } : undefined,
+            )
+          }
+        }
+      } finally {
+        sincronizandoFormsRef.current = false
+      }
+      await recarregarFormsPendentes()
+      if (enviados > 0) {
+        toast.success(
+          enviados === 1
+            ? '1 formulário guardado no aparelho foi enviado'
+            : `${enviados} formulários guardados no aparelho foram enviados`,
+        )
+        renovarTokenArquivos()
+      }
+    },
+    [id, recarregarFormsPendentes, renovarTokenArquivos],
+  )
+
+  const totalFormsPendentes = Object.keys(formsPendentes).length
+
+  useEffect(() => {
+    const aoVoltar = () => {
+      sincronizarFormularios()
+    }
+    window.addEventListener('online', aoVoltar)
+    return () => window.removeEventListener('online', aoVoltar)
+  }, [sincronizarFormularios])
+
+  useEffect(() => {
+    if (totalFormsPendentes === 0) return
+    if (navigator.onLine) sincronizarFormularios()
+    const t = window.setInterval(() => {
+      if (navigator.onLine) sincronizarFormularios()
+    }, 20_000)
+    return () => window.clearInterval(t)
+  }, [totalFormsPendentes, sincronizarFormularios])
+
   // Resposta mostrada na tela = servidor + o que está guardado no aparelho.
   const respostasVisiveis = useMemo(() => {
     const mapa: Record<string, RespostaVisivel> = { ...respostas }
@@ -883,6 +964,12 @@ export default function VistoriaDetalhe() {
     () =>
       (vistoria?.expand?.formularios || [])
         .map((m) => {
+          if (formsPendentes[m.id])
+            return {
+              id: m.id,
+              nome: m.nome,
+              falta: ['Está guardado neste aparelho e ainda não foi enviado: conecte à internet.'],
+            }
           const reg = registrosForm[m.id]
           if (!reg) return { id: m.id, nome: m.nome, falta: ['Ainda não foi preenchido.'] }
           if (reg.status === 'concluido') return null
@@ -901,7 +988,7 @@ export default function VistoriaDetalhe() {
           }
         })
         .filter((f): f is { id: string; nome: string; falta: string[] } => !!f),
-    [vistoria, registrosForm],
+    [vistoria, registrosForm, formsPendentes],
   )
 
   const paraPdf = (v: Vistoria, modelo: ModeloFormulario, reg: Formulario): FormularioParaPdf => ({
@@ -926,6 +1013,12 @@ export default function VistoriaDetalhe() {
     if (formAberto === modeloId) {
       setFormAberto(null)
       setModeloAberto(null)
+      // O que ficou guardado no aparelho sobe agora, se houver internet.
+      window.setTimeout(() => sincronizarFormularios(), 600)
+      return
+    }
+    if (sincronizandoFormsRef.current) {
+      toast.info('Aguarde um instante: estou enviando o que estava guardado neste aparelho.')
       return
     }
     setFormAberto(modeloId)
@@ -1088,7 +1181,7 @@ export default function VistoriaDetalhe() {
       })
       return
     }
-    if (totalPendencias > 0) {
+    if (totalPendencias > 0 || totalFormsPendentes > 0) {
       toast.error('Ainda há respostas guardadas neste aparelho', {
         description:
           'Conecte-se à internet e toque em "Enviar agora" antes de finalizar, para o relatório sair completo.',
@@ -1618,7 +1711,7 @@ export default function VistoriaDetalhe() {
   const empresaSemEmpregados = !empresa?.numero_funcionarios && (temAnexoI || temPortuario)
   const reaberturas = Array.isArray(vistoria.reaberturas) ? vistoria.reaberturas : []
   const formulariosConcluidos = modelosForm.filter(
-    (m) => registrosForm[m.id]?.status === 'concluido',
+    (m) => (formsPendentes[m.id]?.status ?? registrosForm[m.id]?.status) === 'concluido',
   ).length
   const pctFormularios = modelosForm.length
     ? Math.round((formulariosConcluidos / modelosForm.length) * 100)
@@ -1855,6 +1948,33 @@ export default function VistoriaDetalhe() {
         </div>
       )}
 
+      {/* Formulários de campo guardados neste aparelho. */}
+      {totalFormsPendentes > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <CloudOff className="h-4 w-4 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold">
+              {totalFormsPendentes === 1
+                ? '1 formulário de campo guardado neste aparelho'
+                : `${totalFormsPendentes} formulários de campo guardados neste aparelho`}
+            </span>{' '}
+            ainda não {totalFormsPendentes === 1 ? 'foi enviado' : 'foram enviados'}. Sobem sozinhos
+            quando a internet voltar. Não limpe os dados do navegador até lá.
+          </div>
+          {online && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 border-amber-400 bg-white text-xs"
+              onClick={() => sincronizarFormularios(true)}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Enviar agora
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Empresa sem nº de empregados: a multa sai pela menor faixa. */}
       {empresaSemEmpregados && !travada && (
         <Card className="mb-4 border-amber-300 bg-amber-50">
@@ -1896,20 +2016,36 @@ export default function VistoriaDetalhe() {
           <CardContent className="space-y-3">
             {modelosForm.map((m) => {
               const reg = registrosForm[m.id]
+              const guardado = formsPendentes[m.id]
               const aberto = formAberto === m.id
+              const statusForm = guardado?.status ?? reg?.status
               const situacao =
-                reg?.status === 'concluido' ? 'Concluído' : reg ? 'Rascunho' : 'Não preenchido'
+                statusForm === 'concluido'
+                  ? 'Concluído'
+                  : guardado || reg
+                    ? 'Rascunho'
+                    : 'Não preenchido'
               return (
                 <div key={m.id} className="rounded-xl border">
                   <div className="flex flex-wrap items-center gap-2 p-3">
                     <ClipboardList className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 text-sm font-medium">{m.nome}</span>
                     <Badge
-                      variant={reg?.status === 'concluido' ? 'default' : 'secondary'}
+                      variant={statusForm === 'concluido' ? 'default' : 'secondary'}
                       className="shrink-0"
                     >
                       {situacao}
                     </Badge>
+                    {guardado && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 gap-1 border-amber-400 text-amber-700"
+                        title={guardado.erro}
+                      >
+                        <CloudOff className="h-3 w-3" />
+                        {guardado.erro ? 'Não enviado' : 'Guardado no aparelho'}
+                      </Badge>
+                    )}
                     {reg && modulos?.relatorios !== false && (
                       <Button
                         size="sm"
@@ -1944,14 +2080,20 @@ export default function VistoriaDetalhe() {
                           modelo={modeloAberto}
                           registroExistente={reg || null}
                           vistoriaId={vistoria.id}
+                          organizacaoId={vistoria.organizacao_id}
                           somenteLeitura={travada || aguardandoRevisao}
                           georreferenciar={!!vistoria.fotos_georreferenciadas}
                           logoUrl={logoMarcaDagua}
                           onAlterado={(registro) =>
                             setRegistrosForm((prev) => ({ ...prev, [m.id]: registro }))
                           }
+                          onPendenciaChange={() => {
+                            recarregarFormsPendentes().catch(() => {})
+                          }}
                           onConcluido={(registro) => {
-                            setRegistrosForm((prev) => ({ ...prev, [m.id]: registro }))
+                            if (registro) {
+                              setRegistrosForm((prev) => ({ ...prev, [m.id]: registro }))
+                            }
                             setFormAberto(null)
                             setModeloAberto(null)
                           }}

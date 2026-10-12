@@ -62,6 +62,20 @@ export interface FormularioInput {
   client_uuid: string
 }
 
+// Registro já criado com este client_uuid (envio refeito depois de uma queda).
+export const buscarFormularioPorUuid = async (uuid: string) => {
+  try {
+    return await pb
+      .collection('formularios')
+      .getFirstListItem<Formulario>(pb.filter('client_uuid = {:u}', { u: uuid }), {
+        requestKey: null,
+      })
+  } catch (error) {
+    if ((error as { status?: number })?.status === 404) return null
+    throw error
+  }
+}
+
 export const createFormulario = (data: FormularioInput) =>
   pb.collection('formularios').create<Formulario>(data)
 

@@ -1,18 +1,41 @@
 /* Formulário de campo preenchido dentro da vistoria. O preenchimento só existe
    dentro de uma vistoria (a biblioteca de formulários só mostra o modelo).
    - Salva sozinho enquanto o técnico digita (rascunho), e tem os botões
-     "Salvar rascunho" e "Concluir" no fim — concluir exige os obrigatórios.
+     "Salvar rascunho" e "Concluir formulário" no fim — concluir exige os
+     obrigatórios.
+   - Sem internet, tudo (dados, fotos e assinatura) fica guardado neste aparelho
+     e sobe sozinho quando a conexão volta (filaOffline.ts e
+     sincronizarFormularios.ts).
    - Fotos: "Tirar foto" abre a câmera do celular; "Galeria" escolhe arquivos.
-     Toda foto recebe a marca d'água (data/hora, coordenada e logo) e sobe na
-     hora, para não se perder.
+     Toda foto recebe a marca d'água (data/hora, coordenada e logo).
    - Assinatura: desenhada e gravada como anexo.
    - Vistoria concluída ou em revisão: abre só para leitura. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Camera, Check, ImagePlus, PenTool, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react'
+import {
+  Camera,
+  Check,
+  CloudOff,
+  ImagePlus,
+  PenTool,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { isErroTemporario } from '@/lib/errosConexao'
 import { aplicarMarcaDagua } from '@/lib/marcaDagua'
+import {
+  alterarFormularioPendente,
+  chaveFormulario,
+  lerFormularioPendente,
+  salvarFormularioPendente,
+  type PendenciaFormulario,
+} from '@/lib/filaOffline'
+import { enviarFormularioPendente, substituirNomes } from '@/lib/sincronizarFormularios'
 import {
   calcularCampo,
   campoVisivel,
@@ -22,7 +45,6 @@ import {
 } from '@/lib/formularioCampos'
 import ResultadoTecnicoView, { resumoCalculosTecnicos } from '@/components/ResultadoTecnico'
 import type { CampoFormulario, ModeloFormulario } from '@/services/formularios'
-import { getMinhaOrganizacao } from '@/services/organizacoes'
 import { getTokenArquivos } from '@/services/respostasVistoria'
 import {
   adicionarAnexos,
@@ -51,18 +73,23 @@ interface FormularioPreenchivelProps {
   modelo: ModeloFormulario
   registroExistente?: Formulario | null
   vistoriaId: string
+  organizacaoId: string
   /** Vistoria concluída ou aguardando revisão: só leitura. */
   somenteLeitura?: boolean
   /** Fotos com coordenada na marca d'água (opção da vistoria). */
   georreferenciar?: boolean
   logoUrl?: string
-  /** Chamado a cada gravação (rascunho automático, foto, assinatura). */
+  /** Chamado a cada gravação no servidor (rascunho automático, foto, assinatura). */
   onAlterado?: (registro: Formulario) => void
-  /** Chamado quando o técnico conclui o formulário. */
-  onConcluido?: (registro: Formulario) => void
+  /** Chamado quando o técnico conclui o formulário. Sem internet o registro
+   *  vem null: o formulário ficou guardado no aparelho. */
+  onConcluido?: (registro: Formulario | null) => void
+  /** Chamado quando a fila do aparelho muda (guardou ou enviou algo). */
+  onPendenciaChange?: () => void
 }
 
-type EstadoGravacao = 'salvo' | 'pendente' | 'salvando' | 'erro'
+type EstadoGravacao = 'salvo' | 'pendente' | 'salvando' | 'local' | 'erro'
+type StatusForm = 'rascunho' | 'concluido'
 
 function obterLocalizacao(): Promise<{ lat: number; lon: number }> {
   return new Promise((resolve, reject) => {
@@ -82,11 +109,13 @@ export default function FormularioPreenchivel({
   modelo,
   registroExistente,
   vistoriaId,
+  organizacaoId,
   somenteLeitura,
   georreferenciar,
   logoUrl,
   onAlterado,
   onConcluido,
+  onPendenciaChange,
 }: FormularioPreenchivelProps) {
   // Registro já existente abre com os campos que o modelo tinha quando foi
   // preenchido (cópia guardada no registro), mesmo que o modelo tenha mudado.
@@ -97,22 +126,33 @@ export default function FormularioPreenchivel({
 
   const [dados, setDados] = useState<Record<string, unknown>>(registroExistente?.dados || {})
   const dadosRef = useRef<Record<string, unknown>>(registroExistente?.dados || {})
+  // Conta as alterações: se mudar durante um envio, grava de novo depois.
+  const versaoRef = useRef(0)
   const [registro, setRegistro] = useState<Formulario | null>(registroExistente || null)
   const registroRef = useRef<Formulario | null>(registroExistente || null)
   const clientUuid = useRef(crypto.randomUUID())
 
+  // O que está guardado neste aparelho (sem internet) e as miniaturas das
+  // fotos que ainda não subiram.
+  const pendenteRef = useRef<PendenciaFormulario | null>(null)
+  const urlsLocais = useRef(new Map<string, string>())
+  const [pronto, setPronto] = useState(false)
+
   const [estado, setEstado] = useState<EstadoGravacao>('salvo')
+  const [mensagemErro, setMensagemErro] = useState('')
   const [ultimoSalvo, setUltimoSalvo] = useState<Date | null>(null)
   const [concluindo, setConcluindo] = useState(false)
   const [enviandoArquivo, setEnviandoArquivo] = useState<string | null>(null)
   const [token, setToken] = useState('')
 
-  // Uma operação por vez no servidor: evita criar o registro duas vezes e
-  // gravar dados fora de ordem.
+  // Uma operação por vez: evita criar o registro duas vezes e gravar dados
+  // fora de ordem.
   const filaRef = useRef<Promise<unknown>>(Promise.resolve())
   const timerRef = useRef<number | null>(null)
   const alteradoRef = useRef(onAlterado)
   alteradoRef.current = onAlterado
+  const pendenciaRef = useRef(onPendenciaChange)
+  pendenciaRef.current = onPendenciaChange
 
   const renovarToken = useCallback(() => {
     getTokenArquivos()
@@ -123,6 +163,33 @@ export default function FormularioPreenchivel({
   useEffect(() => {
     renovarToken()
   }, [renovarToken])
+
+  // Abre já com o que ficou guardado neste aparelho, que é mais novo que o servidor.
+  useEffect(() => {
+    let ativo = true
+    const urls = urlsLocais.current
+    lerFormularioPendente(vistoriaId, modelo.id)
+      .then((p) => {
+        if (!ativo || !p) return
+        pendenteRef.current = p
+        clientUuid.current = p.client_uuid
+        dadosRef.current = p.dados
+        setDados(p.dados)
+        for (const a of p.arquivos) {
+          urls.set(`local:${a.id}`, URL.createObjectURL(a.arquivo))
+        }
+        setEstado('local')
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (ativo) setPronto(true)
+      })
+    return () => {
+      ativo = false
+      urls.forEach((u) => URL.revokeObjectURL(u))
+      urls.clear()
+    }
+  }, [vistoriaId, modelo.id])
 
   const enfileirar = <T,>(fn: () => Promise<T>): Promise<T> => {
     const p = filaRef.current.then(fn)
@@ -138,9 +205,8 @@ export default function FormularioPreenchivel({
 
   const garantirRegistro = async (): Promise<Formulario> => {
     if (registroRef.current) return registroRef.current
-    const org = await getMinhaOrganizacao()
     const criado = await createFormulario({
-      organizacao_id: org.id,
+      organizacao_id: organizacaoId,
       modelo_formulario_id: modelo.id,
       vistoria_id: vistoriaId,
       dados: resumoCalculosTecnicos(campos, dadosRef.current),
@@ -152,26 +218,112 @@ export default function FormularioPreenchivel({
     return criado
   }
 
-  const gravar = (statusDesejado?: 'rascunho' | 'concluido') =>
-    enfileirar(async () => {
+  // Situação do formulário: concluído só enquanto os obrigatórios estiverem preenchidos.
+  const statusAtual = (): StatusForm => {
+    const base = pendenteRef.current?.status ?? registroRef.current?.status
+    return base === 'concluido' && obrigatoriosPendentes(campos, dadosRef.current).length === 0
+      ? 'concluido'
+      : 'rascunho'
+  }
+
+  // ---------- Guardar neste aparelho e enviar ----------
+
+  const guardarLocal = async (status: StatusForm, mutar?: (p: PendenciaFormulario) => void) => {
+    const base = pendenteRef.current
+    const nova: PendenciaFormulario = {
+      chave: chaveFormulario(vistoriaId, modelo.id),
+      vistoria_id: vistoriaId,
+      modelo_formulario_id: modelo.id,
+      organizacao_id: organizacaoId,
+      registro_id: registroRef.current?.id || base?.registro_id,
+      client_uuid: base?.client_uuid || clientUuid.current,
+      dados: resumoCalculosTecnicos(campos, dadosRef.current),
+      status,
+      arquivos: [...(base?.arquivos || [])],
+      anexos_remover: [...(base?.anexos_remover || [])],
+      criado_em: base?.criado_em || Date.now(),
+      atualizado_em: Date.now(),
+    }
+    mutar?.(nova)
+    await salvarFormularioPendente(nova)
+    pendenteRef.current = nova
+    pendenciaRef.current?.()
+    return nova
+  }
+
+  // Envia o que está guardado. Devolve o registro gravado, ou null se não há
+  // nada guardado ou não há internet.
+  const tentarEnviar = async (): Promise<Formulario | null> => {
+    const p = pendenteRef.current
+    if (!p || !navigator.onLine) return null
+    const versaoAntes = versaoRef.current
+    try {
+      const { registro: salvo, nomes } = await enviarFormularioPendente(p)
+      pendenteRef.current = null
+      urlsLocais.current.forEach((u) => URL.revokeObjectURL(u))
+      urlsLocais.current.clear()
+      const trocados = substituirNomes(dadosRef.current, nomes)
+      dadosRef.current = trocados
+      setDados(trocados)
+      definirRegistro(salvo)
+      pendenciaRef.current?.()
+      renovarToken()
+      // Digitou durante o envio: grava de novo.
+      if (versaoRef.current !== versaoAntes) agendarGravacao()
+      return salvo
+    } catch (error) {
+      if (!isErroTemporario(error)) {
+        const msg = getErrorMessage(error)
+        await alterarFormularioPendente(p.chave, (atual) =>
+          atual ? { ...atual, erro: msg } : undefined,
+        ).catch(() => {})
+        pendenciaRef.current?.()
+      }
+      throw error
+    }
+  }
+
+  const gravar = (statusDesejado?: StatusForm) =>
+    enfileirar(async (): Promise<{ registro: Formulario | null }> => {
       setEstado('salvando')
+      setMensagemErro('')
       try {
-        const reg = await garantirRegistro()
-        const pendentes = obrigatoriosPendentes(campos, dadosRef.current)
-        // Formulário concluído que perdeu um obrigatório volta a rascunho.
-        const status =
-          statusDesejado ??
-          (reg.status === 'concluido' && pendentes.length === 0 ? 'concluido' : 'rascunho')
-        const salvo = await updateFormulario(reg.id, {
-          dados: resumoCalculosTecnicos(campos, dadosRef.current),
-          status,
-        })
-        definirRegistro(salvo)
-        setEstado('salvo')
-        setUltimoSalvo(new Date())
-        return salvo
+        const status = statusDesejado ?? statusAtual()
+        const dadosFinal = resumoCalculosTecnicos(campos, dadosRef.current)
+
+        // Com internet e nada guardado no aparelho, grava direto no servidor.
+        if (navigator.onLine && !pendenteRef.current) {
+          try {
+            const reg = await garantirRegistro()
+            const salvo = await updateFormulario(reg.id, { dados: dadosFinal, status })
+            definirRegistro(salvo)
+            setEstado('salvo')
+            setUltimoSalvo(new Date())
+            return { registro: salvo }
+          } catch (error) {
+            if (!isErroTemporario(error)) throw error
+            // sem conexão de verdade: segue para o aparelho
+          }
+        }
+
+        await guardarLocal(status)
+        if (navigator.onLine) {
+          try {
+            const enviado = await tentarEnviar()
+            if (enviado) {
+              setEstado('salvo')
+              setUltimoSalvo(new Date())
+              return { registro: enviado }
+            }
+          } catch (error) {
+            if (!isErroTemporario(error)) throw error
+          }
+        }
+        setEstado('local')
+        return { registro: null }
       } catch (error) {
         setEstado('erro')
+        setMensagemErro(getErrorMessage(error))
         throw error
       }
     })
@@ -179,10 +331,7 @@ export default function FormularioPreenchivel({
   const gravarRef = useRef(gravar)
   gravarRef.current = gravar
 
-  // Muda os dados e agenda a gravação automática.
-  const atualizarDados = (novos: Record<string, unknown>) => {
-    dadosRef.current = novos
-    setDados(novos)
+  const agendarGravacao = () => {
     if (somenteLeitura) return
     setEstado('pendente')
     if (timerRef.current) window.clearTimeout(timerRef.current)
@@ -190,6 +339,14 @@ export default function FormularioPreenchivel({
       timerRef.current = null
       gravarRef.current().catch(() => {})
     }, 1200)
+  }
+
+  // Muda os dados e agenda a gravação automática.
+  const atualizarDados = (novos: Record<string, unknown>) => {
+    dadosRef.current = novos
+    versaoRef.current += 1
+    setDados(novos)
+    agendarGravacao()
   }
 
   // Saiu da tela com alteração esperando: grava antes.
@@ -219,14 +376,22 @@ export default function FormularioPreenchivel({
 
   const pendentes = useMemo(() => obrigatoriosPendentes(campos, dados), [campos, dados])
 
-  const salvarRascunho = async () => {
+  const limparTimer = () => {
     if (timerRef.current) {
       window.clearTimeout(timerRef.current)
       timerRef.current = null
     }
+  }
+
+  const salvarRascunho = async () => {
+    limparTimer()
     try {
-      await gravar()
-      toast.success('Rascunho salvo')
+      const r = await gravar()
+      if (r.registro) toast.success('Rascunho salvo')
+      else
+        toast.info('Rascunho guardado neste aparelho', {
+          description: 'Será enviado sozinho quando a internet voltar.',
+        })
     } catch (error) {
       toast.error('Não foi possível salvar o formulário', { description: getErrorMessage(error) })
     }
@@ -237,15 +402,17 @@ export default function FormularioPreenchivel({
       toast.error('Falta preencher para concluir', { description: pendentes.join('; ') })
       return
     }
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
+    limparTimer()
     setConcluindo(true)
     try {
-      const salvo = await gravar('concluido')
-      toast.success('Formulário concluído')
-      onConcluido?.(salvo)
+      const r = await gravar('concluido')
+      if (r.registro) toast.success('Formulário concluído')
+      else
+        toast.success('Formulário concluído e guardado neste aparelho', {
+          description:
+            'Será enviado sozinho quando a internet voltar. A vistoria só pode ser finalizada depois do envio.',
+        })
+      onConcluido?.(r.registro)
     } catch (error) {
       toast.error('Não foi possível concluir o formulário', {
         description: getErrorMessage(error),
@@ -274,10 +441,40 @@ export default function FormularioPreenchivel({
         arquivos.map((f) => aplicarMarcaDagua(f, { dataHora: agora, localizacao, logoUrl })),
       )
       await enfileirar(async () => {
-        const reg = await garantirRegistro()
-        const { registro: atualizado, novos } = await adicionarAnexos(reg, marcadas)
-        definirRegistro(atualizado)
-        setValor(campoId, [...listaArquivos(dadosRef.current[campoId]), ...novos])
+        const guardarNoAparelho = async () => {
+          const novos = marcadas.map((arquivo) => ({ id: crypto.randomUUID(), arquivo }))
+          for (const n of novos) {
+            urlsLocais.current.set(`local:${n.id}`, URL.createObjectURL(n.arquivo))
+          }
+          atualizarDados({
+            ...dadosRef.current,
+            [campoId]: [
+              ...listaArquivos(dadosRef.current[campoId]),
+              ...novos.map((n) => `local:${n.id}`),
+            ],
+          })
+          await guardarLocal(statusAtual(), (p) => {
+            p.arquivos.push(...novos)
+          })
+          setEstado('local')
+        }
+
+        if (!navigator.onLine || pendenteRef.current) {
+          await guardarNoAparelho()
+          return
+        }
+        try {
+          const reg = await garantirRegistro()
+          const { registro: atualizado, novos } = await adicionarAnexos(reg, marcadas)
+          definirRegistro(atualizado)
+          atualizarDados({
+            ...dadosRef.current,
+            [campoId]: [...listaArquivos(dadosRef.current[campoId]), ...novos],
+          })
+        } catch (error) {
+          if (!isErroTemporario(error)) throw error
+          await guardarNoAparelho()
+        }
       })
       renovarToken()
     } catch (error) {
@@ -289,29 +486,92 @@ export default function FormularioPreenchivel({
 
   const removerFoto = async (campoId: string, nome: string) => {
     if (somenteLeitura) return
+    const restantes = listaArquivos(dadosRef.current[campoId]).filter((n) => n !== nome)
     try {
       await enfileirar(async () => {
-        const reg = await garantirRegistro()
-        definirRegistro(await removerAnexos(reg.id, [nome]))
-        setValor(
-          campoId,
-          listaArquivos(dadosRef.current[campoId]).filter((n) => n !== nome),
-        )
+        // Foto que ainda não subiu: só sai da fila do aparelho.
+        if (nome.startsWith('local:')) {
+          const url = urlsLocais.current.get(nome)
+          if (url) URL.revokeObjectURL(url)
+          urlsLocais.current.delete(nome)
+          atualizarDados({ ...dadosRef.current, [campoId]: restantes })
+          await guardarLocal(statusAtual(), (p) => {
+            p.arquivos = p.arquivos.filter((a) => `local:${a.id}` !== nome)
+          })
+          setEstado('local')
+          return
+        }
+        const guardarNoAparelho = async () => {
+          atualizarDados({ ...dadosRef.current, [campoId]: restantes })
+          await guardarLocal(statusAtual(), (p) => {
+            p.anexos_remover.push(nome)
+          })
+          setEstado('local')
+        }
+        if (!navigator.onLine || pendenteRef.current) {
+          await guardarNoAparelho()
+          return
+        }
+        try {
+          const reg = await garantirRegistro()
+          definirRegistro(await removerAnexos(reg.id, [nome]))
+          atualizarDados({ ...dadosRef.current, [campoId]: restantes })
+        } catch (error) {
+          if (!isErroTemporario(error)) throw error
+          await guardarNoAparelho()
+        }
       })
     } catch (error) {
       toast.error('Não foi possível remover a foto', { description: getErrorMessage(error) })
     }
   }
 
-  const salvarAssinatura = async (campoId: string, arquivo: File) => {
+  // Grava a assinatura (ou apaga, com arquivo null), trocando a anterior.
+  const definirAssinatura = async (campoId: string, arquivo: File | null) => {
+    if (somenteLeitura) return
     setEnviandoArquivo(campoId)
     try {
       await enfileirar(async () => {
-        const reg = await garantirRegistro()
-        const anterior = listaArquivos(dadosRef.current[campoId])
-        const { registro: atualizado, novos } = await adicionarAnexos(reg, [arquivo])
-        definirRegistro(anterior.length ? await removerAnexos(atualizado.id, anterior) : atualizado)
-        setValor(campoId, novos[0] || '')
+        const anteriores = listaArquivos(dadosRef.current[campoId])
+        const locais = anteriores.filter((n) => n.startsWith('local:'))
+        const remotos = anteriores.filter((n) => !n.startsWith('local:'))
+
+        const guardarNoAparelho = async () => {
+          const novo = arquivo ? { id: crypto.randomUUID(), arquivo } : null
+          for (const n of locais) {
+            const url = urlsLocais.current.get(n)
+            if (url) URL.revokeObjectURL(url)
+            urlsLocais.current.delete(n)
+          }
+          if (novo) urlsLocais.current.set(`local:${novo.id}`, URL.createObjectURL(novo.arquivo))
+          atualizarDados({ ...dadosRef.current, [campoId]: novo ? `local:${novo.id}` : '' })
+          await guardarLocal(statusAtual(), (p) => {
+            p.arquivos = p.arquivos.filter((a) => !locais.includes(`local:${a.id}`))
+            if (novo) p.arquivos.push(novo)
+            p.anexos_remover.push(...remotos)
+          })
+          setEstado('local')
+        }
+
+        if (!navigator.onLine || pendenteRef.current) {
+          await guardarNoAparelho()
+          return
+        }
+        try {
+          let atual = await garantirRegistro()
+          let nome = ''
+          if (arquivo) {
+            const enviado = await adicionarAnexos(atual, [arquivo])
+            atual = enviado.registro
+            nome = enviado.novos[0] || ''
+          }
+          if (remotos.length) atual = await removerAnexos(atual.id, remotos)
+          definirRegistro(atual)
+          atualizarDados({ ...dadosRef.current, [campoId]: nome })
+        } catch (error) {
+          if (!isErroTemporario(error)) throw error
+          await guardarNoAparelho()
+        }
       })
       renovarToken()
     } catch (error) {
@@ -321,21 +581,10 @@ export default function FormularioPreenchivel({
     }
   }
 
-  const apagarAssinatura = async (campoId: string) => {
-    const anterior = listaArquivos(dadosRef.current[campoId])
-    try {
-      await enfileirar(async () => {
-        if (anterior.length && registroRef.current) {
-          definirRegistro(await removerAnexos(registroRef.current.id, anterior))
-        }
-        setValor(campoId, '')
-      })
-    } catch (error) {
-      toast.error('Não foi possível apagar a assinatura', { description: getErrorMessage(error) })
-    }
+  const urlArquivo = (nome: string) => {
+    if (nome.startsWith('local:')) return urlsLocais.current.get(nome) || ''
+    return registro && token ? urlAnexo(registro, nome, token) : ''
   }
-
-  const urlArquivo = (nome: string) => (registro && token ? urlAnexo(registro, nome, token) : '')
 
   // ---------- Campos ----------
 
@@ -491,7 +740,15 @@ export default function FormularioPreenchivel({
                         />
                       </a>
                     ) : (
-                      <div className="h-24 w-24 rounded-lg border bg-muted" />
+                      <div className="flex h-24 w-24 items-center justify-center rounded-lg border bg-muted text-[10px] text-muted-foreground">
+                        Foto enviada
+                      </div>
+                    )}
+                    {nome.startsWith('local:') && (
+                      <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded bg-amber-100 px-1 text-[9px] font-medium text-amber-900">
+                        <CloudOff className="h-2.5 w-2.5" />
+                        no aparelho
+                      </span>
                     )}
                     {!somenteLeitura && (
                       <button
@@ -547,7 +804,7 @@ export default function FormularioPreenchivel({
                 {enviando && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <RefreshCw className="h-3 w-3 animate-spin" />
-                    Enviando foto...
+                    Salvando foto...
                   </span>
                 )}
               </div>
@@ -577,13 +834,19 @@ export default function FormularioPreenchivel({
                 ) : (
                   <p className="text-xs text-muted-foreground">Assinatura gravada.</p>
                 )}
+                {salva.startsWith('local:') && (
+                  <p className="flex items-center gap-1 text-xs text-amber-800">
+                    <CloudOff className="h-3 w-3" />
+                    Guardada neste aparelho, ainda não enviada.
+                  </p>
+                )}
                 {!somenteLeitura && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     className="h-7 text-xs"
-                    onClick={() => apagarAssinatura(campo.id)}
+                    onClick={() => definirAssinatura(campo.id, null)}
                   >
                     Refazer assinatura
                   </Button>
@@ -594,7 +857,7 @@ export default function FormularioPreenchivel({
             ) : (
               <AssinaturaCanvas
                 enviando={enviandoArquivo === campo.id}
-                onConfirmar={(arquivo) => salvarAssinatura(campo.id, arquivo)}
+                onConfirmar={(arquivo) => definirAssinatura(campo.id, arquivo)}
               />
             )}
           </div>
@@ -717,15 +980,21 @@ export default function FormularioPreenchivel({
       ? 'Salvando...'
       : estado === 'pendente'
         ? 'Alterações ainda não salvas'
-        : estado === 'erro'
-          ? 'Não foi possível salvar. Verifique a internet e toque em "Salvar rascunho".'
-          : ultimoSalvo
-            ? `Salvo às ${ultimoSalvo.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-            : registro
-              ? registro.status === 'concluido'
-                ? 'Formulário concluído'
-                : 'Rascunho salvo'
-              : 'Ainda não salvo'
+        : estado === 'local'
+          ? 'Guardado neste aparelho. Será enviado quando a internet voltar.'
+          : estado === 'erro'
+            ? `Não foi possível salvar${mensagemErro ? `: ${mensagemErro}` : '.'}`
+            : ultimoSalvo
+              ? `Salvo às ${ultimoSalvo.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+              : registro
+                ? registro.status === 'concluido'
+                  ? 'Formulário concluído'
+                  : 'Rascunho salvo'
+                : 'Ainda não salvo'
+
+  if (!pronto) {
+    return <p className="text-xs text-muted-foreground">Carregando formulário...</p>
+  }
 
   return (
     <div className="space-y-3">
@@ -750,10 +1019,15 @@ export default function FormularioPreenchivel({
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span
             className={
-              'mr-auto text-xs ' +
-              (estado === 'erro' ? 'text-destructive' : 'text-muted-foreground')
+              'mr-auto flex items-center gap-1 text-xs ' +
+              (estado === 'erro'
+                ? 'text-destructive'
+                : estado === 'local'
+                  ? 'text-amber-800'
+                  : 'text-muted-foreground')
             }
           >
+            {estado === 'local' && <CloudOff className="h-3 w-3" />}
             {textoEstado}
           </span>
           <Button

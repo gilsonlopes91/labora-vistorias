@@ -10,8 +10,9 @@
 import type { GeoLocalizacao, Situacao } from '@/services/respostasVistoria'
 
 const DB_NOME = 'labora-vistorias-offline'
-const DB_VERSAO = 1
+const DB_VERSAO = 2
 const STORE = 'respostas_pendentes'
+const STORE_FORM = 'formularios_pendentes'
 
 export interface PendenciaResposta {
   /** `${vistoria_id}:${item_checklist_id}` */
@@ -57,6 +58,10 @@ function abrirBanco(): Promise<IDBDatabase> {
         const store = db.createObjectStore(STORE, { keyPath: 'chave' })
         store.createIndex('vistoria_id', 'vistoria_id', { unique: false })
       }
+      if (!db.objectStoreNames.contains(STORE_FORM)) {
+        const store = db.createObjectStore(STORE_FORM, { keyPath: 'chave' })
+        store.createIndex('vistoria_id', 'vistoria_id', { unique: false })
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error || new Error('Falha ao abrir o armazenamento local'))
@@ -66,11 +71,12 @@ function abrirBanco(): Promise<IDBDatabase> {
 async function comStore<T>(
   modo: IDBTransactionMode,
   fn: (store: IDBObjectStore) => IDBRequest<T> | void,
+  loja: string = STORE,
 ): Promise<T | undefined> {
   const db = await abrirBanco()
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, modo)
-    const store = tx.objectStore(STORE)
+    const tx = db.transaction(loja, modo)
+    const store = tx.objectStore(loja)
     const req = fn(store)
     let resultado: T | undefined
     if (req) req.onsuccess = () => (resultado = req.result)
@@ -144,3 +150,111 @@ export async function marcarErroPendencia(chave: string, erro: string): Promise<
   if (!atual) return
   await comStore('readwrite', (s) => s.put({ ...atual, erro }))
 }
+
+/* ---------- Formulários de campo feitos sem internet ----------
+   O formulário preenchido dentro da vistoria também fica guardado no aparelho
+   quando falta sinal: os dados, as fotos e a assinatura. Cada formulário de uma
+   vistoria tem uma pendência só, com o estado final. As fotos e a assinatura
+   entram nos dados com um nome provisório ("local:<id>") até subirem; o envio
+   (sincronizarFormularios.ts) troca pelo nome gravado no servidor. */
+
+export interface ArquivoPendente {
+  id: string
+  arquivo: File
+}
+
+export interface PendenciaFormulario {
+  /** `${vistoria_id}:${modelo_formulario_id}` */
+  chave: string
+  vistoria_id: string
+  modelo_formulario_id: string
+  organizacao_id: string
+  /** Registro já criado no servidor (quando o formulário foi aberto com internet). */
+  registro_id?: string
+  client_uuid: string
+  dados: Record<string, unknown>
+  status: 'rascunho' | 'concluido'
+  /** Fotos e assinaturas ainda não enviadas. */
+  arquivos: ArquivoPendente[]
+  /** Anexos que já estavam no servidor e foram removidos sem internet. */
+  anexos_remover: string[]
+  criado_em: number
+  atualizado_em: number
+  /** Última falha que não foi de conexão (ex.: vistoria concluída no servidor). */
+  erro?: string
+}
+
+export const chaveFormulario = (vistoriaId: string, modeloId: string) => `${vistoriaId}:${modeloId}`
+
+export async function listarFormulariosPendentes(
+  vistoriaId: string,
+): Promise<PendenciaFormulario[]> {
+  try {
+    const todas =
+      (await comStore<PendenciaFormulario[]>(
+        'readonly',
+        (s) => s.index('vistoria_id').getAll(IDBKeyRange.only(vistoriaId)),
+        STORE_FORM,
+      )) || []
+    return todas.sort((a, b) => a.atualizado_em - b.atualizado_em)
+  } catch {
+    return []
+  }
+}
+
+export async function lerFormularioPendente(
+  vistoriaId: string,
+  modeloId: string,
+): Promise<PendenciaFormulario | undefined> {
+  try {
+    return await comStore<PendenciaFormulario>(
+      'readonly',
+      (s) => s.get(chaveFormulario(vistoriaId, modeloId)),
+      STORE_FORM,
+    )
+  } catch {
+    return undefined
+  }
+}
+
+export async function salvarFormularioPendente(p: PendenciaFormulario): Promise<void> {
+  await comStore('readwrite', (s) => s.put(p), STORE_FORM)
+}
+
+/** Lê e grava a pendência na mesma transação. `fn` devolve a nova versão,
+ *  `null` para apagar ou `undefined` para não mexer. */
+export async function alterarFormularioPendente(
+  chave: string,
+  fn: (atual: PendenciaFormulario | undefined) => PendenciaFormulario | null | undefined,
+): Promise<void> {
+  const db = await abrirBanco()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_FORM, 'readwrite')
+    const store = tx.objectStore(STORE_FORM)
+    const req = store.get(chave)
+    req.onsuccess = () => {
+      const resultado = fn(req.result as PendenciaFormulario | undefined)
+      if (resultado === null) store.delete(chave)
+      else if (resultado) store.put(resultado)
+    }
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error || new Error('Falha no armazenamento local'))
+    }
+    tx.onabort = () => {
+      db.close()
+      reject(tx.error || new Error('Operação no armazenamento local cancelada'))
+    }
+  })
+}
+
+/** Apaga a pendência só se não mudou desde o envio (não perde o que foi
+ *  digitado enquanto o envio acontecia). */
+export const removerFormularioPendente = (chave: string, atualizadoEm: number) =>
+  alterarFormularioPendente(chave, (atual) =>
+    atual && atual.atualizado_em === atualizadoEm ? null : undefined,
+  )
