@@ -43,6 +43,10 @@ export const hexParaRgb = (hex: string | undefined, padrao: RGB): RGB => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
+/** Escurece a cor (fator 0 = cor pura, 1 = preto): títulos e destaques em tom mais firme. */
+export const escurecer = (cor: RGB, fator = 0.35): RGB =>
+  cor.map((c) => Math.round(c * (1 - fator))) as RGB
+
 /** Mistura a cor com branco (fator 0 = cor pura, 1 = branco). */
 export const clarear = (cor: RGB, fator = 0.88): RGB =>
   cor.map((c) => Math.round(c + (255 - c) * fator)) as RGB

@@ -17,12 +17,19 @@ import {
 import {
   carregarIdentidade,
   clarear,
+  ehOrganizacaoLabora,
+  escurecer,
   hexParaRgb,
   COR_PRIMARIA_LABORA,
   COR_SECUNDARIA_LABORA,
 } from '@/lib/identidadeVisual'
 import type { AssinaturaEletronica } from '@/lib/gerarPdfPgr'
-import { desenharFormularioNoPdf, type FormularioParaPdf } from '@/lib/pdfFormulario'
+import {
+  desenharFormularioNoPdf,
+  Ficha,
+  TAGLINE_LABORA,
+  type FormularioParaPdf,
+} from '@/lib/pdfFormulario'
 
 type AutoTableFn = (doc: jsPDF, options: Record<string, unknown>) => void
 
@@ -249,6 +256,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
   // há resumo C/N/C/N/A nem plano de ação — só os formulários de campo.
   const temChecklist = dados.itens.length > 0 || (dados.checklists?.length || 0) > 0
   const formularios = dados.formularios || []
+  const variosChecklists = (dados.checklists?.length || 0) > 1
+  // Vistoria só com formulários usa o visual da ficha de campo (títulos em verde).
+  const verdeFicha = escurecer(primaria, 0.35)
 
   // compress: texto e imagens PNG comprimidos no arquivo.
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
@@ -263,102 +273,141 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
   const xColunaValores = margin + larguraColunaDescricao + 12
   let y = margin
 
-  // Faixa na cor da organização no topo da primeira página
-  doc.setFillColor(primaria[0], primaria[1], primaria[2])
-  doc.rect(0, 0, pageWidth, 8, 'F')
-
-  // Cabeçalho: logo da organização + nome + título do documento
-  const logo = await carregarImagemComoDataUrl(dados.logoUrl || identidade?.logoUrl || '', {
-    maxDimensao: MAX_DIMENSAO_LOGO_PDF,
-  })
-  if (logo) {
-    const alturaLogo = 38
-    const larguraLogo = alturaLogo * (logo.largura / logo.altura)
-    const formatoLogo = logo.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG'
-    doc.addImage(logo.dataUrl, formatoLogo, margin, y, larguraLogo, alturaLogo, 'logo', 'FAST')
-  }
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
-  doc.text(dados.organizacaoNome, pageWidth - margin, y + 14, { align: 'right' })
-  doc.setTextColor(0, 0, 0)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(
-    temChecklist
-      ? 'Relatório de Vistoria de Segurança e Saúde no Trabalho'
-      : 'Relatório de Avaliação de Campo',
-    pageWidth - margin,
-    y + 28,
-    { align: 'right' },
-  )
-  y += 52
-  doc.setDrawColor(primaria[0], primaria[1], primaria[2])
-  doc.setLineWidth(1.2)
-  doc.line(margin, y, pageWidth - margin, y)
-  doc.setLineWidth(0.5)
-  y += 22
-
-  // Título do tipo de vistoria — evita repetir "NR-01 — NR-01 — ..." quando o
-  // nome do tipo já começa com a própria referência da norma.
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(15)
-  const nomeTipoJaTemReferencia =
-    !!dados.tipoNrReferencia &&
-    dados.tipoNome.trim().toLowerCase().startsWith(dados.tipoNrReferencia.trim().toLowerCase())
-  const variosChecklists = (dados.checklists?.length || 0) > 1
-  const titulo = !temChecklist
-    ? formularios.map((f) => f.titulo).join(' · ') || 'Relatório de Avaliação de Campo'
-    : variosChecklists
-      ? `Vistoria com ${dados.checklists!.length} checklists`
-      : dados.tipoNrReferencia && !nomeTipoJaTemReferencia
-        ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
-        : dados.tipoNome || 'Relatório de Vistoria SST'
-  const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
-  doc.text(linhasTitulo, margin, y)
-  y += linhasTitulo.length * 17 + 6
-
-  // Dados gerais — vale a data em que a vistoria foi feita; se não houver,
-  // a data agendada.
-  const dataVistoria =
-    dados.vistoria.data_realizada || dados.vistoria.data_agendada
-      ? formatBrazilianDate(dados.vistoria.data_realizada || dados.vistoria.data_agendada)
-      : '-'
-  const finalYDadosGerais = executarAutoTable(doc, {
-    startY: y,
-    theme: 'plain',
-    styles: { fontSize: 10, cellPadding: 2 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 110 } },
-    body: [
+  if (!temChecklist) {
+    // Só formulários: cabeçalho e dados gerais no estilo da ficha de campo.
+    const logoFicha = await carregarImagemComoDataUrl(dados.logoUrl || identidade?.logoUrl || '', {
+      maxDimensao: MAX_DIMENSAO_LOGO_PDF,
+    })
+    const cabecalho = new Ficha(doc, margin, primaria, margin)
+    cabecalho.cabecalho({
+      nome: dados.organizacaoNome,
+      logo: logoFicha,
+      tagline: ehOrganizacaoLabora(dados.organizacaoNome) ? TAGLINE_LABORA : undefined,
+      titulo: formularios.length === 1 ? formularios[0].titulo : 'Relatório de Avaliação de Campo',
+    })
+    cabecalho.secao('Dados Gerais')
+    const linhasFicha: [string, string][] = [
       ['Empresa', dados.empresaNome],
       ['CNPJ', dados.empresaCnpj || '-'],
       ['Endereço', dados.empresaEndereco || '-'],
       [
-        'Nº de empregados',
-        dados.empresaNumeroEmpregados ? String(dados.empresaNumeroEmpregados) : 'não informado',
+        'Data da vistoria',
+        dados.vistoria.data_realizada || dados.vistoria.data_agendada
+          ? formatBrazilianDate(dados.vistoria.data_realizada || dados.vistoria.data_agendada)
+          : '-',
       ],
-      ['Data da vistoria', dataVistoria],
-      ...(variosChecklists
-        ? [['Checklists', dados.checklists!.map((c) => c.nome).join('\n')]]
-        : []),
-      ...(formularios.length && temChecklist
-        ? [['Formulários de campo', formularios.map((f) => f.titulo).join('\n')]]
-        : []),
-      ...(dados.vistoria.acompanhante_nome
-        ? [
-            [
-              'Acompanhou pela empresa',
-              [dados.vistoria.acompanhante_nome, dados.vistoria.acompanhante_cargo]
-                .filter(Boolean)
-                .join(' — '),
-            ],
-          ]
-        : []),
-      ...(dados.vistoria.art_numero ? [['ART', dados.vistoria.art_numero]] : []),
-    ],
-    margin: { left: margin, right: margin },
-  })
-  y = (finalYDadosGerais || y) + 18
+    ]
+    if (formularios.length > 1) {
+      linhasFicha.push(['Formulários', formularios.map((f) => f.titulo).join('; ')])
+    }
+    if (dados.vistoria.acompanhante_nome) {
+      linhasFicha.push([
+        'Acompanhou pela empresa',
+        [dados.vistoria.acompanhante_nome, dados.vistoria.acompanhante_cargo]
+          .filter(Boolean)
+          .join(' — '),
+      ])
+    }
+    if (dados.vistoria.art_numero) linhasFicha.push(['ART', dados.vistoria.art_numero])
+    cabecalho.linhas(linhasFicha)
+    y = cabecalho.y + 8
+  } else {
+    // Faixa na cor da organização no topo da primeira página
+    doc.setFillColor(primaria[0], primaria[1], primaria[2])
+    doc.rect(0, 0, pageWidth, 8, 'F')
+
+    // Cabeçalho: logo da organização + nome + título do documento
+    const logo = await carregarImagemComoDataUrl(dados.logoUrl || identidade?.logoUrl || '', {
+      maxDimensao: MAX_DIMENSAO_LOGO_PDF,
+    })
+    if (logo) {
+      const alturaLogo = 38
+      const larguraLogo = alturaLogo * (logo.largura / logo.altura)
+      const formatoLogo = logo.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+      doc.addImage(logo.dataUrl, formatoLogo, margin, y, larguraLogo, alturaLogo, 'logo', 'FAST')
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(secundaria[0], secundaria[1], secundaria[2])
+    doc.text(dados.organizacaoNome, pageWidth - margin, y + 14, { align: 'right' })
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(
+      temChecklist
+        ? 'Relatório de Vistoria de Segurança e Saúde no Trabalho'
+        : 'Relatório de Avaliação de Campo',
+      pageWidth - margin,
+      y + 28,
+      { align: 'right' },
+    )
+    y += 52
+    doc.setDrawColor(primaria[0], primaria[1], primaria[2])
+    doc.setLineWidth(1.2)
+    doc.line(margin, y, pageWidth - margin, y)
+    doc.setLineWidth(0.5)
+    y += 22
+
+    // Título do tipo de vistoria — evita repetir "NR-01 — NR-01 — ..." quando o
+    // nome do tipo já começa com a própria referência da norma.
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(15)
+    const nomeTipoJaTemReferencia =
+      !!dados.tipoNrReferencia &&
+      dados.tipoNome.trim().toLowerCase().startsWith(dados.tipoNrReferencia.trim().toLowerCase())
+    const titulo = !temChecklist
+      ? formularios.map((f) => f.titulo).join(' · ') || 'Relatório de Avaliação de Campo'
+      : variosChecklists
+        ? `Vistoria com ${dados.checklists!.length} checklists`
+        : dados.tipoNrReferencia && !nomeTipoJaTemReferencia
+          ? `${dados.tipoNrReferencia} — ${dados.tipoNome}`
+          : dados.tipoNome || 'Relatório de Vistoria SST'
+    const linhasTitulo = doc.splitTextToSize(titulo, larguraUtil)
+    doc.text(linhasTitulo, margin, y)
+    y += linhasTitulo.length * 17 + 6
+
+    // Dados gerais — vale a data em que a vistoria foi feita; se não houver,
+    // a data agendada.
+    const dataVistoria =
+      dados.vistoria.data_realizada || dados.vistoria.data_agendada
+        ? formatBrazilianDate(dados.vistoria.data_realizada || dados.vistoria.data_agendada)
+        : '-'
+    const finalYDadosGerais = executarAutoTable(doc, {
+      startY: y,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 110 } },
+      body: [
+        ['Empresa', dados.empresaNome],
+        ['CNPJ', dados.empresaCnpj || '-'],
+        ['Endereço', dados.empresaEndereco || '-'],
+        [
+          'Nº de empregados',
+          dados.empresaNumeroEmpregados ? String(dados.empresaNumeroEmpregados) : 'não informado',
+        ],
+        ['Data da vistoria', dataVistoria],
+        ...(variosChecklists
+          ? [['Checklists', dados.checklists!.map((c) => c.nome).join('\n')]]
+          : []),
+        ...(formularios.length && temChecklist
+          ? [['Formulários de campo', formularios.map((f) => f.titulo).join('\n')]]
+          : []),
+        ...(dados.vistoria.acompanhante_nome
+          ? [
+              [
+                'Acompanhou pela empresa',
+                [dados.vistoria.acompanhante_nome, dados.vistoria.acompanhante_cargo]
+                  .filter(Boolean)
+                  .join(' — '),
+              ],
+            ]
+          : []),
+        ...(dados.vistoria.art_numero ? [['ART', dados.vistoria.art_numero]] : []),
+      ],
+      margin: { left: margin, right: margin },
+    })
+    y = (finalYDadosGerais || y) + 18
+  }
 
   // Parágrafos longos (metodologia, conclusão), com quebra de página por linha.
   const paragrafos = (titulo: string, texto: string) => {
@@ -368,7 +417,9 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
     }
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
+    if (!temChecklist) doc.setTextColor(verdeFicha[0], verdeFicha[1], verdeFicha[2])
     doc.text(titulo, margin, y)
+    doc.setTextColor(0, 0, 0)
     y += 16
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
@@ -759,7 +810,14 @@ export async function gerarPdfVistoria(dados: DadosRelatorioVistoria): Promise<j
       y += 8
     }
     y = await desenharFormularioNoPdf(
-      { doc, margin, primaria, secundaria, tokenAtual },
+      {
+        doc,
+        margin,
+        primaria,
+        secundaria,
+        tokenAtual,
+        estiloTitulo: temChecklist || formularios.length > 1 ? 'secao' : 'nenhum',
+      },
       formulario,
       y,
     )

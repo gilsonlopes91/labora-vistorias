@@ -153,10 +153,24 @@ export default function EmpresaDetalhe() {
         }
       })
       const nomeEmpresa = empresa.nome_fantasia || empresa.razao_social
+      // Com um formulário só, a data e o responsável vêm da vistoria dele.
+      const origem =
+        registros.length === 1 && registros[0].vistoria_id
+          ? vistorias.find((x) => x.id === registros[0].vistoria_id)
+          : undefined
       const doc = await gerarPdfFormularios({
         formularios: itens,
         empresa: { nome: nomeEmpresa, cnpj: empresa.cnpj, endereco: empresa.endereco },
         titulo,
+        dadosGerais: origem ? [['Data da vistoria', dataDe(origem)]] : undefined,
+        responsavelTecnico: origem
+          ? [
+              origem.responsavel_tecnico_nome || origem.expand?.responsavel_tecnico_id?.nome,
+              origem.responsavel_tecnico_registro,
+            ]
+              .filter(Boolean)
+              .join(' — ')
+          : undefined,
       })
       doc.save(nomeArquivoFormularios(nomeEmpresa, titulo))
     } catch (error) {

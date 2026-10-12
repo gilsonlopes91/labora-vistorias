@@ -1043,6 +1043,18 @@ export default function VistoriaDetalhe() {
         formularios: [paraPdf(vistoria, modelo, reg)],
         empresa: { nome: nomeEmpresa, cnpj: empresaV?.cnpj, endereco: empresaV?.endereco },
         titulo: modelo.nome,
+        dadosGerais: [
+          [
+            'Data da vistoria',
+            formatBrazilianDate(vistoria.data_realizada || vistoria.data_agendada),
+          ],
+        ],
+        responsavelTecnico: [
+          vistoria.responsavel_tecnico_nome || vistoria.expand?.responsavel_tecnico_id?.nome,
+          vistoria.responsavel_tecnico_registro,
+        ]
+          .filter(Boolean)
+          .join(' — '),
       })
       doc.save(nomeArquivoFormularios(nomeEmpresa, modelo.nome))
     } catch (error) {
