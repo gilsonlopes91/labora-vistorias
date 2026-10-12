@@ -83,7 +83,11 @@ interface CampoRapido {
   obrigatorio: boolean
 }
 
-export function FormulariosTab() {
+export function FormulariosTab({
+  abaInicial = 'modelos',
+}: {
+  abaInicial?: 'modelos' | 'registros'
+}) {
   const [modelos, setModelos] = useState<ModeloFormulario[]>([])
   const [registros, setRegistros] = useState<Formulario[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -322,7 +326,7 @@ export function FormulariosTab() {
           ))}
         </div>
       ) : (
-        <Tabs defaultValue="modelos">
+        <Tabs defaultValue={abaInicial}>
           <TabsList className="mb-4">
             <TabsTrigger value="modelos">Modelos ({modelos.length})</TabsTrigger>
             <TabsTrigger value="registros">Registros ({registros.length})</TabsTrigger>

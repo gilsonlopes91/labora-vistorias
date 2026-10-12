@@ -8,6 +8,8 @@ export default function AuditoriaEFormularios() {
   const [searchParams, setSearchParams] = useSearchParams()
   const abaParam = searchParams.get('aba')
   const abaAtiva = abaParam === 'formularios' ? 'formularios' : 'auditoria'
+  // ?sub=registros abre a lista de registros preenchidos (a agenda usa isso).
+  const subAba = searchParams.get('sub') === 'registros' ? 'registros' : 'modelos'
 
   const handleTrocaAba = (novaAba: string) => {
     if (novaAba === 'formularios') {
@@ -33,7 +35,7 @@ export default function AuditoriaEFormularios() {
         </TabsContent>
 
         <TabsContent value="formularios" className="mt-0 focus-visible:outline-none">
-          <FormulariosTab />
+          <FormulariosTab abaInicial={subAba} />
         </TabsContent>
       </Tabs>
 

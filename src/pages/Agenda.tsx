@@ -75,6 +75,10 @@ const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 const diaKey = (d: Date) => format(d, 'yyyy-MM-dd')
 
+// Registro de formulário avulso (antigo, de antes do preenchimento só dentro da
+// vistoria): não tem página própria, então o clique leva à lista de registros.
+const IR_PARA_REGISTROS = '/auditoria-formularios?aba=formularios&sub=registros'
+
 // "setembro de 2026" → "Setembro de 2026" (só a primeira letra; o CSS
 // capitalize deixava "Setembro De 2026").
 const primeiraMaiuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1)
@@ -124,8 +128,10 @@ export default function Agenda() {
     [vistorias, filtroResponsavel],
   )
 
-  // Mapa dia -> eventos (todas as visões usam). Formulários avulsos entram no
-  // mesmo calendário, marcados com __form = nome do modelo (agenda unificada).
+  // Mapa dia -> eventos (todas as visões usam). Formulários avulsos (sem
+  // vistoria) entram no mesmo calendário, marcados com __form = nome do modelo.
+  // Formulário preenchido dentro de uma vistoria não entra: ele já faz parte
+  // dela, e aparecer à parte duplicava o evento, sem horário nem responsável.
   const porDia = useMemo(() => {
     const mapa = new Map<string, Vistoria[]>()
     filtradas.forEach((v) => {
@@ -137,6 +143,7 @@ export default function Agenda() {
       mapa.set(key, lista)
     })
     formularios.forEach((f) => {
+      if (f.vistoria_id) return
       const d = parseLocalDate(f.data_campo || f.created)
       if (!d) return
       const key = diaKey(startOfDay(d))
@@ -228,8 +235,7 @@ export default function Agenda() {
       key={v.id}
       onClick={(e) => {
         e.stopPropagation()
-        if ((v as unknown as { __form?: string }).__form)
-          navigate('/auditoria-formularios?aba=formularios')
+        if ((v as unknown as { __form?: string }).__form) navigate(IR_PARA_REGISTROS)
         else navigate(`/vistorias/${v.id}`)
       }}
       className="cursor-pointer truncate rounded bg-accent px-1.5 py-0.5 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
@@ -261,7 +267,7 @@ export default function Agenda() {
               className="cursor-pointer transition-colors hover:border-primary"
               onClick={() =>
                 (v as unknown as { __form?: string }).__form
-                  ? navigate('/auditoria-formularios?aba=formularios')
+                  ? navigate(IR_PARA_REGISTROS)
                   : navigate(`/vistorias/${v.id}`)
               }
             >
@@ -449,7 +455,7 @@ export default function Agenda() {
                           onClick={(e) => {
                             e.stopPropagation()
                             if ((v as unknown as { __form?: string }).__form)
-                              navigate('/auditoria-formularios?aba=formularios')
+                              navigate(IR_PARA_REGISTROS)
                             else navigate(`/vistorias/${v.id}`)
                           }}
                           className="cursor-pointer rounded bg-accent px-1.5 py-1 text-[11px] leading-tight text-accent-foreground hover:bg-primary hover:text-primary-foreground"
