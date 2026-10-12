@@ -22,14 +22,26 @@ import {
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 
 import { useRealtime } from '@/hooks/use-realtime'
 import { parseLocalDate, formatLocalDate } from '@/lib/date'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { getVistorias, type Vistoria, type StatusVistoria } from '@/services/vistorias'
+import {
+  deleteVistoria,
+  getVistorias,
+  reabrirVistoria,
+  type Vistoria,
+  type StatusVistoria,
+} from '@/services/vistorias'
+import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getMinhaOrganizacao } from '@/services/organizacoes'
-import { getFormularios, type Formulario } from '@/services/registrosFormulario'
+import {
+  deleteFormulario,
+  getFormularios,
+  getFormulariosByVistoria,
+  type Formulario,
+} from '@/services/registrosFormulario'
 import { getResponsaveisTecnicos, type ResponsavelTecnico } from '@/services/responsaveisTecnicos'
 import NovaVistoriaDialog from '@/components/NovaVistoriaDialog'
 import RotinasPanel from '@/components/RotinasPanel'
@@ -38,6 +50,16 @@ import AgendaExternaDialog from '@/components/AgendaExternaDialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Select,
   SelectContent,
@@ -119,6 +141,49 @@ export default function Agenda() {
   useRealtime<Vistoria>('vistorias', () => {
     loadData()
   })
+
+  // Exclusão a partir da lista do dia: vistoria ou registro de formulário avulso.
+  const [alvoExclusao, setAlvoExclusao] = useState<Vistoria | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const alvoEhFormulario = !!(alvoExclusao as unknown as { __form?: string } | null)?.__form
+  const alvoConcluida = !alvoEhFormulario && alvoExclusao?.status === 'concluida'
+  // Mesmos papéis que podem reabrir uma vistoria concluída.
+  const podeReabrir = ['dono', 'gerente', 'gestor', 'admin_plataforma'].includes(
+    getPapelUsuarioLogado(),
+  )
+
+  const excluirAlvo = async () => {
+    if (!alvoExclusao) return
+    setExcluindo(true)
+    try {
+      if (alvoEhFormulario) {
+        await deleteFormulario(alvoExclusao.id)
+        toast.success('Registro de formulário removido')
+      } else {
+        // Os formulários preenchidos nela vão junto; sem isso ficariam soltos.
+        const registros = await getFormulariosByVistoria(alvoExclusao.id).catch(() => [])
+        // Vistoria concluída só pode ser excluída depois de reaberta.
+        if (alvoConcluida) {
+          await reabrirVistoria(alvoExclusao.id, 'Reaberta para exclusão da vistoria')
+        }
+        await deleteVistoria(alvoExclusao.id)
+        const resultados = await Promise.allSettled(registros.map((r) => deleteFormulario(r.id)))
+        const falhas = resultados.filter((r) => r.status === 'rejected').length
+        toast.success('Vistoria removida')
+        if (falhas > 0) {
+          toast.warning('Alguns formulários dessa vistoria não foram removidos', {
+            description: 'Eles ficaram na aba Registros dos formulários e podem ser apagados lá.',
+          })
+        }
+      }
+      setAlvoExclusao(null)
+      loadData()
+    } catch (error) {
+      toast.error('Não foi possível remover', { description: getErrorMessage(error) })
+    } finally {
+      setExcluindo(false)
+    }
+  }
 
   const filtradas = useMemo(
     () =>
@@ -286,9 +351,23 @@ export default function Agenda() {
                       : ''}
                   </div>
                 </div>
-                <Badge variant={STATUS_VARIANT[v.status || 'agendada']}>
-                  {STATUS_LABEL[v.status || 'agendada']}
-                </Badge>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Badge variant={STATUS_VARIANT[v.status || 'agendada']}>
+                    {STATUS_LABEL[v.status || 'agendada']}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Excluir"
+                    aria-label="Excluir"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAlvoExclusao(v)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -531,6 +610,50 @@ export default function Agenda() {
           })}
         </div>
       )}
+
+      <AlertDialog
+        open={!!alvoExclusao}
+        onOpenChange={(aberto) => !aberto && !excluindo && setAlvoExclusao(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {alvoEhFormulario
+                ? 'Remover registro de formulário?'
+                : alvoConcluida
+                  ? podeReabrir
+                    ? 'Excluir vistoria concluída?'
+                    : 'Vistoria concluída'
+                  : 'Remover vistoria?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {alvoEhFormulario
+                ? 'Isso remove o formulário preenchido e as fotos dele. Não pode ser desfeito.'
+                : alvoConcluida
+                  ? podeReabrir
+                    ? 'Essa vistoria está concluída e o relatório já foi assinado. Para excluir, o sistema reabre a vistoria antes. O relatório assinado, com o link de verificação, deixa de existir, junto com as respostas e os formulários preenchidos nela. Não pode ser desfeito.'
+                    : 'Vistoria concluída tem relatório assinado. Só o dono ou o gerente da organização pode reabrir e excluir.'
+                  : 'Isso remove a vistoria, as respostas do checklist e os formulários preenchidos nela. Não pode ser desfeito.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindo}>
+              {alvoConcluida && !podeReabrir ? 'Fechar' : 'Cancelar'}
+            </AlertDialogCancel>
+            {(!alvoConcluida || podeReabrir) && (
+              <AlertDialogAction
+                disabled={excluindo}
+                onClick={(e) => {
+                  e.preventDefault()
+                  excluirAlvo()
+                }}
+              >
+                {excluindo ? 'Removendo...' : alvoConcluida ? 'Reabrir e excluir' : 'Remover'}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
