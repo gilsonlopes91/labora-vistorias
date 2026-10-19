@@ -58,6 +58,7 @@ import {
 } from '@/lib/modelosSst'
 import { gerarDocumentoPdf } from '@/lib/documento/emissao'
 import { PainelModeloSst } from '@/components/PainelModeloSst'
+import { Previa } from '@/components/documento/Previa'
 import {
   getDocumentosSst,
   createDocumentoSst,
@@ -148,6 +149,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   const [motivoRevisao, setMotivoRevisao] = useState('')
   const [emitindo, setEmitindo] = useState(false)
   const [urlPdf, setUrlPdf] = useState<string | null>(null)
+  const [previaAberta, setPreviaAberta] = useState(false)
   // Assinatura eletrônica: confirma a identidade por senha antes de emitir.
   const [dialogSenhaAberto, setDialogSenhaAberto] = useState(false)
   const [senha, setSenha] = useState('')
@@ -1009,6 +1011,15 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                     )}
                     {!travado && (
                       <>
+                        {selecionado.modelo_versao && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setPreviaAberta(true)}
+                            disabled={salvando || emitindo}
+                          >
+                            Pré-visualizar
+                          </Button>
+                        )}
                         <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
                           Salvar rascunho
                         </Button>
@@ -1033,6 +1044,21 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
           </div>
         </div>
       )}
+
+      <Previa
+        aberto={previaAberta}
+        onFechar={() => setPreviaAberta(false)}
+        args={
+          previaAberta && selecionado
+            ? {
+                empresaId,
+                tipo: selecionado.tipo,
+                documento: { ...selecionado, ...f },
+                titulo: f.titulo || TIPO_DOCUMENTO_TITULO_PADRAO[selecionado.tipo],
+              }
+            : null
+        }
+      />
 
       <Dialog open={dialogRevisao} onOpenChange={setDialogRevisao}>
         <DialogContent>

@@ -48,6 +48,7 @@ import AdminListaEspera from './pages/admin/AdminListaEspera'
 import AdminQuizBeta from './pages/admin/AdminQuizBeta'
 import AdminNormas from './pages/AdminNormas'
 import AdminFeedbacks from './pages/admin/AdminFeedbacks'
+import GaleriaDocumento from './pages/admin/GaleriaDocumento'
 import TrocarSenha from './pages/TrocarSenha'
 import EditorConteudo from './pages/EditorConteudo'
 import Layout from './components/Layout'
@@ -315,6 +316,14 @@ const App = () => (
               element={
                 <ProtectedRoute adminOnly>
                   <AdminFeedbacks />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/galeria-documento"
+              element={
+                <ProtectedRoute adminOnly>
+                  <GaleriaDocumento />
                 </ProtectedRoute>
               }
             />

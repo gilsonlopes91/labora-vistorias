@@ -9,6 +9,7 @@ import {
   FileText,
   GraduationCap,
   MessageSquarePlus,
+  FileCheck2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -35,6 +36,13 @@ const ITENS = [
     to: '/admin/feedbacks',
     label: 'Sugestões',
     icon: MessageSquarePlus,
+    fim: false,
+    soAdmin: true,
+  },
+  {
+    to: '/admin/galeria-documento',
+    label: 'Galeria do documento',
+    icon: FileCheck2,
     fim: false,
     soAdmin: true,
   },
