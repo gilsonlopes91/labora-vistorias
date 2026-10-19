@@ -13,6 +13,9 @@ export interface FuncaoSst extends RecordModel {
   cbo?: string
   descricao_atividades?: string
   numero_empregados?: number
+  /** Total por sexo, opcional (migration 0187). */
+  numero_homens?: number
+  numero_mulheres?: number
   expand?: { ghe_id?: Ghe; setor_id?: Setor }
   created: string
   updated: string

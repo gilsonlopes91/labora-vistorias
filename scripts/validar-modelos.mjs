@@ -85,6 +85,23 @@ for (const arquivo of readdirSync(dirGerados).filter(
   )
 }
 
+// Todo bloco do mapeamento (src/lib/documento/mapeamento.ts) precisa existir no modelo daquele tipo.
+const mapeamentoTs = readFileSync(join(raiz, 'src', 'lib', 'documento', 'mapeamento.ts'), 'utf-8')
+const RE_MAPA = /'(pgr|ltcat|insalubridade|periculosidade)\/(\d+:[a-z0-9_]+)'\s*:/g
+const blocosPorTipo = {}
+for (const arquivo of readdirSync(dirGerados).filter(
+  (f) => f.endsWith('.json') && f !== 'hashes.json',
+)) {
+  const modelo = JSON.parse(readFileSync(join(dirGerados, arquivo), 'utf-8'))
+  blocosPorTipo[modelo.tipo] = new Set(
+    modelo.secoes.flatMap((s) => s.elementos.filter((e) => e.tipo === 'bloco').map((e) => e.id)),
+  )
+}
+for (const m of mapeamentoTs.matchAll(RE_MAPA)) {
+  if (!blocosPorTipo[m[1]]?.has(m[2]))
+    problemas.push(`mapeamento: ${m[1]}/${m[2]} não existe no modelo`)
+}
+
 if (problemas.length) {
   console.error('\nModelos Gerais com pendências:')
   for (const p of problemas) console.error(' - ' + p)

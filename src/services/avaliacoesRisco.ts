@@ -74,6 +74,10 @@ export interface AvaliacaoRisco extends RecordModel {
   nr_especifica_referencia?: string
   nr_especifica_atendida?: boolean
   nr_especifica_justificativa?: string
+  /** Campos do documento (migration 0187): leitura do técnico, medidas que faltam e situação da AET. */
+  comentario_tecnico?: string
+  medidas_faltantes?: string
+  aet_situacao?: string
   ativo?: boolean
   expand?: { ghe_id?: Ghe; agente_id?: AgenteCatalogo; funcao_id?: FuncaoSst }
   created: string
