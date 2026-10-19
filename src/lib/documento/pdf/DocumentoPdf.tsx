@@ -5,6 +5,7 @@ import type { Bloco, Capitulo, Documento } from '../modelo'
 import { AmbientePdf } from './Ambiente'
 import { AssinaturaPdf } from './Assinatura'
 import { Capa } from './Capa'
+import { ConclusoesFuncaoPdf } from './ConclusoesFuncao'
 import { FichaFuncaoPdf } from './FichaFuncao'
 import { GrupoFuncoesPdf } from './GrupoFuncoes'
 import { Identificacao } from './Identificacao'
@@ -54,7 +55,7 @@ function BlocoPdf({ bloco, doc }: { bloco: Bloco; doc: Documento }) {
     case 'plano':
       return <PlanoAcaoPdf acoes={bloco.acoes} responsavel={doc.assinatura?.responsavelPlano} />
     case 'conclusoes':
-      return null
+      return <ConclusoesFuncaoPdf linhas={bloco.linhas} />
     default:
       return <Elemento el={bloco as ElRender} />
   }

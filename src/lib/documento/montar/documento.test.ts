@@ -98,6 +98,69 @@ describe('montarDocumento', () => {
     expect(doc.capitulos[1].blocos.map((b) => b.tipo)).toEqual(['plano'])
   })
 
+  it('laudo de insalubridade: ambientes, funções, inventário, conclusões e plano', () => {
+    const dl = dados({
+      tipo: 'insalubridade',
+      setores: [setor()],
+      funcoes: [funcao({ numero_empregados: 1 })],
+      avaliacoes: [],
+      acoes: [acao()],
+      matriz: matrizN(5),
+    })
+    const r = renderizado([
+      {
+        id: 's11',
+        titulo: '11 – CARACTERIZAÇÃO',
+        elementos: [
+          tabela('11:ambientes'),
+          tabela('11:ghe'),
+          tabela('11:funcoes'),
+          tabela('11:reconhecimento_de_agentes'),
+          tabela('11:epc_e_medidas_administrativas'),
+        ],
+      },
+      {
+        id: 's12',
+        titulo: '12 – CONCLUSÃO POR FUNÇÃO',
+        elementos: [
+          tabela('12:conclusao_por_funcao'),
+          tabela('12:resumo_de_adicional_por_funcao'),
+          tabela('12:plano_de_acao'),
+        ],
+      },
+    ])
+    const doc = montarDocumento({ dados: dl, renderizado: r, marca, titulo: 'Laudo' })
+    expect(doc.capitulos[0].blocos.map((b) => b.tipo)).toEqual([
+      'ambientes',
+      'funcoes',
+      'inventario',
+      'tabela',
+    ])
+    expect(doc.capitulos[1].blocos.map((b) => b.tipo)).toEqual(['conclusoes', 'tabela', 'plano'])
+    expect(doc.capa.subtitulo).toBe('Atividades e operações insalubres · NR-15')
+  })
+
+  it('LTCAT: o capítulo 10 traz as fichas e as conclusões', () => {
+    const dl = dados({ tipo: 'ltcat', funcoes: [funcao()], matriz: matrizN(5) })
+    const r = renderizado([
+      {
+        id: 's10',
+        titulo: '10 – CONCLUSÃO POR FUNÇÃO',
+        elementos: [
+          tabela('10:conclusao_por_funcao'),
+          tabela('10:resumo_por_funcao_para_ppp_e_esocial'),
+        ],
+      },
+    ])
+    const doc = montarDocumento({ dados: dl, renderizado: r, marca, titulo: 'LTCAT' })
+    expect(doc.capitulos[0].blocos.map((b) => b.tipo)).toEqual([
+      'inventario',
+      'conclusoes',
+      'tabela',
+    ])
+    expect(doc.anexos).toEqual([])
+  })
+
   it('respeita o bloco desligado pelo técnico', () => {
     const r = renderizado([
       {

@@ -5,6 +5,7 @@ import { chaveDoBloco, MAPEAMENTO, type Estrutura } from '../mapeamento'
 import type { Assinatura, Bloco, Capitulo, Documento, Marca, Par } from '../modelo'
 import { casoSentenca, separarNumero } from '../titulos'
 import { montarAmbientes, montarGrupos } from './ambientes'
+import { montarConclusoes } from './conclusoes'
 import { montarFichas } from './ficha'
 import { montarPlano, tabelaConsolidada } from './plano'
 
@@ -20,14 +21,18 @@ type Resolvedor = () => Bloco
 
 const SUBTITULO: Record<string, string> = {
   pgr: 'Gerenciamento de Riscos Ocupacionais · NR-1, capítulo 1.5',
+  ltcat: 'Condições ambientais de trabalho · Lei 8.213/1991, art. 58',
+  insalubridade: 'Atividades e operações insalubres · NR-15',
+  periculosidade: 'Atividades e operações perigosas · NR-16',
 }
 
-function resolvedores(d: DadosDocumento): Partial<Record<Estrutura, Resolvedor>> {
+function resolvedores(d: DadosDocumento): Record<Estrutura, Resolvedor> {
   return {
     ambientes: () => ({ tipo: 'ambientes', itens: montarAmbientes(d) }),
     funcoes: () => ({ tipo: 'funcoes', grupos: montarGrupos(d) }),
     inventario: () => ({ tipo: 'inventario', fichas: montarFichas(d, d.tipo) }),
     plano: () => ({ tipo: 'plano', acoes: montarPlano(d) }),
+    conclusoes: () => ({ tipo: 'conclusoes', linhas: montarConclusoes(d, d.tipo) }),
   }
 }
 
@@ -40,15 +45,16 @@ function transformar(elementos: ElRender[], d: DadosDocumento, emitidos: Set<Est
       continue
     }
     const regra = MAPEAMENTO[chaveDoBloco(d.tipo, el.blocoId)]
-    const fazer = regra && regra !== 'absorvido' ? resolver[regra] : undefined
-    if (regra === undefined || (regra !== 'absorvido' && !fazer)) {
+    if (regra === undefined) {
       saida.push(el)
       continue
     }
     if (el.excluido || regra === 'absorvido') continue
-    if (emitidos.has(regra)) continue
-    emitidos.add(regra)
-    saida.push(fazer!())
+    for (const estrutura of Array.isArray(regra) ? regra : [regra]) {
+      if (emitidos.has(estrutura)) continue
+      emitidos.add(estrutura)
+      saida.push(resolver[estrutura]())
+    }
   }
   return saida
 }
