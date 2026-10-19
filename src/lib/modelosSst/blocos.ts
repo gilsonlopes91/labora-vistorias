@@ -18,6 +18,7 @@ import type { Medicao } from '@/services/medicoes'
 import type { AcaoPlano } from '@/services/acoesPlano'
 import type { DadosDocumento } from './dados'
 import { fData, fNum, fMoeda, simNao, vazio, type Valores } from './campos'
+import { NIVEL_ACAO_RUIDO_DBA } from '@/lib/documento/constantes'
 
 export interface ResultadoBloco {
   linhas: Valores[]
@@ -29,13 +30,14 @@ type Gerador = (d: DadosDocumento) => ResultadoBloco
 
 // ---------- apoio ----------
 
-const agenteDe = (a: AvaliacaoRisco): AgenteCatalogo | undefined => a.expand?.agente_id
-const nomeAgente = (a: AvaliacaoRisco) => agenteDe(a)?.nome || vazio(a.perigo_descricao) || '—'
+export const agenteDe = (a: AvaliacaoRisco): AgenteCatalogo | undefined => a.expand?.agente_id
+export const nomeAgente = (a: AvaliacaoRisco) =>
+  agenteDe(a)?.nome || vazio(a.perigo_descricao) || '—'
 
-const rotuloGhe = (g?: Ghe | null) =>
+export const rotuloGhe = (g?: Ghe | null) =>
   g ? [vazio(g.codigo), g.nome].filter(Boolean).join(' – ') : undefined
 
-function indices(d: DadosDocumento) {
+export function indices(d: DadosDocumento) {
   const ghePorId = new Map(d.ghes.map((g) => [g.id, g]))
   const setorPorId = new Map(d.setores.map((s) => [s.id, s]))
   const funcaoPorId = new Map(d.funcoes.map((f) => [f.id, f]))
@@ -73,14 +75,14 @@ function indices(d: DadosDocumento) {
   }
 }
 
-const juntar = (partes: (string | undefined | null | false)[], sep = '; ') =>
+export const juntar = (partes: (string | undefined | null | false)[], sep = '; ') =>
   vazio(partes.filter(Boolean).join(sep))
 
-const distintos = (lista: (string | undefined)[]) =>
+export const distintos = (lista: (string | undefined)[]) =>
   Array.from(new Set(lista.filter((x): x is string => !!x && !!x.trim())))
 
 /** "Habitual e permanente" -> ["Habitual", "Permanente"]; "Eventual/ocasional" -> ["Fortuita", "Eventual"]. */
-function habitualidade(freq?: string): { hab?: string; perm?: string } {
+export function habitualidade(freq?: string): { hab?: string; perm?: string } {
   if (!freq) return {}
   const f = freq.toLowerCase()
   if (f.startsWith('habitual e permanente')) return { hab: 'Habitual', perm: 'Permanente' }
@@ -90,7 +92,7 @@ function habitualidade(freq?: string): { hab?: string; perm?: string } {
   return { hab: freq, perm: freq }
 }
 
-const tempoExposicao = (a: AvaliacaoRisco) =>
+export const tempoExposicao = (a: AvaliacaoRisco) =>
   a.tempo_exposicao_min_jornada != null ? `${a.tempo_exposicao_min_jornada} min/jornada` : undefined
 
 function medidasImplementadas(a: AvaliacaoRisco) {
@@ -103,7 +105,7 @@ function medidasImplementadas(a: AvaliacaoRisco) {
   ])
 }
 
-function pontuacao(d: DadosDocumento, a: AvaliacaoRisco) {
+export function pontuacao(d: DadosDocumento, a: AvaliacaoRisco) {
   const p = a.probabilidade_final ?? a.probabilidade_sugerida
   const s = a.severidade_final ?? a.severidade_sugerida
   if (p == null || s == null || !d.matriz) return { p, s }
@@ -120,7 +122,7 @@ function pontuacao(d: DadosDocumento, a: AvaliacaoRisco) {
   }
 }
 
-const limiteDoAgente = (ag?: AgenteCatalogo) =>
+export const limiteDoAgente = (ag?: AgenteCatalogo) =>
   ag?.limite_tolerancia_valor != null
     ? `${fNum(ag.limite_tolerancia_valor, 3)} ${ag.limite_tolerancia_unidade || ''}`.trim()
     : ag?.tlv_acgih_valor != null
@@ -130,18 +132,19 @@ const limiteDoAgente = (ag?: AgenteCatalogo) =>
 function limiteENivelAcao(ag?: AgenteCatalogo) {
   const lt = limiteDoAgente(ag)
   if (!lt) return undefined
-  if (ag?.limite_tolerancia_valor != null && ehRuido(ag)) return `${lt}; nível de ação 82 dB(A)`
+  if (ag?.limite_tolerancia_valor != null && ehRuido(ag))
+    return `${lt}; nível de ação ${NIVEL_ACAO_RUIDO_DBA} dB(A)`
   if (ag?.limite_tolerancia_valor != null && ag.tipo === 'Químico')
     return `${lt}; nível de ação ${fNum(ag.limite_tolerancia_valor / 2, 3)} ${ag.limite_tolerancia_unidade || ''}`.trim()
   return lt
 }
 
-const ehRuido = (ag?: AgenteCatalogo) =>
+export const ehRuido = (ag?: AgenteCatalogo) =>
   !!ag && (/ru[ií]do/i.test(ag.nome) || ag.anexo_nr15 === '1' || ag.anexo_nr15 === '2')
 const ehCalor = (ag?: AgenteCatalogo) => !!ag && (/calor/i.test(ag.nome) || ag.anexo_nr15 === '3')
 const ehVibracao = (ag?: AgenteCatalogo) =>
   !!ag && (/vibra/i.test(ag.nome) || ag.anexo_nr15 === '8')
-const ehQuimico = (ag?: AgenteCatalogo) =>
+export const ehQuimico = (ag?: AgenteCatalogo) =>
   !!ag && (ag.tipo === 'Químico' || ['11', '12', '13', '13-A'].includes(ag.anexo_nr15 || ''))
 
 function percentualLeo(valor?: number | null, ag?: AgenteCatalogo) {
@@ -158,7 +161,7 @@ function julgamento(pct?: number, dose?: number | null): string | undefined {
   return 'Aceitável'
 }
 
-const ultimaMedicao = (d: DadosDocumento, a: AvaliacaoRisco): Medicao | undefined =>
+export const ultimaMedicao = (d: DadosDocumento, a: AvaliacaoRisco): Medicao | undefined =>
   (d.medicoes[a.id] || [])[0]
 
 function resumoMedicao(d: DadosDocumento, a: AvaliacaoRisco) {
@@ -190,7 +193,7 @@ const hierarquia = (n?: string) =>
           : undefined
 
 /** Linhas de EPI de uma avaliação: "nome (CA 1234)" por linha do campo epis_utilizados. */
-function episDaAvaliacao(d: DadosDocumento, a: AvaliacaoRisco) {
+export function episDaAvaliacao(d: DadosDocumento, a: AvaliacaoRisco) {
   const linhas = (a.epis_utilizados || '')
     .split(/\n+/)
     .map((l) => l.trim())
@@ -207,7 +210,7 @@ function episDaAvaliacao(d: DadosDocumento, a: AvaliacaoRisco) {
   })
 }
 
-const flagsEpi = (a: AvaliacaoRisco) => ({
+export const flagsEpi = (a: AvaliacaoRisco) => ({
   EPI_EF: a.epi_eficacia_atenuacao_ok ? 'S' : 'N',
   EPI_MP: a.epi_medida_previa_ok ? 'S' : 'N',
   EPI_PV: a.epi_validade_ca_ok ? 'S' : 'N',
@@ -216,7 +219,7 @@ const flagsEpi = (a: AvaliacaoRisco) => ({
   EPI_PT: a.epi_periodicidade_troca_ok ? 'S' : 'N',
   EPI_HG: a.epi_higienizacao_ok ? 'S' : 'N',
 })
-const epiNeutraliza = (a: AvaliacaoRisco) => {
+export const epiNeutraliza = (a: AvaliacaoRisco) => {
   const f = flagsEpi(a)
   const faltam = Object.entries(f)
     .filter(([, v]) => v === 'N')
@@ -623,7 +626,7 @@ function linhasRevisoes(d: DadosDocumento): Valores[] {
 
 type TipoLaudo = 'insalubridade' | 'periculosidade' | 'ltcat'
 
-function conclusaoTexto(tipo: TipoLaudo, a: AvaliacaoRisco): string | undefined {
+export function conclusaoTexto(tipo: TipoLaudo, a: AvaliacaoRisco): string | undefined {
   if (tipo === 'insalubridade') {
     const c = a.insalubridade_final || a.insalubridade_sugerida
     if (!c) return undefined
@@ -643,7 +646,7 @@ function conclusaoTexto(tipo: TipoLaudo, a: AvaliacaoRisco): string | undefined 
     : 'Não caracteriza atividade especial'
 }
 
-function enquadramento(tipo: TipoLaudo, ag?: AgenteCatalogo): string | undefined {
+export function enquadramento(tipo: TipoLaudo, ag?: AgenteCatalogo): string | undefined {
   if (!ag) return undefined
   if (tipo === 'insalubridade') return ag.anexo_nr15 ? `NR-15, Anexo ${ag.anexo_nr15}` : undefined
   if (tipo === 'periculosidade')
@@ -660,7 +663,7 @@ function enquadramento(tipo: TipoLaudo, ag?: AgenteCatalogo): string | undefined
   )
 }
 
-function linhasConclusao(d: DadosDocumento, tipo: TipoLaudo): Valores[] {
+export function linhasConclusao(d: DadosDocumento, tipo: TipoLaudo): Valores[] {
   const ix = indices(d)
   const linhas: Valores[] = []
   for (const f of d.funcoes) {
