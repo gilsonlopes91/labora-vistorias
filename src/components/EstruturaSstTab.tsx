@@ -864,6 +864,39 @@ export function EstruturaSstTab({
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Homens (opcional)</Label>
+                    <Input
+                      className="mt-1.5"
+                      type="number"
+                      min={0}
+                      value={fFuncao.numero_homens ?? ''}
+                      onChange={(e) =>
+                        setFFuncao((v) => ({
+                          ...v,
+                          numero_homens: e.target.value === '' ? undefined : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Mulheres (opcional)</Label>
+                    <Input
+                      className="mt-1.5"
+                      type="number"
+                      min={0}
+                      value={fFuncao.numero_mulheres ?? ''}
+                      onChange={(e) =>
+                        setFFuncao((v) => ({
+                          ...v,
+                          numero_mulheres:
+                            e.target.value === '' ? undefined : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
                 <div>
                   <Label>Descrição das atividades</Label>
                   <Textarea

@@ -1369,6 +1369,49 @@ export function RiscosOcupacionaisPainel({
                 </div>
               </div>
             </SecaoRisco>
+
+            <SecaoRisco numero={7} titulo="Texto do documento (PGR e laudos)">
+              <div className="space-y-3">
+                <div>
+                  <Label>Leitura do técnico</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    placeholder="Uma ou duas frases para o auditor: o que o resultado significa e o que a empresa deve fazer."
+                    value={f.comentario_tecnico || ''}
+                    onChange={(e) => setF((v) => ({ ...v, comentario_tecnico: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Medidas que faltam</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    placeholder="Uma medida por linha. Aparece no documento como medida que ainda falta."
+                    value={f.medidas_faltantes || ''}
+                    onChange={(e) => setF((v) => ({ ...v, medidas_faltantes: e.target.value }))}
+                  />
+                </div>
+                {f.trilha_probabilidade === 'Ergonômica (AEP/AET)' && (
+                  <div>
+                    <Label>Análise ergonômica do trabalho (AET)</Label>
+                    <Select
+                      value={f.aet_situacao || ''}
+                      onValueChange={(v) => setF((s) => ({ ...s, aet_situacao: v }))}
+                    >
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['Não exigida nesta data', 'Recomendada', 'Elaborada'].map((v) => (
+                          <SelectItem key={v} value={v}>
+                            {v}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </SecaoRisco>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={tentarFechar}>

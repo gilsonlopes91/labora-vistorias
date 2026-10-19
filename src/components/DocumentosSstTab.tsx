@@ -55,9 +55,8 @@ import {
   carregarDadosDocumento,
   resolverEscolhas,
   montarSecoesHtml,
-  renderizarDocumento,
 } from '@/lib/modelosSst'
-import { gerarPdfModeloSst } from '@/lib/pdfModeloSst'
+import { gerarDocumentoPdf } from '@/lib/documento/emissao'
 import { PainelModeloSst } from '@/components/PainelModeloSst'
 import {
   getDocumentosSst,
@@ -318,37 +317,21 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         () => null,
       )
       const proximaVersao = (selecionado.versao || 0) + 1
-      const dados = await carregarDadosDocumento(
+      const resultado = await gerarDocumentoPdf({
         empresaId,
-        { ...selecionado, ...f },
-        selecionado.tipo,
-      )
-      dados.versao = proximaVersao
-      dados.dataEmissao = new Date()
-      const modelo = carregarModelo(selecionado.tipo)
-      const escolhas = resolverEscolhas(modelo, dados, f.alternativas)
-      const renderizado = renderizarDocumento(modelo, f.secoes || [], dados, escolhas)
-      if (renderizado.camposCriticosVazios.length > 0) {
-        toast.error('Faltam dados obrigatórios para emitir', {
-          description: renderizado.camposCriticosVazios.join(', '),
-        })
-        return
-      }
-      const nomeEmpresa = dados.empresa.nome_fantasia || dados.empresa.razao_social
-      const pdf = await gerarPdfModeloSst({
-        renderizado,
-        dados,
+        tipo: selecionado.tipo,
+        documento: { ...selecionado, ...f },
         titulo: f.titulo || TIPO_DOCUMENTO_TITULO_PADRAO[selecionado.tipo],
-        versao: proximaVersao,
-        dataEmissao: new Date(),
+        exigirCamposCriticos: true,
         assinatura: {
           nome: rtEmissor?.nome || user?.name || 'Responsável',
           registro: rtEmissor ? formatarRegistroRT(rtEmissor) : undefined,
           confirmadaEm,
-          linkVerificacao: `${window.location.origin}/verificar/${chaveVerificacao}`,
+          link: `${window.location.origin}/verificar/${chaveVerificacao}`,
         },
       })
-      const blob = pdf.output('blob')
+      const { blob, renderizado, dados } = resultado
+      const nomeEmpresa = dados.empresa.nome_fantasia || dados.empresa.razao_social
       const nomeArquivo = nomeArquivoDocumentoSst(selecionado.tipo, nomeEmpresa, proximaVersao)
       const hash = await hashSha256(blob)
       // grava antes o estado final do rascunho (alternativas, campos etc.)
@@ -376,6 +359,8 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
             acoes_plano: dados.acoes.length,
             modelo_versao: selecionado.modelo_versao,
             pendencias: renderizado.pendencias.length,
+            motor: 'react-pdf',
+            padrao_visual: 3,
           },
           emitido_por: user?.id || '',
           assinatura_confirmada_em: confirmadaEm.toISOString(),
