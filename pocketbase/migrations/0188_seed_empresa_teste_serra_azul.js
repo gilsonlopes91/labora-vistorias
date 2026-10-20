@@ -810,7 +810,7 @@ migrate(
     })
     med(avPoeira, 'Marceneiro, lixamento', {
       funcao_avaliada: 'Marceneiro',
-      metodologia: 'NHO 08 (aerodispersoides)',
+      metodologia: 'NHO 08 (coleta de particulado)',
       equipamento: 'Bomba de amostragem (modelo fictício BA-50)',
       numero_serie: 'FICT-0902',
       certificado_calibracao: 'CERT-FICT-2026/204',
@@ -821,7 +821,7 @@ migrate(
     })
     med(avSolvente, 'Pintor, cabine de pintura', {
       funcao_avaliada: 'Pintor',
-      metodologia: 'NHO 07 (vapores orgânicos)',
+      metodologia: 'NHO 02 (vapores orgânicos)',
       equipamento: 'Bomba de amostragem (modelo fictício BA-50)',
       numero_serie: 'FICT-0902',
       certificado_calibracao: 'CERT-FICT-2026/204',
