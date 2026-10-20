@@ -40,7 +40,12 @@ export function montarFichas(d: DadosDocumento, tipo: TipoDocumentoSst): FichaFu
   return funcoes.map((f) => {
     const g = f.ghe_id ? ix.ghePorId.get(f.ghe_id) : undefined
     const avals = avaliacoesDaFuncao(f, d.avaliacoes).filter((a) => relevante(tipo, a))
-    const riscos = avals.map((a) => montarCard(d, a, tipo))
+    // do mais grave para o menos grave; empate mantém a ordem do cadastro
+    const riscos = avals
+      .map((a) => montarCard(d, a, tipo))
+      .map((c, i) => ({ c, i }))
+      .sort((x, y) => (y.c.avaliacao?.pontos ?? -1) - (x.c.avaliacao?.pontos ?? -1) || x.i - y.i)
+      .map(({ c }) => c)
     const comMedicao = avals.filter((a) => (d.medicoes[a.id] || []).length > 0).length
     return {
       nome: f.nome,
