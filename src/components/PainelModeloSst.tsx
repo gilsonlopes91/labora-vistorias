@@ -60,6 +60,16 @@ interface Props {
 
 const SEM_COORDENADOR = '__nenhum__'
 
+/** Qual campo do painel "Dados do documento" responde por uma pendência (a partir da chave dela). */
+function campoDoPainel(campo: string): string | null {
+  if (/COORDENADOR/.test(campo)) return 'doc-coordenador'
+  if (/AUTOR/.test(campo)) return 'doc-autor'
+  if (/LEVANTAMENTO/.test(campo)) return 'doc-data'
+  if (/(^|_)ART($|_)/.test(campo)) return 'doc-art'
+  if (/CIDADE/.test(campo) && /EMISS/.test(campo)) return 'doc-cidade'
+  return null
+}
+
 /** Bloco recolhível do painel (fora do componente principal para os inputs
  *  dentro dele não perderem o foco a cada render). */
 function SecaoPainel({
@@ -292,6 +302,38 @@ export function PainelModeloSst({
 
   const alternar = (chave: string) => setAbertos((v) => ({ ...v, [chave]: !v[chave] }))
 
+  // A prévia manda para cá o campo da pendência clicada: abre a seção, rola e destaca.
+  useEffect(() => {
+    const ir = (ev: Event) => {
+      const campo = (ev as CustomEvent<{ campo: string }>).detail?.campo
+      if (!campo) return
+      const alvoDoc = campoDoPainel(campo)
+      const manual = camposManuais.includes(campo)
+      setAbertos((v) => ({
+        ...v,
+        dados: alvoDoc ? true : v.dados,
+        pendencias: !alvoDoc ? true : v.pendencias,
+      }))
+      setTimeout(() => {
+        const el =
+          document.querySelector<HTMLElement>(`[data-campo="${alvoDoc || campo}"]`) ||
+          document.querySelector<HTMLElement>('[data-campo="__pendencias__"]')
+        if (!el) return
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add('ring-2', 'ring-primary', 'rounded-md')
+        setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'rounded-md'), 2500)
+        if (alvoDoc || manual)
+          el.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true })
+        else
+          toast.info(
+            'Este dado vem do cadastro da empresa. Preencha na aba de origem e gere a prévia de novo.',
+          )
+      }, 150)
+    }
+    window.addEventListener('labora:ir-para-campo', ir)
+    return () => window.removeEventListener('labora:ir-para-campo', ir)
+  }, [camposManuais])
+
   if (erro) {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
@@ -352,7 +394,7 @@ export function PainelModeloSst({
         resumo={<>autor, coordenador, datas e ART</>}
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
+          <div data-campo="doc-autor">
             <Label>Autor (responsável técnico)</Label>
             <Select
               value={documento.autor_rt_id || ''}
@@ -371,7 +413,7 @@ export function PainelModeloSst({
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div data-campo="doc-coordenador">
             <Label>Coordenador (opcional)</Label>
             <Select
               value={documento.coordenador_rt_id || SEM_COORDENADOR}
@@ -391,7 +433,7 @@ export function PainelModeloSst({
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div data-campo="doc-data">
             <Label>Data do levantamento em campo</Label>
             <Input
               type="date"
@@ -401,7 +443,7 @@ export function PainelModeloSst({
               onChange={(e) => onChange({ data_levantamento: e.target.value })}
             />
           </div>
-          <div>
+          <div data-campo="doc-cidade">
             <Label>Cidade de emissão</Label>
             <Input
               className="mt-1.5"
@@ -411,7 +453,7 @@ export function PainelModeloSst({
               placeholder="Cidade/UF que sai na assinatura"
             />
           </div>
-          <div>
+          <div data-campo="doc-art">
             <Label>Número da ART (quando houver)</Label>
             <Input
               className="mt-1.5"
@@ -524,7 +566,7 @@ export function PainelModeloSst({
             </ul>
           </div>
         )}
-        <p className="mb-2 text-xs text-muted-foreground">
+        <p data-campo="__pendencias__" className="mb-2 text-xs text-muted-foreground">
           Campos que o sistema não tem de onde puxar. O que você preencher aqui entra no texto no
           lugar do colchete; o que ficar em branco sai em branco no documento.
         </p>
@@ -535,6 +577,7 @@ export function PainelModeloSst({
             return (
               <div
                 key={campo}
+                data-campo={campo}
                 className="grid grid-cols-1 gap-1 md:grid-cols-[260px_minmax(0,1fr)]"
               >
                 <Label className="text-xs">
@@ -572,7 +615,7 @@ export function PainelModeloSst({
             </p>
             <ul className="list-disc pl-4">
               {pendenciasDados.map((p) => (
-                <li key={`${p.campo}-${p.local}`}>
+                <li key={`${p.campo}-${p.local}`} data-campo={p.campo}>
                   {p.descricao}{' '}
                   <span className="text-muted-foreground">
                     — origem: {p.origem}; em: {p.local}

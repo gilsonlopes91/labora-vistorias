@@ -1048,6 +1048,15 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
       <Previa
         aberto={previaAberta}
         onFechar={() => setPreviaAberta(false)}
+        onIrPara={(campo) => {
+          setPreviaAberta(false)
+          // espera o diálogo fechar antes de rolar até o campo
+          setTimeout(
+            () =>
+              window.dispatchEvent(new CustomEvent('labora:ir-para-campo', { detail: { campo } })),
+            350,
+          )
+        }}
         args={
           previaAberta && selecionado
             ? {
