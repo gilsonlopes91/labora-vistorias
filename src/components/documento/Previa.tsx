@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { DICIONARIO } from '@/lib/modelosSst'
 import { gerarDocumentoPdf, type ArgsGeracao } from '@/lib/documento/emissao'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
@@ -49,6 +50,8 @@ export function Previa({ aberto, onFechar, args, onIrPara }: Props) {
         // a mesma pendência aparece em vários lugares do texto: mostra uma vez só
         const porCampo = new Map<string, Pendencia>()
         for (const p of r.renderizado.pendencias) {
+          // campo opcional (preenchimento manual) não entra na lista, a menos que bloqueie a emissão
+          if (!p.critico && DICIONARIO[p.campo]?.origem === 'manual') continue
           const atual = porCampo.get(p.campo)
           if (atual) atual.vezes += p.vezes || 1
           else

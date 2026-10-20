@@ -37,7 +37,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Select,
@@ -254,7 +254,6 @@ export function PainelModeloSst({
   }, [modelo, documento.secoes, dados, escolhas])
 
   const camposManuais = useMemo(() => camposManuaisDoModelo(camposDoModelo(modelo)), [modelo])
-  const manuais = documento.campos_manuais || {}
 
   const pendenciasCriticas = renderizado?.pendencias.filter((p) => p.critico) || []
   const pendenciasDados =
@@ -567,47 +566,8 @@ export function PainelModeloSst({
           </div>
         )}
         <p data-campo="__pendencias__" className="mb-2 text-xs text-muted-foreground">
-          Campos que o sistema não tem de onde puxar. O que você preencher aqui entra no texto no
-          lugar do colchete; o que ficar em branco sai em branco no documento.
+          Os campos opcionais em branco saem em branco no documento e não precisam ser preenchidos.
         </p>
-        <div className="space-y-2">
-          {camposManuais.map((campo) => {
-            const dic = DICIONARIO[campo]
-            const longo = dic?.tipo === 'texto longo'
-            return (
-              <div
-                key={campo}
-                data-campo={campo}
-                className="grid grid-cols-1 gap-1 md:grid-cols-[260px_minmax(0,1fr)]"
-              >
-                <Label className="text-xs">
-                  {dic?.descricao || campo}
-                  <span className="block font-mono text-[10px] text-muted-foreground">
-                    [{campo}]
-                  </span>
-                </Label>
-                {longo ? (
-                  <Textarea
-                    rows={2}
-                    disabled={travado}
-                    value={manuais[campo] || ''}
-                    onChange={(e) =>
-                      onChange({ campos_manuais: { ...manuais, [campo]: e.target.value } })
-                    }
-                  />
-                ) : (
-                  <Input
-                    disabled={travado}
-                    value={manuais[campo] || ''}
-                    onChange={(e) =>
-                      onChange({ campos_manuais: { ...manuais, [campo]: e.target.value } })
-                    }
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
         {pendenciasDados.length > 0 && (
           <div className="mt-3 rounded-lg bg-muted/40 p-3 text-xs">
             <p className="mb-1 font-semibold">
