@@ -9,6 +9,7 @@
  * para não perder edições feitas à mão. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Check, Eye, RefreshCw, Loader2, ListChecks, Table2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -90,17 +91,22 @@ const COLUNA_EMPRESA: Record<string, string> = {
 }
 
 /** Onde preencher o que não dá para preencher na própria pendência. */
-const ONDE_PREENCHER: Record<string, string> = {
-  setores: 'aba Ambiente',
-  funcoes: 'aba Função',
-  ghes: 'aba GHE',
-  avaliacoes: 'riscos da função ou do GHE',
-  epis: 'Catálogo de EPIs',
-  acoes_plano: 'aba Plano de ação',
-  planejamento: 'aba Planejamento',
-  empresa: 'ficha da empresa',
-  organizacao: 'Configurações',
+const ONDE_PREENCHER: Record<string, { rotulo: string; sub?: string }> = {
+  setores: { rotulo: 'aba Ambiente', sub: 'ambiente' },
+  funcoes: { rotulo: 'aba Função', sub: 'funcao' },
+  ghes: { rotulo: 'aba GHE', sub: 'ghe' },
+  avaliacoes: { rotulo: 'aba Função, nos riscos de cada função', sub: 'funcao' },
+  medicoes: { rotulo: 'aba Função, nas medições de cada risco', sub: 'funcao' },
+  acoes_plano: { rotulo: 'aba Plano de ação', sub: 'plano' },
+  planejamento: { rotulo: 'aba Planejamento', sub: 'planejamento' },
+  epis: { rotulo: 'Catálogo de EPIs' },
+  empresa: { rotulo: 'ficha da empresa' },
+  organizacao: { rotulo: 'Configurações' },
+  rt: { rotulo: 'Configurações, em responsáveis técnicos' },
+  revisoes: { rotulo: 'motivo da revisão, ao criar a nova revisão' },
 }
+
+const GESTAO_SST_OPCOES = ['SESMT', 'CIPA', 'Designado de CIPA', 'Dispensado']
 
 interface LinhaPendencia {
   descricao: string
@@ -352,15 +358,27 @@ export function PainelModeloSst({
   const [empresaEdit, setEmpresaEdit] = useState<Record<string, string>>({})
   const valorEmpresa = (col: string) =>
     ((dadosBase?.empresa as unknown as Record<string, unknown> | undefined)?.[col] as string) || ''
-  const salvarCampoEmpresa = async (campo: string, col: string) => {
-    const valor = empresaEdit[campo]
-    if (valor === undefined || !dadosBase || valor === valorEmpresa(col)) return
+  const gravarEmpresa = async (col: string, valor: string) => {
     try {
       await updateEmpresa(empresaId, { [col]: valor } as Partial<Empresa>)
       setDadosBase((d) => (d ? { ...d, empresa: { ...d.empresa, [col]: valor } } : d))
     } catch (e) {
       toast.error('Não foi possível salvar', { description: getErrorMessage(e) })
     }
+  }
+  const salvarCampoEmpresa = async (campo: string, col: string) => {
+    const valor = empresaEdit[campo]
+    if (valor === undefined || !dadosBase || valor === valorEmpresa(col)) return
+    await gravarEmpresa(col, valor)
+  }
+
+  // Opcionais ficam recolhidas: à vista, só o que bloqueia a emissão.
+  const [mostrarOpcionais, setMostrarOpcionais] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const irParaAba = (sub: string) => {
+    const proximo = new URLSearchParams(searchParams)
+    proximo.set('sub', sub)
+    setSearchParams(proximo)
   }
 
   /** Campo de preenchimento da pendência, ou null quando ela é resolvida em outra tela. */
@@ -413,6 +431,78 @@ export function PainelModeloSst({
             ))}
           </SelectContent>
         </Select>
+      )
+    if (campo === 'GESTAO_SST')
+      return (
+        <Select
+          value={valorEmpresa('gestao_sst')}
+          onValueChange={(v) => gravarEmpresa('gestao_sst', v)}
+          disabled={travado}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            {GESTAO_SST_OPCOES.map((o) => (
+              <SelectItem key={o} value={o}>
+                {o}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )
+    if (campo === 'AVCB_OU_CLCB')
+      return (
+        <div className="flex gap-2">
+          <Input
+            disabled={travado}
+            value={empresaEdit[campo] ?? valorEmpresa('avcb_clcb')}
+            onChange={(e) => setEmpresaEdit((v) => ({ ...v, [campo]: e.target.value }))}
+            onBlur={() => salvarCampoEmpresa(campo, 'avcb_clcb')}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            disabled={travado}
+            onClick={() => {
+              setEmpresaEdit((v) => ({ ...v, [campo]: 'Não se aplica' }))
+              gravarEmpresa('avcb_clcb', 'Não se aplica')
+            }}
+          >
+            Não se aplica
+          </Button>
+        </div>
+      )
+    if (campo === 'DATA_ULTIMO_SIMULADO')
+      return (
+        <div className="flex gap-2">
+          <Input
+            disabled={travado}
+            placeholder="dd/mm/aaaa"
+            value={(documento.campos_manuais || {})[campo] || ''}
+            onChange={(e) =>
+              onChange({
+                campos_manuais: { ...(documento.campos_manuais || {}), [campo]: e.target.value },
+              })
+            }
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            disabled={travado}
+            onClick={() =>
+              onChange({
+                campos_manuais: { ...(documento.campos_manuais || {}), [campo]: 'Não se aplica' },
+              })
+            }
+          >
+            Não se aplica
+          </Button>
+        </div>
       )
     const col = COLUNA_EMPRESA[campo]
     if (col)
@@ -647,42 +737,70 @@ export function PainelModeloSst({
           branco, saem em branco no documento.
         </p>
         <div className="divide-y">
-          {linhasOrdenadas.map(([campo, linha]) => {
-            const resolvida = !camposPendentes.has(campo)
-            const entrada = entradaDaPendencia(campo)
-            return (
-              <div
-                key={campo}
-                data-campo={campo}
-                className="grid grid-cols-1 gap-1.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-4"
-              >
-                <div className="min-w-0 text-sm">
-                  <span className="flex items-center gap-1.5">
-                    {resolvida && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
-                    <span className={resolvida ? 'text-muted-foreground' : ''}>
-                      {linha.descricao}
+          {(mostrarOpcionais ? linhasOrdenadas : linhasOrdenadas.filter(([, l]) => l.critico)).map(
+            ([campo, linha]) => {
+              const resolvida = !camposPendentes.has(campo)
+              const entrada = entradaDaPendencia(campo)
+              const onde = ONDE_PREENCHER[linha.origem]
+              return (
+                <div
+                  key={campo}
+                  data-campo={campo}
+                  className="grid grid-cols-1 gap-1.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-4"
+                >
+                  <div className="min-w-0 text-sm">
+                    <span className="flex items-center gap-1.5">
+                      {resolvida && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                      <span className={resolvida ? 'text-muted-foreground' : ''}>
+                        {linha.descricao}
+                      </span>
+                      {linha.critico && !resolvida && (
+                        <span className="text-xs font-medium text-destructive">obrigatória</span>
+                      )}
                     </span>
-                    {linha.critico && !resolvida && (
-                      <span className="text-xs font-medium text-destructive">obrigatória</span>
-                    )}
-                  </span>
-                  <span
-                    className="block truncate text-xs text-muted-foreground"
-                    title={linha.locais.join('; ')}
-                  >
-                    Usada em: {linha.locais.join('; ')}
-                  </span>
+                    <span
+                      className="block truncate text-xs text-muted-foreground"
+                      title={linha.locais.join('; ')}
+                    >
+                      Usada em: {linha.locais.join('; ')}
+                    </span>
+                  </div>
+                  {entrada ||
+                    (onde?.sub ? (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto justify-start p-0 text-left text-xs"
+                        onClick={() => irParaAba(onde.sub as string)}
+                      >
+                        Preencher na {onde.rotulo}
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Preencha em: {onde?.rotulo || linha.origem}
+                      </p>
+                    ))}
                 </div>
-                {entrada || (
-                  <p className="text-xs text-muted-foreground">
-                    Preencha em: {ONDE_PREENCHER[linha.origem] || linha.origem}
-                  </p>
-                )}
-              </div>
-            )
-          })}
+              )
+            },
+          )}
           {linhasOrdenadas.length === 0 && (
             <p className="py-2 text-sm text-muted-foreground">Nada falta neste documento.</p>
+          )}
+          {linhasOrdenadas.some(([, l]) => !l.critico) && (
+            <div className="pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setMostrarOpcionais((v) => !v)}
+              >
+                {mostrarOpcionais
+                  ? 'Esconder as opcionais'
+                  : `Mostrar ${totalEmBranco} ${totalEmBranco === 1 ? 'opcional' : 'opcionais'}`}
+              </Button>
+            </div>
           )}
         </div>
       </SecaoPainel>

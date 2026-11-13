@@ -64,8 +64,26 @@ export interface DocumentoRenderizado {
 
 const RE_CAMPO = /\[([A-Z][A-Z0-9_]+)\]/g
 
+/** Campos que, só no PGR, também bloqueiam a emissão quando faltam: sem eles
+ *  a identificação, o inventário ou o plano de ação saem incompletos. Os de
+ *  bloco (ambiente, função, risco, ação) valem por linha da tabela. */
+const CRITICOS_PGR = [
+  'ENDERECO_COMPLETO',
+  'CNAE_PRINCIPAL',
+  'DESCRICAO_CNAE',
+  'NOME_REPRESENTANTE_EMPRESA',
+  'CARGO_REPRESENTANTE_EMPRESA',
+  'AMBIENTE_PROCESSO',
+  'FUNCAO_ATIVIDADES',
+  'INV_MEDIDAS',
+  'RESP_ACAO',
+  'PRAZO_ACAO',
+  'AFERICAO_ACAO',
+]
+
 class Coletor {
   pendencias = new Map<string, Pendencia>()
+  criticos: string[] = CAMPOS_CRITICOS
   registrar(campo: string, local: string) {
     const chave = `${campo}|${local}`
     const atual = this.pendencias.get(chave)
@@ -80,7 +98,7 @@ class Coletor {
       origem: dic?.origem || 'desconhecida',
       local,
       vezes: 1,
-      critico: CAMPOS_CRITICOS.includes(campo),
+      critico: this.criticos.includes(campo),
     })
   }
   lista() {
@@ -230,11 +248,16 @@ function renderBloco(
       observacao: config?.observacao,
     }
   }
-  const linhas = resultado.linhas.map((ctx) =>
-    def.modeloLinha.map((celula) =>
-      substituir(celula, { ...valores, ...ctx }, `${titulo}`, col, '—'),
-    ),
-  )
+  // Na primeira emissão não há itens alterados: o histórico diz "Emissão inicial".
+  const padrao: Valores = dados.revisoes.length === 0 ? { ALTERACOES_REV: 'Emissão inicial' } : {}
+  const linhas = resultado.linhas.map((ctx) => {
+    const preenchidos = Object.fromEntries(
+      Object.entries(ctx).filter(([, x]) => x !== undefined && x !== ''),
+    )
+    return def.modeloLinha.map((celula) =>
+      substituir(celula, { ...valores, ...padrao, ...preenchidos }, `${titulo}`, col, '—'),
+    )
+  })
   return {
     tipo: 'tabela',
     blocoId: id,
@@ -414,6 +437,7 @@ export function renderizarDocumento(
   escolhas: Escolhas,
 ): DocumentoRenderizado {
   const col = new Coletor()
+  if (modelo.tipo === 'pgr') col.criticos = [...CAMPOS_CRITICOS, ...CRITICOS_PGR]
   const valores = resolverCamposDocumento(dados)
   valores.NOME_MATRIZ = dados.matriz?.nome
   valores.METODOLOGIA_MATRIZ = dados.matriz?.metodologia
@@ -428,7 +452,12 @@ export function renderizarDocumento(
       elementos: elementosDeHtml(s.texto, s.titulo, modelo, dados, valores, col, blocosConfig),
     }))
   const pendencias = col.lista()
-  const camposCriticosVazios = CAMPOS_CRITICOS.filter((c) => !valores[c])
+  const camposCriticosVazios = Array.from(
+    new Set([
+      ...CAMPOS_CRITICOS.filter((c) => !valores[c]),
+      ...pendencias.filter((p) => p.critico).map((p) => p.campo),
+    ]),
+  )
   return {
     modelo,
     campos: valores,

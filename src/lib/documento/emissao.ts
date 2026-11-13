@@ -2,6 +2,7 @@ import QRCode from 'qrcode'
 import { carregarDadosDocumento, type DadosDocumento } from '@/lib/modelosSst/dados'
 import type { DocumentoRenderizado } from '@/lib/modelosSst/renderizar'
 import { carregarModelo, renderizarDocumento, resolverEscolhas } from '@/lib/modelosSst'
+import { DICIONARIO } from '@/lib/modelosSst/campos'
 import { urlLogoEmpresa } from '@/services/empresas'
 import type { DocumentoSst, TipoDocumentoSst } from '@/services/documentosSst'
 import { carregarImagemComoDataUrl } from './imagens'
@@ -60,7 +61,9 @@ export async function gerarDocumentoPdf(args: ArgsGeracao): Promise<ResultadoGer
   const renderizado = renderizarDocumento(modelo, args.documento.secoes || [], dados, escolhas)
   if (args.exigirCamposCriticos && renderizado.camposCriticosVazios.length > 0) {
     throw new Error(
-      `Faltam dados obrigatórios para emitir: ${renderizado.camposCriticosVazios.join(', ')}`,
+      `Faltam dados obrigatórios para emitir: ${renderizado.camposCriticosVazios
+        .map((c) => DICIONARIO[c]?.descricao || c)
+        .join('; ')}`,
     )
   }
   const [marca, assinatura] = await Promise.all([
