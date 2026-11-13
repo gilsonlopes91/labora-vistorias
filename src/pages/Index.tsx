@@ -81,6 +81,8 @@ const Index = () => {
   const [vistorias, setVistorias] = useState<Vistoria[]>([])
   const [responsaveis, setResponsaveis] = useState<ResponsavelTecnico[]>([])
   const [totalEmpresas, setTotalEmpresas] = useState<number | null>(null)
+  // Enquanto as vistorias não chegam, os números não aparecem como zero.
+  const [carregandoVistorias, setCarregandoVistorias] = useState(true)
   const [filtroPeriodo, setFiltroPeriodo] = useState<Periodo>('semana')
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
 
@@ -91,6 +93,7 @@ const Index = () => {
     getVistorias()
       .then(setVistorias)
       .catch(() => setVistorias([]))
+      .finally(() => setCarregandoVistorias(false))
     getMinhaOrganizacao()
       .then((org) => getResponsaveisTecnicos(org.id))
       .then(setResponsaveis)
@@ -202,7 +205,7 @@ const Index = () => {
       to: '/',
       icon: Building2,
       titulo: 'Acessar organizações',
-      descricao: 'App operacional — empresas, vistorias e agenda das suas organizações.',
+      descricao: 'Empresas, vistorias e agenda das suas organizações.',
     },
     ...(papelEfetivo === 'admin_plataforma'
       ? [
@@ -229,7 +232,9 @@ const Index = () => {
       to: '/vistorias',
       icon: ClipboardCheck,
       title: 'Vistorias',
-      description: `${vistorias.length} vistoria(s) no total`,
+      description: carregandoVistorias
+        ? 'Carregando...'
+        : `${vistorias.length} vistoria(s) no total`,
       cta: 'Ver vistorias',
     },
     {
@@ -276,12 +281,9 @@ const Index = () => {
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <h1 className="mb-1 text-3xl font-extrabold tracking-tight lg:text-4xl">
         {getSaudacao()}
-        {user?.name ? `, ${user.name.split(' ')[0]}` : ''}!{' '}
-        <span className="text-primary">O que está em aberto?</span>
+        {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
       </h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Bem-vindo ao LABORA vistorias — gestão de auditorias, vistorias e inspeções de SST.
-      </p>
+      <p className="mb-6 text-sm text-muted-foreground">O que está em aberto nas suas vistorias.</p>
 
       {/* Camada plataforma: 2 caminhos grandes (admin total / staff) */}
       {ehPlataforma && (
@@ -383,7 +385,7 @@ const Index = () => {
                 })}
                 {atrasadas.length > 5 && (
                   <p className="text-xs text-muted-foreground">
-                    + {atrasadas.length - 5} atrasada(s) — veja a agenda para a lista completa.
+                    Mais {atrasadas.length - 5} atrasada(s) na agenda.
                   </p>
                 )}
               </CardContent>
@@ -394,11 +396,13 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div>
-                <CardTitle className="text-lg">Agenda — {PERIODO_LABEL[filtroPeriodo]}</CardTitle>
+                <CardTitle className="text-lg">Agenda: {PERIODO_LABEL[filtroPeriodo]}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {listaPeriodo.length === 0
-                    ? 'Nada agendado no período com os filtros atuais.'
-                    : `${listaPeriodo.length} vistoria(s) no período.`}
+                  {carregandoVistorias
+                    ? 'Carregando...'
+                    : listaPeriodo.length === 0
+                      ? 'Nada agendado no período com os filtros atuais.'
+                      : `${listaPeriodo.length} vistoria(s) no período.`}
                 </p>
               </div>
               <Link to="/agenda">
@@ -454,7 +458,7 @@ const Index = () => {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Vistorias por mês</CardTitle>
-              <CardDescription>Últimos 6 meses — concluídas x em aberto.</CardDescription>
+              <CardDescription>Últimos 6 meses.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-56 w-full">
@@ -493,7 +497,7 @@ const Index = () => {
                   </div>
                   <div className="min-w-0">
                     <div className="text-3xl font-extrabold leading-none tracking-tight">
-                      {stat.value}
+                      {carregandoVistorias ? '…' : stat.value}
                     </div>
                     <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
                       {stat.label}

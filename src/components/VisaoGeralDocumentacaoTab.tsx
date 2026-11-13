@@ -9,7 +9,6 @@ import { toast } from 'sonner'
 import { Building2, FileText, HardHat, ShieldAlert, Users2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { getEmpresas } from '@/services/empresas'
 
@@ -34,25 +33,19 @@ const RESUMO_VAZIO: ResumoGeral = {
 }
 
 export function VisaoGeralDocumentacaoTab() {
-  const { user } = useAuth()
-  const organizacaoId = (user?.organizacao_id as string) || ''
   const [resumo, setResumo] = useState<ResumoGeral>(RESUMO_VAZIO)
 
   useEffect(() => {
-    if (!organizacaoId) return
     let cancelado = false
     setResumo((v) => ({ ...v, carregando: true }))
+    // Sem filtro de organização: as regras do servidor já limitam ao que o
+    // usuário pode ver, o mesmo conjunto da lista de empresas. Filtrar pela
+    // organização do usuário deixava de fora as empresas atendidas como staff.
     Promise.all([
       getEmpresas(),
-      pb.collection('avaliacoes_risco').getList(1, 1, {
-        filter: `organizacao_id = "${organizacaoId}"`,
-      }),
-      pb.collection('epis_catalogo').getList(1, 1, {
-        filter: `organizacao_id = "${organizacaoId}"`,
-      }),
-      pb.collection('documentos_sst').getList(1, 1, {
-        filter: `organizacao_id = "${organizacaoId}" && status = "emitido"`,
-      }),
+      pb.collection('avaliacoes_risco').getList(1, 1, { filter: 'ativo = true' }),
+      pb.collection('epis_catalogo').getList(1, 1),
+      pb.collection('documentos_sst').getList(1, 1, { filter: 'status = "emitido"' }),
     ])
       .then(([empresas, riscos, epis, documentos]) => {
         if (cancelado) return
@@ -73,7 +66,7 @@ export function VisaoGeralDocumentacaoTab() {
     return () => {
       cancelado = true
     }
-  }, [organizacaoId])
+  }, [])
 
   const cartoes = [
     { titulo: 'Empresas Ativas', valor: resumo.empresasAtivas, icone: Building2 },

@@ -93,9 +93,14 @@ export default function EmpresaDetalhe() {
   const [formularios, setFormularios] = useState<Formulario[]>([])
   const [carregando, setCarregando] = useState(true)
   const [gerandoPdf, setGerandoPdf] = useState(false)
+  // Falha de carga (conexão) é diferente de empresa que não existe.
+  const [falhaCarga, setFalhaCarga] = useState(false)
+  const [tentativa, setTentativa] = useState(0)
 
   useEffect(() => {
     if (!id) return
+    setCarregando(true)
+    setFalhaCarga(false)
     Promise.all([
       getEmpresa(id),
       getVistorias(),
@@ -108,13 +113,14 @@ export default function EmpresaDetalhe() {
         setOrcamentos(orc.filter((o) => o.empresa_id === id))
         setFormularios(forms)
       })
-      .catch((error) =>
+      .catch((error) => {
+        setFalhaCarga(true)
         toast.error('Não foi possível carregar a empresa', {
           description: getErrorMessage(error),
-        }),
-      )
+        })
+      })
       .finally(() => setCarregando(false))
-  }, [id])
+  }, [id, tentativa])
 
   const resumoVistorias = useMemo(() => {
     const porStatus = (status: string) => vistorias.filter((v) => v.status === status).length
@@ -193,10 +199,17 @@ export default function EmpresaDetalhe() {
   if (!empresa) {
     return (
       <div className="container mx-auto max-w-5xl px-4 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Empresa não encontrada.</p>
-        <Button variant="outline" asChild className="mt-4">
-          <Link to="/empresas">Voltar para empresas</Link>
-        </Button>
+        <p className="text-sm text-muted-foreground">
+          {falhaCarga
+            ? 'Não foi possível carregar a empresa. Confira a conexão e tente de novo.'
+            : 'Empresa não encontrada.'}
+        </p>
+        <div className="mt-4 flex justify-center gap-2">
+          {falhaCarga && <Button onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</Button>}
+          <Button variant="outline" asChild>
+            <Link to="/empresas">Voltar para empresas</Link>
+          </Button>
+        </div>
       </div>
     )
   }
