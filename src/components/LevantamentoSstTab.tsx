@@ -97,7 +97,9 @@ async function buscarSaudeCadastro(empresaId: string): Promise<SaudeCadastro> {
   }
 }
 
-function useSaudeCadastro(empresaId: string) {
+// `recarregar` muda quando o usuário troca de aba, para o resumo refletir o
+// que acabou de ser cadastrado.
+function useSaudeCadastro(empresaId: string, recarregar: string) {
   const [saude, setSaude] = useState<SaudeCadastro>(SAUDE_VAZIA)
 
   useEffect(() => {
@@ -119,7 +121,7 @@ function useSaudeCadastro(empresaId: string) {
     return () => {
       cancelado = true
     }
-  }, [empresaId])
+  }, [empresaId, recarregar])
 
   return saude
 }
@@ -162,7 +164,6 @@ function useSaudeVariasEmpresas(empresaIds: string[]) {
 
 // Resumo do cadastro em uma linha: quanto já foi levantado e o que falta.
 function PainelSaude({ saude }: { saude: SaudeCadastro }) {
-  if (saude.carregando) return null
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
       <BarraProgresso percentual={saude.percentual} />
@@ -226,6 +227,10 @@ function ListaEmpresasLevantamento({
         .some((c) => String(c).toLowerCase().includes(termo)),
     )
   }, [empresas, busca])
+
+  if (carregando) {
+    return <div className="py-16 text-center text-sm text-muted-foreground">Carregando...</div>
+  }
 
   if (empresas.length === 0) {
     return (
@@ -308,7 +313,7 @@ export function LevantamentoSstTab() {
   const empresaId = searchParams.get('empresa') || ''
   const subParam = searchParams.get('sub')
   const sub: Sub = SUBS.includes(subParam as Sub) ? (subParam as Sub) : 'planejamento'
-  const saude = useSaudeCadastro(empresaId)
+  const saude = useSaudeCadastro(empresaId, sub)
 
   useEffect(() => {
     getEmpresas()
