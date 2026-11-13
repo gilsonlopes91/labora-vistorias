@@ -17,6 +17,7 @@ import { getFuncoesSst } from '@/services/funcoesSst'
 import { getAcoesPlano } from '@/services/acoesPlano'
 import { getAvaliacoesRiscoDaEmpresa } from '@/services/avaliacoesRisco'
 import { EstruturaSstTab } from '@/components/EstruturaSstTab'
+import { CopiarEstruturaDialog } from '@/components/CopiarEstruturaDialog'
 import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 import { PlanejamentoPgrTab } from '@/components/PlanejamentoPgrTab'
 import { DocumentosSstTab } from '@/components/DocumentosSstTab'
@@ -376,6 +377,14 @@ export function LevantamentoSstTab() {
       ) : (
         <>
           <PainelSaude saude={saude} />
+          {/* Empresa ainda sem levantamento: oferece partir de outra já feita. */}
+          {empresa && !saude.carregando && saude.ambientes + saude.ghes + saude.funcoes === 0 && (
+            <CopiarEstruturaDialog
+              destino={empresa}
+              empresas={empresas}
+              onCopiado={() => mudarParam('sub', sub === 'ambiente' ? 'funcao' : 'ambiente')}
+            />
+          )}
 
           <Tabs value={sub} onValueChange={(v) => mudarParam('sub', v)} className="space-y-6">
             <TabsList>
