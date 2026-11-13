@@ -316,6 +316,40 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
     await emitirPdf()
   }
 
+  const baixarBlob = (blob: Blob, nome: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nome
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  // Baixar sem assinar: gera o PDF e baixa, sem pedir senha. O documento
+  // continua em rascunho; só "Baixar e assinar" assina e trava a versão.
+  const baixarSemAssinar = async () => {
+    if (!selecionado) return
+    setEmitindo(true)
+    try {
+      const { blob, dados } = await gerarDocumentoPdf({
+        empresaId,
+        tipo: selecionado.tipo,
+        documento: { ...selecionado, ...f },
+        titulo: f.titulo || TIPO_DOCUMENTO_TITULO_PADRAO[selecionado.tipo],
+        exigirCamposCriticos: true,
+      })
+      const nomeEmpresa = dados.empresa.nome_fantasia || dados.empresa.razao_social
+      baixarBlob(
+        blob,
+        nomeArquivoDocumentoSst(selecionado.tipo, nomeEmpresa, (selecionado.versao || 0) + 1),
+      )
+    } catch (error) {
+      toast.error('Não foi possível gerar o PDF', { description: getErrorMessage(error) })
+    } finally {
+      setEmitindo(false)
+    }
+  }
+
   // Emissão dos documentos criados a partir dos Modelos Gerais Labora.
   const emitirPdfModelo = async () => {
     if (!selecionado) return
@@ -390,7 +424,8 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         }),
       )
       setSelecionadoId(emitido.id)
-      toast.success(`${TIPO_DOCUMENTO_LABEL[selecionado.tipo]} emitido em PDF`)
+      baixarBlob(blob, nomeArquivo)
+      toast.success(`${TIPO_DOCUMENTO_LABEL[selecionado.tipo]} assinado e emitido`)
     } catch (error) {
       toast.error('Não foi possível emitir o PDF', { description: getErrorMessage(error) })
     } finally {
@@ -1065,16 +1100,26 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                         <Button variant="outline" onClick={salvar} disabled={salvando || emitindo}>
                           Salvar rascunho
                         </Button>
+                        {selecionado.modelo_versao && (
+                          <Button
+                            variant="outline"
+                            onClick={baixarSemAssinar}
+                            disabled={salvando || emitindo}
+                          >
+                            Baixar PDF
+                          </Button>
+                        )}
                         <Button onClick={abrirDialogEmissao} disabled={salvando || emitindo}>
-                          {emitindo ? 'Emitindo...' : 'Emitir PDF'}
+                          {emitindo ? 'Gerando...' : 'Baixar e assinar'}
                         </Button>
                       </>
                     )}
                   </div>
                   {!travado && (
                     <p className="text-xs text-muted-foreground">
-                      O rascunho é salvo sozinho. Emitir gera o PDF com os dados atuais e trava esta
-                      versão. Para mudar depois, crie uma nova revisão.
+                      O rascunho é salvo sozinho. "Baixar PDF" gera o documento sem assinatura e
+                      mantém o rascunho. "Baixar e assinar" pede a senha, assina e trava esta
+                      versão; para mudar depois, crie uma nova revisão.
                     </p>
                   )}
                 </CardContent>
@@ -1133,7 +1178,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
       <Dialog open={dialogSenhaAberto} onOpenChange={setDialogSenhaAberto}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirme sua senha para emitir</DialogTitle>
+            <DialogTitle>Confirme sua senha para assinar</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             A emissão assina eletronicamente o documento em seu nome. Digite sua senha para
@@ -1154,7 +1199,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
           </div>
           <DialogFooter>
             <Button onClick={confirmarSenhaEEmitir} disabled={emitindo}>
-              {emitindo ? 'Confirmando...' : 'Confirmar e emitir'}
+              {emitindo ? 'Confirmando...' : 'Assinar e baixar'}
             </Button>
           </DialogFooter>
         </DialogContent>

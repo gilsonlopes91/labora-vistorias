@@ -213,6 +213,11 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
             status: 'Pendente' as StatusAcaoPlano,
             prioridade: a._categoria,
             numero_expostos: a.numero_expostos,
+            // A forma de aferição segue o tipo de avaliação do risco.
+            forma_afericao_resultado:
+              a.trilha_probabilidade === 'Quantitativa (medição)'
+                ? 'Nova medição do agente depois de implantada a medida'
+                : 'Inspeção no local para verificar a medida implantada',
             origem: 'Sugerida',
           }),
         ),

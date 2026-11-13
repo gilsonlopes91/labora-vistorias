@@ -77,8 +77,6 @@ const CRITICOS_PGR = [
   'FUNCAO_ATIVIDADES',
   'INV_MEDIDAS',
   'RESP_ACAO',
-  'PRAZO_ACAO',
-  'AFERICAO_ACAO',
 ]
 
 class Coletor {
