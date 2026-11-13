@@ -20,4 +20,4 @@ Disallow: /cliente
 Disallow: /trocar-senha
 Disallow: /verificar
 
-Sitemap: https://labora-vistoria-efe63.goskip.app/sitemap.xml
+Sitemap: https://www.laboravistorias.com.br/sitemap.xml
