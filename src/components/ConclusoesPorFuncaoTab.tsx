@@ -121,10 +121,10 @@ export function ConclusoesPorFuncaoTab({
         const mm: Record<string, Medicao[]> = {}
         relevantes.forEach((a, i) => (mm[a.id] = medicoesLista[i]))
         setMedicoesPorAvaliacao(mm)
-        if (user?.organizacao_id) {
-          const rt = await buscarResponsavelDoUsuario(user.organizacao_id, user.id).catch(
-            () => null,
-          )
+        // Organização da empresa, não a do usuário: staff e admin não têm a mesma.
+        const orgId = emp.organizacao_id || user?.organizacao_id
+        if (orgId && user?.id) {
+          const rt = await buscarResponsavelDoUsuario(orgId, user.id).catch(() => null)
           if (!cancelado) setResponsavelNome(rt?.nome || '')
         }
       })
@@ -296,7 +296,7 @@ export function ConclusoesPorFuncaoTab({
     return (
       <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
         <p className="text-sm text-muted-foreground">
-          Cadastre as funções da empresa na aba Estrutura SST para ver as conclusões por função.
+          Cadastre as funções da empresa na aba Função para ver as conclusões.
         </p>
       </div>
     )
@@ -306,9 +306,8 @@ export function ConclusoesPorFuncaoTab({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Sugestão calculada a partir do inventário e das medições. A classificação do PGR não
-          fundamenta este laudo — o dado técnico sim (NR-1, item 1.5.2). Confirme ou mude cada
-          conclusão com justificativa.
+          Sugestão calculada pelo inventário e pelas medições, não pela classificação do PGR.
+          Confirme ou mude cada conclusão, com justificativa.
         </p>
         <Button variant="outline" size="sm" onClick={salvarSugestoes} disabled={!!salvandoId}>
           {salvandoId ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
@@ -317,13 +316,13 @@ export function ConclusoesPorFuncaoTab({
       </div>
 
       {tipo === 'ltcat' && checklist && (
-        <Card className={checklist.completo ? 'border-emerald-300' : 'border-orange-300'}>
+        <Card className={checklist.completo ? '' : 'border-destructive/40'}>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               {checklist.completo ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <CheckCircle2 className="h-4 w-4 text-primary" />
               ) : (
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                <AlertTriangle className="h-4 w-4 text-destructive" />
               )}
               Checklist do art. 276 da IN PRES/INSS 128/2022
             </CardTitle>
@@ -332,7 +331,7 @@ export function ConclusoesPorFuncaoTab({
             {checklist.itens.map((item) => (
               <div key={item.label} className="flex items-center gap-2">
                 {item.ok ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
                 ) : (
                   <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
                 )}
@@ -341,8 +340,7 @@ export function ConclusoesPorFuncaoTab({
             ))}
             {!checklist.completo && (
               <p className="mt-2 text-xs font-medium text-destructive">
-                Complete os itens pendentes antes de emitir o LTCAT — a aba Documentos não deve ser
-                usada para emitir enquanto houver pendência aqui.
+                Complete os itens pendentes para liberar a emissão do LTCAT.
               </p>
             )}
           </CardContent>
@@ -370,7 +368,7 @@ export function ConclusoesPorFuncaoTab({
           <CardContent className="space-y-3">
             {tipo === 'ltcat' && grupo.linhas.length === 0 && (
               <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                Nenhum agente do Anexo IV identificado — conclusão:{' '}
+                Nenhum agente do Anexo IV identificado. Conclusão:{' '}
                 <strong>{AUSENCIA_AGENTE_NOCIVO.descricao}</strong> (código{' '}
                 {AUSENCIA_AGENTE_NOCIVO.codigo}).
               </div>
@@ -422,7 +420,7 @@ export function ConclusoesPorFuncaoTab({
                     )}
                   </div>
                   {linha.avisos.map((a, i) => (
-                    <p key={i} className="mt-1 text-xs text-orange-600">
+                    <p key={i} className="mt-1 text-xs text-amber-700">
                       {a}
                     </p>
                   ))}

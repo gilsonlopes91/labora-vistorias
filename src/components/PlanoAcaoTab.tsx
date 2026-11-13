@@ -14,20 +14,13 @@
    PGR/laudo emitido (src/components/DocumentosSstTab.tsx). */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import {
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  FolderPlus,
-  Pencil,
-  Sparkles,
-  Trash2,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardList, FolderPlus, Pencil, Trash2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatBrazilianDate } from '@/lib/date'
 import { useAuth } from '@/hooks/use-auth'
 import { getGhes } from '@/services/ghes'
+import { getEmpresa } from '@/services/empresas'
 import { getFuncoesSst } from '@/services/funcoesSst'
 import { getMatrizOficial } from '@/services/matrizesRisco'
 import { getAvaliacoesRiscoDaEmpresa, type AvaliacaoRisco } from '@/services/avaliacoesRisco'
@@ -123,7 +116,15 @@ const SEM_PLANO = '__sem_plano'
 
 export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
   const { user } = useAuth()
-  const organizacaoId = (user?.organizacao_id as string) || ''
+  // A organização dos registros é a da empresa, não a do usuário logado.
+  const [organizacaoId, setOrganizacaoId] = useState((user?.organizacao_id as string) || '')
+  useEffect(() => {
+    getEmpresa(empresaId)
+      .then((e) => {
+        if (e.organizacao_id) setOrganizacaoId(e.organizacao_id)
+      })
+      .catch(() => {})
+  }, [empresaId])
 
   const [planos, setPlanos] = useState<PlanoAcao[]>([])
   const [acoes, setAcoes] = useState<AcaoPlano[]>([])
@@ -479,8 +480,8 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" disabled={gerando} onClick={gerarSugeridas}>
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                Gerar {avaliacoesCriticas.length} sugestão(ões)
+                Sugerir {avaliacoesCriticas.length}{' '}
+                {avaliacoesCriticas.length === 1 ? 'ação' : 'ações'} pelos riscos
               </Button>
             </>
           )}
@@ -571,7 +572,7 @@ export function PlanoAcaoTab({ empresaId }: { empresaId: string }) {
                   Ações sem plano ({acoesSemPlano.length})
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  — organize dentro de um plano usando o seletor de cada ação
+                  Para organizar, escolha o plano em cada ação.
                 </span>
               </div>
               <div className="divide-y">{acoesSemPlano.map(renderAcao)}</div>

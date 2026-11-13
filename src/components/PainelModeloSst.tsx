@@ -390,7 +390,7 @@ export function PainelModeloSst({
               <SelectContent>
                 {rts.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
-                    {r.nome} — {r.tipo_registro} {r.numero_registro}
+                    {r.nome}, {r.tipo_registro} {r.numero_registro}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -410,7 +410,7 @@ export function PainelModeloSst({
                 <SelectItem value={SEM_COORDENADOR}>Não se aplica</SelectItem>
                 {rts.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
-                    {r.nome} — {r.tipo_registro} {r.numero_registro}
+                    {r.nome}, {r.tipo_registro} {r.numero_registro}
                   </SelectItem>
                 ))}
               </SelectContent>

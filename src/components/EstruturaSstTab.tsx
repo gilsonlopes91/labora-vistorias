@@ -559,7 +559,7 @@ export function EstruturaSstTab({
               <Label>Máquinas, equipamentos e substâncias</Label>
               <Textarea
                 className="mt-1.5"
-                placeholder="O que existe no ambiente e entra no PGR (bloco de ambientes)"
+                placeholder="O que existe no ambiente. Entra na descrição dos ambientes do PGR."
                 value={fSetor.maquinas_equipamentos || ''}
                 onChange={(e) =>
                   setFSetor((v) => ({ ...v, maquinas_equipamentos: e.target.value }))
@@ -635,6 +635,7 @@ export function EstruturaSstTab({
                     <Label>Nome</Label>
                     <Input
                       className="mt-1.5"
+                      autoFocus
                       value={fGhe.nome || ''}
                       onChange={(e) => setFGhe((v) => ({ ...v, nome: e.target.value }))}
                     />
@@ -794,6 +795,7 @@ export function EstruturaSstTab({
                   <Label>Nome da função</Label>
                   <Input
                     className="mt-1.5"
+                    autoFocus
                     value={fFuncao.nome || ''}
                     onChange={(e) => setFFuncao((v) => ({ ...v, nome: e.target.value }))}
                   />
