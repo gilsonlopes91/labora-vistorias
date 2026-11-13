@@ -15,7 +15,7 @@ import { getSetores } from '@/services/setores'
 import { getGhes } from '@/services/ghes'
 import { getFuncoesSst } from '@/services/funcoesSst'
 import { getAcoesPlano } from '@/services/acoesPlano'
-import { getAvaliacoesRiscoPorGhes } from '@/services/avaliacoesRisco'
+import { getAvaliacoesRiscoDaEmpresa } from '@/services/avaliacoesRisco'
 import { EstruturaSstTab } from '@/components/EstruturaSstTab'
 import { PlanoAcaoTab } from '@/components/PlanoAcaoTab'
 import { PlanejamentoPgrTab } from '@/components/PlanejamentoPgrTab'
@@ -70,7 +70,11 @@ async function buscarSaudeCadastro(empresaId: string): Promise<SaudeCadastro> {
     getFuncoesSst(empresaId),
     getAcoesPlano(empresaId),
   ])
-  const avaliacoes = await getAvaliacoesRiscoPorGhes(ghes.map((g) => g.id))
+  // Conta os riscos de GHE e os lançados direto na função.
+  const avaliacoes = await getAvaliacoesRiscoDaEmpresa(
+    ghes.map((g) => g.id),
+    funcoes.map((f) => f.id),
+  )
   const passos: Array<[boolean, string]> = [
     [setores.length > 0 || ghes.length > 0, 'Cadastre ao menos um ambiente ou GHE'],
     [funcoes.length > 0, 'Cadastre as funções da empresa'],

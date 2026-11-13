@@ -189,6 +189,8 @@ function SecaoRisco({
 
 interface RiscosOcupacionaisPainelProps {
   empresaId: string
+  /** Organização da empresa; sem ela, usa a do usuário logado. */
+  organizacaoId?: string
   /** Nome da função ou do GHE em edição, mostrado na seção de identificação. */
   nomeContexto?: string
   /** Informe exatamente um dos dois: a função OU o GHE sendo editado. */
@@ -198,12 +200,13 @@ interface RiscosOcupacionaisPainelProps {
 
 export function RiscosOcupacionaisPainel({
   empresaId,
+  organizacaoId: organizacaoDaEmpresa,
   nomeContexto,
   funcaoId,
   gheId,
 }: RiscosOcupacionaisPainelProps) {
   const { user } = useAuth()
-  const organizacaoId = (user?.organizacao_id as string) || ''
+  const organizacaoId = organizacaoDaEmpresa || (user?.organizacao_id as string) || ''
   const contextoBadge = funcaoId ? 'Específico da Função' : 'Geral'
 
   const [agentes, setAgentes] = useState<AgenteCatalogo[]>([])

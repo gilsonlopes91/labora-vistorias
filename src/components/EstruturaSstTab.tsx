@@ -37,6 +37,7 @@ import {
   type FuncaoSstInput,
 } from '@/services/funcoesSst'
 import { RiscosOcupacionaisPainel } from '@/components/RiscosOcupacionaisPainel'
+import { getEmpresa } from '@/services/empresas'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -117,7 +118,16 @@ export function EstruturaSstTab({
   secao: 'ambientes' | 'ghes' | 'funcoes'
 }) {
   const { user } = useAuth()
-  const organizacaoId = (user?.organizacao_id as string) || ''
+  // A organização dos registros é a da empresa, não a do usuário logado:
+  // admin da plataforma e staff não têm organização própria.
+  const [organizacaoId, setOrganizacaoId] = useState((user?.organizacao_id as string) || '')
+  useEffect(() => {
+    getEmpresa(empresaId)
+      .then((e) => {
+        if (e.organizacao_id) setOrganizacaoId(e.organizacao_id)
+      })
+      .catch(() => {})
+  }, [empresaId])
 
   const [setores, setSetores] = useState<Setor[]>([])
   const [ghes, setGhes] = useState<Ghe[]>([])
@@ -738,6 +748,7 @@ export function EstruturaSstTab({
               {gheEdit ? (
                 <RiscosOcupacionaisPainel
                   empresaId={empresaId}
+                  organizacaoId={organizacaoId}
                   gheId={gheEdit.id}
                   nomeContexto={gheEdit.nome}
                 />
@@ -906,6 +917,7 @@ export function EstruturaSstTab({
               {funcaoEdit ? (
                 <RiscosOcupacionaisPainel
                   empresaId={empresaId}
+                  organizacaoId={organizacaoId}
                   funcaoId={funcaoEdit.id}
                   nomeContexto={funcaoEdit.nome}
                 />
