@@ -9,9 +9,10 @@
  * para não perder edições feitas à mão. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, Eye, RefreshCw, Loader2, ListChecks, Table2 } from 'lucide-react'
+import { AlertTriangle, Check, Eye, RefreshCw, Loader2, ListChecks, Table2 } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { updateEmpresa, type Empresa } from '@/services/empresas'
 import {
   carregarModelo,
   carregarDadosDocumento,
@@ -61,6 +62,52 @@ interface Props {
 }
 
 const SEM_COORDENADOR = '__nenhum__'
+
+/** Coluna da empresa que alimenta cada campo de texto do modelo. Com isso a
+ *  pendência é preenchida ali mesmo, sem ir até o cadastro da empresa. */
+const COLUNA_EMPRESA: Record<string, string> = {
+  RAZAO_SOCIAL: 'razao_social',
+  CNPJ: 'cnpj',
+  ENDERECO_COMPLETO: 'endereco',
+  TELEFONE: 'contato_telefone',
+  CNAE_PRINCIPAL: 'cnae',
+  DESCRICAO_CNAE: 'cnae_descricao',
+  DESCRICAO_PROCESSO_PRODUTIVO: 'descricao_processo_produtivo',
+  JORNADA_TRABALHO: 'jornada_trabalho',
+  HORARIO_TRABALHO: 'horario_trabalho',
+  TURNOS_TRABALHO: 'turnos_trabalho',
+  NOME_REPRESENTANTE_EMPRESA: 'representante_legal_nome',
+  CARGO_REPRESENTANTE_EMPRESA: 'representante_legal_cargo',
+  CONVENCAO_COLETIVA_CLAUSULA: 'convencao_coletiva_clausula',
+  AREA_CONSTRUIDA_PAVIMENTOS: 'area_construida_pavimentos',
+  CANAL_COMUNICACAO: 'canal_comunicacao',
+  NOME_RESPONSAVEL_PLANO: 'responsavel_plano_nome',
+  CARGO_RESPONSAVEL_PLANO: 'responsavel_plano_cargo',
+  PERIODICIDADE_ACOMPANHAMENTO: 'periodicidade_acompanhamento',
+  FORMA_ACESSO_DOCUMENTO: 'forma_acesso_documento',
+  LOCAL_GUARDA: 'local_guarda',
+  AVCB_OU_CLCB: 'avcb_clcb',
+}
+
+/** Onde preencher o que não dá para preencher na própria pendência. */
+const ONDE_PREENCHER: Record<string, string> = {
+  setores: 'aba Ambiente',
+  funcoes: 'aba Função',
+  ghes: 'aba GHE',
+  avaliacoes: 'riscos da função ou do GHE',
+  epis: 'Catálogo de EPIs',
+  acoes_plano: 'aba Plano de ação',
+  planejamento: 'aba Planejamento',
+  empresa: 'ficha da empresa',
+  organizacao: 'Configurações',
+}
+
+interface LinhaPendencia {
+  descricao: string
+  origem: string
+  critico: boolean
+  locais: string[]
+}
 
 /** Qual campo do painel "Dados do documento" responde por uma pendência (a partir da chave dela). */
 function campoDoPainel(campo: string): string | null {
@@ -258,15 +305,139 @@ export function PainelModeloSst({
 
   const camposManuais = useMemo(() => camposManuaisDoModelo(camposDoModelo(modelo)), [modelo])
 
-  const pendenciasCriticas = renderizado?.pendencias.filter((p) => p.critico) || []
-  const pendenciasDados =
-    renderizado?.pendencias.filter(
-      (p) =>
-        !p.critico && DICIONARIO[p.campo]?.origem !== 'manual' && !p.campo.startsWith('BLOCO_'),
-    ) || []
-  const pendenciasManuais =
-    renderizado?.pendencias.filter((p) => !p.critico && DICIONARIO[p.campo]?.origem === 'manual') ||
-    []
+  // Pendências, uma linha por campo (o mesmo campo pode faltar em vários
+  // capítulos). A linha continua na tela depois de preenchida, marcada como
+  // resolvida, para não sumir enquanto a pessoa digita.
+  const [linhasPendencia, setLinhasPendencia] = useState<Record<string, LinhaPendencia>>({})
+  useEffect(() => {
+    setLinhasPendencia({})
+  }, [documento.id])
+  useEffect(() => {
+    if (!renderizado) return
+    setLinhasPendencia((atual) => {
+      let mudou = false
+      const novo = { ...atual }
+      for (const p of renderizado.pendencias) {
+        if (p.campo.startsWith('BLOCO_')) continue
+        const linha = novo[p.campo]
+        if (!linha) {
+          novo[p.campo] = {
+            descricao: p.descricao,
+            origem: p.origem,
+            critico: p.critico,
+            locais: [p.local],
+          }
+          mudou = true
+        } else if (!linha.locais.includes(p.local)) {
+          novo[p.campo] = { ...linha, locais: [...linha.locais, p.local] }
+          mudou = true
+        }
+      }
+      return mudou ? novo : atual
+    })
+  }, [renderizado])
+  const camposPendentes = new Set((renderizado?.pendencias || []).map((p) => p.campo))
+  const linhasOrdenadas = Object.entries(linhasPendencia).sort(
+    ([, a], [, b]) => Number(b.critico) - Number(a.critico),
+  )
+  const totalCriticas = linhasOrdenadas.filter(
+    ([c, l]) => l.critico && camposPendentes.has(c),
+  ).length
+  const totalEmBranco = linhasOrdenadas.filter(
+    ([c, l]) => !l.critico && camposPendentes.has(c),
+  ).length
+
+  // O que a pessoa digitou nas pendências que vêm do cadastro da empresa;
+  // grava na empresa ao sair do campo.
+  const [empresaEdit, setEmpresaEdit] = useState<Record<string, string>>({})
+  const valorEmpresa = (col: string) =>
+    ((dadosBase?.empresa as unknown as Record<string, unknown> | undefined)?.[col] as string) || ''
+  const salvarCampoEmpresa = async (campo: string, col: string) => {
+    const valor = empresaEdit[campo]
+    if (valor === undefined || !dadosBase || valor === valorEmpresa(col)) return
+    try {
+      await updateEmpresa(empresaId, { [col]: valor } as Partial<Empresa>)
+      setDadosBase((d) => (d ? { ...d, empresa: { ...d.empresa, [col]: valor } } : d))
+    } catch (e) {
+      toast.error('Não foi possível salvar', { description: getErrorMessage(e) })
+    }
+  }
+
+  /** Campo de preenchimento da pendência, ou null quando ela é resolvida em outra tela. */
+  const entradaDaPendencia = (campo: string): ReactNode => {
+    if (campo === 'DATA_LEVANTAMENTO' || campo === 'PERIODO_INICIO')
+      return (
+        <Input
+          type="date"
+          disabled={travado}
+          value={(documento.data_levantamento || '').slice(0, 10)}
+          onChange={(e) => onChange({ data_levantamento: e.target.value })}
+        />
+      )
+    if (campo === 'CIDADE')
+      return (
+        <Input
+          disabled={travado}
+          placeholder="Cidade/UF"
+          value={documento.cidade_emissao || ''}
+          onChange={(e) => onChange({ cidade_emissao: e.target.value })}
+        />
+      )
+    if (campo === 'NUMERO_ART')
+      return (
+        <Input
+          disabled={travado}
+          value={documento.numero_art || ''}
+          onChange={(e) => onChange({ numero_art: e.target.value })}
+        />
+      )
+    if (campo === 'NOME_AUTOR' || campo === 'REGISTRO_AUTOR' || campo === 'CONSELHO_ART')
+      return rts.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Cadastre o responsável técnico em Configurações.
+        </p>
+      ) : (
+        <Select
+          value={documento.autor_rt_id || ''}
+          onValueChange={(v) => onChange({ autor_rt_id: v })}
+          disabled={travado}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Escolha o autor" />
+          </SelectTrigger>
+          <SelectContent>
+            {rts.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.nome}, {r.tipo_registro} {r.numero_registro}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )
+    const col = COLUNA_EMPRESA[campo]
+    if (col)
+      return (
+        <Input
+          disabled={travado}
+          value={empresaEdit[campo] ?? valorEmpresa(col)}
+          onChange={(e) => setEmpresaEdit((v) => ({ ...v, [campo]: e.target.value }))}
+          onBlur={() => salvarCampoEmpresa(campo, col)}
+        />
+      )
+    if (DICIONARIO[campo]?.origem === 'manual')
+      return (
+        <Input
+          disabled={travado}
+          value={(documento.campos_manuais || {})[campo] || ''}
+          onChange={(e) =>
+            onChange({
+              campos_manuais: { ...(documento.campos_manuais || {}), [campo]: e.target.value },
+            })
+          }
+        />
+      )
+    return null
+  }
 
   const blocos = useMemo(() => {
     const lista: { id: string; titulo: string; linhas: number; manual: boolean; secao: string }[] =
@@ -324,8 +495,8 @@ export function PainelModeloSst({
         el.scrollIntoView({ behavior: 'smooth', block: 'center' })
         el.classList.add('ring-2', 'ring-primary', 'rounded-md')
         setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'rounded-md'), 2500)
-        if (alvoDoc || manual)
-          el.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true })
+        const campoNaLinha = el.querySelector<HTMLElement>('input, textarea, button')
+        if (alvoDoc || manual || campoNaLinha) campoNaLinha?.focus({ preventScroll: true })
         else
           toast.info(
             'Este dado vem do cadastro da empresa. Preencha na aba de origem e gere a prévia de novo.',
@@ -455,53 +626,65 @@ export function PainelModeloSst({
         icone={<ListChecks className="h-4 w-4 text-muted-foreground" />}
         resumo={
           <>
-            {pendenciasCriticas.length > 0 && (
-              <Badge variant="destructive">{pendenciasCriticas.length} crítica(s)</Badge>
-            )}
-            {pendenciasManuais.length + pendenciasDados.length > 0 && (
-              <Badge variant="secondary">
-                {pendenciasManuais.length + pendenciasDados.length} em branco
+            {totalCriticas > 0 && (
+              <Badge variant="destructive">
+                {totalCriticas} obrigatória{totalCriticas === 1 ? '' : 's'}
               </Badge>
             )}
-            {renderizado && renderizado.pendencias.length === 0 && (
+            {totalEmBranco > 0 && (
+              <Badge variant="secondary">
+                {totalEmBranco} opciona{totalEmBranco === 1 ? 'l' : 'is'}
+              </Badge>
+            )}
+            {renderizado && totalCriticas + totalEmBranco === 0 && (
               <Badge variant="default">sem pendências</Badge>
             )}
           </>
         }
       >
-        {pendenciasCriticas.length > 0 && (
-          <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs">
-            <p className="mb-1 font-semibold text-destructive">Bloqueiam a emissão:</p>
-            <ul className="list-disc pl-4">
-              {pendenciasCriticas.map((p) => (
-                <li key={`${p.campo}-${p.local}`}>
-                  {p.descricao} <span className="text-muted-foreground">({p.local})</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <p data-campo="__pendencias__" className="mb-2 text-xs text-muted-foreground">
-          Os campos opcionais em branco saem em branco no documento e não precisam ser preenchidos.
+        <p data-campo="__pendencias__" className="mb-3 text-xs text-muted-foreground">
+          Preencha aqui mesmo. As obrigatórias bloqueiam a emissão; as opcionais, se ficarem em
+          branco, saem em branco no documento.
         </p>
-        {pendenciasDados.length > 0 && (
-          <div className="mt-3 rounded-lg bg-muted/40 p-3 text-xs">
-            <p className="mb-1 font-semibold">
-              Dados da empresa em branco (preencha na aba de origem):
-            </p>
-            <ul className="list-disc pl-4">
-              {pendenciasDados.map((p) => (
-                <li key={`${p.campo}-${p.local}`} data-campo={p.campo}>
-                  {p.descricao}{' '}
-                  <span className="text-muted-foreground">
-                    (origem: {p.origem}; em: {p.local}
-                    {p.vezes > 1 ? `, ${p.vezes}×` : ''})
+        <div className="divide-y">
+          {linhasOrdenadas.map(([campo, linha]) => {
+            const resolvida = !camposPendentes.has(campo)
+            const entrada = entradaDaPendencia(campo)
+            return (
+              <div
+                key={campo}
+                data-campo={campo}
+                className="grid grid-cols-1 gap-1.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-4"
+              >
+                <div className="min-w-0 text-sm">
+                  <span className="flex items-center gap-1.5">
+                    {resolvida && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                    <span className={resolvida ? 'text-muted-foreground' : ''}>
+                      {linha.descricao}
+                    </span>
+                    {linha.critico && !resolvida && (
+                      <span className="text-xs font-medium text-destructive">obrigatória</span>
+                    )}
                   </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                  <span
+                    className="block truncate text-xs text-muted-foreground"
+                    title={linha.locais.join('; ')}
+                  >
+                    Usada em: {linha.locais.join('; ')}
+                  </span>
+                </div>
+                {entrada || (
+                  <p className="text-xs text-muted-foreground">
+                    Preencha em: {ONDE_PREENCHER[linha.origem] || linha.origem}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+          {linhasOrdenadas.length === 0 && (
+            <p className="py-2 text-sm text-muted-foreground">Nada falta neste documento.</p>
+          )}
+        </div>
       </SecaoPainel>
 
       <SecaoPainel
