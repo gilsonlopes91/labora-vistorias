@@ -12,7 +12,6 @@ import { ClipboardList } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresa, updateEmpresa, type Empresa } from '@/services/empresas'
 import { MatrizesRiscoTab } from '@/components/MatrizesRiscoTab'
-import { DadosDocumentosEmpresaCard } from '@/components/DadosDocumentosEmpresaCard'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -84,10 +83,8 @@ export function PlanejamentoPgrTab({ empresaId }: { empresaId: string }) {
             Planejamento do PGR
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Etapa E0 do processo: antes do levantamento, defina como esta empresa vai ser organizada
-            e qual matriz de risco usar por padrão. Nada aqui é definitivo — dá para reabrir e mudar
-            a qualquer momento, e cada unidade de avaliação pode ter seu próprio tipo de agrupamento
-            em "Estrutura SST".
+            Defina como esta empresa vai ser organizada e qual matriz de risco usar. Dá para mudar
+            depois.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -233,7 +230,6 @@ export function PlanejamentoPgrTab({ empresaId }: { empresaId: string }) {
           </DialogContent>
         </Dialog>
       </Card>
-      <DadosDocumentosEmpresaCard empresaId={empresaId} />
     </div>
   )
 }

@@ -376,10 +376,8 @@ export function EstruturaSstTab({
         >
           {ghes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nenhuma unidade cadastrada ainda. É a base do inventário de riscos: cada avaliação
-              (agentes, probabilidade, severidade) pertence a uma unidade. O NR-1 (item 13.3.1)
-              aceita organizar o PGR por GHE/GES (ferramenta da NR-09), ou por atividade, posto de
-              trabalho, função ou setor — a escolha é sua.
+              Nenhuma unidade cadastrada ainda. Os riscos são lançados por unidade, que pode ser um
+              GHE, uma atividade, um posto de trabalho, uma função ou um setor.
             </p>
           ) : (
             <div className="divide-y">
@@ -423,14 +421,11 @@ export function EstruturaSstTab({
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
             <div>
-              <CardTitle className="text-lg">Funções Operacionais</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Gerencie as funções, relacionando-as a unidades, ambientes físicos e GHEs.
-              </p>
+              <CardTitle className="text-lg">Funções</CardTitle>
             </div>
             <Button onClick={() => abrirFuncao(null)}>
               <Plus className="mr-1.5 h-4 w-4" />
-              Nova Função
+              Nova função
             </Button>
           </CardHeader>
           <CardContent className="p-0">
@@ -613,9 +608,8 @@ export function EstruturaSstTab({
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    GHE/GES é a ferramenta da NR-09; as demais opções (NR-1, 13.3.1) evitam criar um
-                    GHE quando a atividade, o posto, a função ou o setor já bastam para descrever a
-                    exposição.
+                    Use GHE quando várias funções têm a mesma exposição. Se a atividade, o posto, a
+                    função ou o setor já descrevem a exposição, escolha um deles.
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -823,10 +817,10 @@ export function EstruturaSstTab({
                     }
                   >
                     <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Sem GHE — só risco direto do cargo" />
+                      <SelectValue placeholder="Sem GHE" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__nenhum">Nenhum (risco direto do cargo)</SelectItem>
+                      <SelectItem value="__nenhum">Nenhum (riscos direto na função)</SelectItem>
                       {ghes.map((g) => (
                         <SelectItem key={g.id} value={g.id}>
                           {g.nome}
@@ -835,9 +829,8 @@ export function EstruturaSstTab({
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Ao selecionar um GHE, esta função herdará automaticamente todos os riscos
-                    associados a ele. Sem GHE, os riscos cadastrados na aba "Riscos Ocupacionais"
-                    ficam vinculados diretamente à função.
+                    Com um GHE, a função herda os riscos dele. Sem GHE, valem os riscos lançados na
+                    aba "Riscos Ocupacionais" desta função.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

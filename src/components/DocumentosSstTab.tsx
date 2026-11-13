@@ -58,6 +58,8 @@ import {
 } from '@/lib/modelosSst'
 import { gerarDocumentoPdf } from '@/lib/documento/emissao'
 import { PainelModeloSst } from '@/components/PainelModeloSst'
+import { DadosDocumentosEmpresaCard } from '@/components/DadosDocumentosEmpresaCard'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Previa } from '@/components/documento/Previa'
 import {
   getDocumentosSst,
@@ -166,6 +168,9 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   // documento (vazio = entram todos, comportamento anterior).
   const [planosDisponiveis, setPlanosDisponiveis] = useState<PlanoAcao[]>([])
   const [rts, setRts] = useState<ResponsavelTecnico[]>([])
+  // Muda quando os dados do estabelecimento são salvos, para o painel do
+  // modelo recarregar e as pendências refletirem o que foi preenchido.
+  const [versaoDados, setVersaoDados] = useState(0)
 
   useEffect(() => {
     if (!organizacaoId) return
@@ -237,6 +242,9 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
   useEffect(() => {
     if (!selecionado || travado) return
     if (carregadoRef.current !== selecionado.id) return
+    // Só salva se o usuário mudou algo: abrir o documento não grava nada.
+    if (JSON.stringify(camposParaSalvar(f)) === JSON.stringify(camposParaSalvar(selecionado)))
+      return
     const t = setTimeout(async () => {
       setAutosalvando(true)
       try {
@@ -745,6 +753,22 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
         </TabsList>
       </Tabs>
 
+      <Collapsible className="rounded-lg border bg-card">
+        <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-3 text-left text-sm font-semibold">
+          Dados do estabelecimento
+          <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+            representante legal, jornada, gestão de SST
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t p-3">
+          <DadosDocumentosEmpresaCard
+            empresaId={empresaId}
+            onSalvo={() => setVersaoDados((v) => v + 1)}
+          />
+        </CollapsibleContent>
+      </Collapsible>
+
       {tipo !== 'pgr' && (
         <Tabs value={subVista} onValueChange={(v) => setSubVista(v as 'conclusoes' | 'documento')}>
           <TabsList>
@@ -802,8 +826,7 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
               <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
                 <p className="text-sm text-muted-foreground">
                   Crie um novo {TIPO_DOCUMENTO_LABEL[tipo]} ou escolha um existente na lista ao
-                  lado. O documento já nasce com o texto normativo e a metodologia básica
-                  preenchidos — só é preciso completar as partes específicas desta empresa.
+                  lado. O documento já vem com o texto do modelo e os dados do levantamento.
                 </p>
               </div>
             ) : (
@@ -864,134 +887,153 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                     </div>
                   </div>
 
-                  {selecionado.modelo_versao && (
-                    <PainelModeloSst
-                      empresaId={empresaId}
-                      documento={{ ...selecionado, ...f }}
-                      travado={travado}
-                      rts={rts}
-                      onChange={(patch) => setF((v) => ({ ...v, ...patch }))}
-                      onReaplicarTexto={(novas) => setF((v) => ({ ...v, secoes: novas }))}
-                    />
-                  )}
-
-                  <div className="space-y-3">
-                    {secoes.map((secao, i) => (
-                      <div key={secao.id} className="rounded-lg border p-3">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={secao.ativo}
-                            disabled={travado}
-                            onCheckedChange={(v) => atualizarSecao(secao.id, { ativo: v })}
-                          />
-                          <Input
-                            className="flex-1 font-medium"
-                            disabled={travado}
-                            value={secao.titulo}
-                            onChange={(e) => atualizarSecao(secao.id, { titulo: e.target.value })}
-                          />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            disabled={travado || i === 0}
-                            onClick={() => moverSecao(secao.id, -1)}
-                          >
-                            <ChevronUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            disabled={travado || i === secoes.length - 1}
-                            onClick={() => moverSecao(secao.id, 1)}
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            disabled={travado}
-                            onClick={() => removerSecao(secao.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                  {(() => {
+                    const editor = (
+                      <>
+                        <div className="space-y-3">
+                          {secoes.map((secao, i) => (
+                            <div key={secao.id} className="rounded-lg border p-3">
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={secao.ativo}
+                                  disabled={travado}
+                                  onCheckedChange={(v) => atualizarSecao(secao.id, { ativo: v })}
+                                />
+                                <Input
+                                  className="flex-1 font-medium"
+                                  disabled={travado}
+                                  value={secao.titulo}
+                                  onChange={(e) =>
+                                    atualizarSecao(secao.id, { titulo: e.target.value })
+                                  }
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  disabled={travado || i === 0}
+                                  onClick={() => moverSecao(secao.id, -1)}
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  disabled={travado || i === secoes.length - 1}
+                                  onClick={() => moverSecao(secao.id, 1)}
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  disabled={travado}
+                                  onClick={() => removerSecao(secao.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {secao.ativo && (
+                                <div className="mt-3">
+                                  {travado ? (
+                                    <div
+                                      className="prose prose-sm max-w-none rounded border bg-muted/30 p-3"
+                                      dangerouslySetInnerHTML={{
+                                        __html: secao.texto || '<p><em>Vazio</em></p>',
+                                      }}
+                                    />
+                                  ) : (
+                                    <RichTextEditor
+                                      value={secao.texto}
+                                      onChange={(html) => atualizarSecao(secao.id, { texto: html })}
+                                      placeholder="Texto desta seção..."
+                                      minHeight="120px"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {!travado && (
+                            <Button variant="outline" size="sm" onClick={adicionarSecao}>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar seção
+                            </Button>
+                          )}
                         </div>
-                        {secao.ativo && (
-                          <div className="mt-3">
-                            {travado ? (
-                              <div
-                                className="prose prose-sm max-w-none rounded border bg-muted/30 p-3"
-                                dangerouslySetInnerHTML={{
-                                  __html: secao.texto || '<p><em>Vazio</em></p>',
-                                }}
-                              />
-                            ) : (
-                              <RichTextEditor
-                                value={secao.texto}
-                                onChange={(html) => atualizarSecao(secao.id, { texto: html })}
-                                placeholder="Texto desta seção..."
-                                minHeight="120px"
-                              />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {!travado && (
-                      <Button variant="outline" size="sm" onClick={adicionarSecao}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Adicionar seção
-                      </Button>
-                    )}
-                  </div>
 
-                  <div className="rounded-lg border p-3">
-                    <Label className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                      Planos de ação neste documento
-                    </Label>
-                    <p className="mb-2 text-xs text-muted-foreground">
-                      Escolha quais planos de ação (aba Plano de ação) entram no PDF. Nenhum marcado
-                      = entram todos os planos e as ações avulsas da empresa.
-                    </p>
-                    {planosDisponiveis.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        Nenhum plano de ação cadastrado ainda para esta empresa.
-                      </p>
+                        <div className="rounded-lg border p-3">
+                          <Label className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                            Planos de ação neste documento
+                          </Label>
+                          <p className="mb-2 text-xs text-muted-foreground">
+                            Escolha quais planos de ação entram no PDF. Sem nenhum marcado, entram
+                            todos.
+                          </p>
+                          {planosDisponiveis.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              Nenhum plano de ação cadastrado ainda para esta empresa.
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {planosDisponiveis.map((p) => {
+                                const marcado = (f.planos_acao_ids || []).includes(p.id)
+                                return (
+                                  <label
+                                    key={p.id}
+                                    className="flex items-center gap-2 text-sm"
+                                    aria-disabled={travado}
+                                  >
+                                    <Checkbox
+                                      checked={marcado}
+                                      disabled={travado}
+                                      onCheckedChange={(c) =>
+                                        setF((v) => {
+                                          const atuais = v.planos_acao_ids || []
+                                          return {
+                                            ...v,
+                                            planos_acao_ids: c
+                                              ? [...atuais, p.id]
+                                              : atuais.filter((id) => id !== p.id),
+                                          }
+                                        })
+                                      }
+                                    />
+                                    {p.nome}
+                                    <Badge variant="outline" className="text-[10px]">
+                                      {p.status}
+                                    </Badge>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )
+                    return selecionado.modelo_versao ? (
+                      <PainelModeloSst
+                        key={versaoDados}
+                        empresaId={empresaId}
+                        documento={{ ...selecionado, ...f }}
+                        travado={travado}
+                        rts={rts}
+                        onChange={(patch) => setF((v) => ({ ...v, ...patch }))}
+                        onReaplicarTexto={(novas) => setF((v) => ({ ...v, secoes: novas }))}
+                        avancado={editor}
+                      />
                     ) : (
-                      <div className="space-y-1.5">
-                        {planosDisponiveis.map((p) => {
-                          const marcado = (f.planos_acao_ids || []).includes(p.id)
-                          return (
-                            <label
-                              key={p.id}
-                              className="flex items-center gap-2 text-sm"
-                              aria-disabled={travado}
-                            >
-                              <Checkbox
-                                checked={marcado}
-                                disabled={travado}
-                                onCheckedChange={(c) =>
-                                  setF((v) => {
-                                    const atuais = v.planos_acao_ids || []
-                                    return {
-                                      ...v,
-                                      planos_acao_ids: c
-                                        ? [...atuais, p.id]
-                                        : atuais.filter((id) => id !== p.id),
-                                    }
-                                  })
-                                }
-                              />
-                              {p.nome}
-                              <Badge variant="outline" className="text-[10px]">
-                                {p.status}
-                              </Badge>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
+                      <Collapsible className="rounded-lg border">
+                        <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-3 text-left text-sm font-semibold">
+                          Personalizar texto
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-4 border-t p-3">
+                          {editor}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })()}
 
                   {selecionado.status === 'emitido' && urlPdf && (
                     <a
@@ -1031,11 +1073,8 @@ export function DocumentosSstTab({ empresaId }: { empresaId: string }) {
                   </div>
                   {!travado && (
                     <p className="text-xs text-muted-foreground">
-                      O rascunho é salvo automaticamente enquanto você edita. Emitir gera o PDF a
-                      partir das seções e dos dados atuais de estrutura, inventário e plano de ação,
-                      e trava esta versão — se você alterar algo depois, será preciso gerar o
-                      documento de novo (criando uma nova revisão) para que a mudança valha
-                      oficialmente.
+                      O rascunho é salvo sozinho. Emitir gera o PDF com os dados atuais e trava esta
+                      versão. Para mudar depois, crie uma nova revisão.
                     </p>
                   )}
                 </CardContent>

@@ -7,16 +7,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import {
-  AlertCircle,
-  ArrowLeft,
-  Building2,
-  CheckCircle2,
-  HardHat,
-  Search,
-  ShieldCheck,
-  Users2,
-} from 'lucide-react'
+import { ArrowLeft, Building2, Search } from 'lucide-react'
 
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getEmpresas, type Empresa } from '@/services/empresas'
@@ -165,80 +156,19 @@ function useSaudeVariasEmpresas(empresaIds: string[]) {
   return { mapa, carregando }
 }
 
+// Resumo do cadastro em uma linha: quanto já foi levantado e o que falta.
 function PainelSaude({ saude }: { saude: SaudeCadastro }) {
-  const corSaude = saude.percentual === 100 ? 'text-emerald-600' : 'text-orange-500'
-  const corBarra = saude.percentual === 100 ? 'bg-emerald-600' : 'bg-orange-500'
-  const IconeSaude = saude.percentual === 100 ? CheckCircle2 : AlertCircle
-
+  if (saude.carregando) return null
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardContent className="flex h-full flex-col justify-between gap-3 p-5">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Saúde do Cadastro</p>
-            <h3 className={`mt-1 flex items-center gap-2 text-2xl font-bold ${corSaude}`}>
-              {saude.carregando ? '—' : `${saude.percentual}%`}
-              <IconeSaude className="h-5 w-5" />
-            </h3>
-          </div>
-          <div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className={`h-full rounded-full ${corBarra} transition-all`}
-                style={{ width: `${saude.carregando ? 0 : saude.percentual}%` }}
-              />
-            </div>
-            {saude.pendencia && (
-              <p className="mt-2 flex items-center gap-1 text-xs font-medium text-orange-600">
-                <AlertCircle className="h-3.5 w-3.5" /> Pendência: {saude.pendencia}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex h-full items-center gap-3 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50">
-            <Building2 className="h-5 w-5 text-blue-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">Estrutura Física</p>
-            <p className="text-xl font-bold">{saude.ambientes} ambientes</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {saude.ghes} unidade{saude.ghes === 1 ? '' : 's'} de avaliação (GHE)
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex h-full items-center gap-3 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
-            <Users2 className="h-5 w-5 text-emerald-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">Efetivo Operacional</p>
-            <p className="text-xl font-bold">{saude.funcoes} funções</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{saude.ghes} GHEs configurados</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex h-full items-center gap-3 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50">
-            <ShieldCheck className="h-5 w-5 text-orange-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">Gestão de Riscos</p>
-            <p className="text-xl font-bold">{saude.acoesPendentes} ações pendentes</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              De {saude.acoesTotal} plano{saude.acoesTotal === 1 ? '' : 's'} no total
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+      <BarraProgresso percentual={saude.percentual} />
+      <span>
+        {saude.ambientes} ambiente{saude.ambientes === 1 ? '' : 's'}, {saude.ghes} GHE
+        {saude.ghes === 1 ? '' : 's'}, {saude.funcoes} {saude.funcoes === 1 ? 'função' : 'funções'},{' '}
+        {saude.avaliacoes} risco
+        {saude.avaliacoes === 1 ? '' : 's'}
+      </span>
+      {saude.pendencia && <span className="text-foreground">Falta: {saude.pendencia}</span>}
     </div>
   )
 }
@@ -254,12 +184,7 @@ function statusPorPercentual(percentual: number): {
 }
 
 function BarraProgresso({ percentual }: { percentual: number }) {
-  const cor =
-    percentual >= 100
-      ? 'bg-emerald-600'
-      : percentual > 0
-        ? 'bg-orange-500'
-        : 'bg-muted-foreground/30'
+  const cor = percentual > 0 ? 'bg-primary' : 'bg-muted-foreground/30'
   return (
     <div className="flex items-center gap-2">
       <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
@@ -330,7 +255,7 @@ function ListaEmpresasLevantamento({
             <TableRow>
               <TableHead>Empresa</TableHead>
               <TableHead>CNPJ</TableHead>
-              <TableHead>Saúde do cadastro</TableHead>
+              <TableHead>Cadastro</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -445,18 +370,15 @@ export function LevantamentoSstTab() {
 
           <Tabs value={sub} onValueChange={(v) => mudarParam('sub', v)} className="space-y-6">
             <TabsList>
-              <TabsTrigger value="planejamento">
-                <HardHat className="mr-2 h-4 w-4 opacity-70" />
-                Planejamento
-              </TabsTrigger>
+              <TabsTrigger value="planejamento">Planejamento</TabsTrigger>
               <TabsTrigger value="ambiente">Ambiente</TabsTrigger>
               <TabsTrigger value="funcao">Função</TabsTrigger>
               <TabsTrigger value="ghe">GHE</TabsTrigger>
               <TabsTrigger value="plano">
                 Plano de ação
                 {saude.acoesPendentes > 0 && (
-                  <span className="ml-2 rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {saude.acoesPendentes}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({saude.acoesPendentes})
                   </span>
                 )}
               </TabsTrigger>

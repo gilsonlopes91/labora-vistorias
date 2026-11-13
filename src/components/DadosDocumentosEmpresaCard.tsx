@@ -56,7 +56,14 @@ type Campos = Pick<
   | 'avcb_clcb'
 >
 
-export function DadosDocumentosEmpresaCard({ empresaId }: { empresaId: string }) {
+export function DadosDocumentosEmpresaCard({
+  empresaId,
+  onSalvo,
+}: {
+  empresaId: string
+  /** Chamado depois de salvar, para quem usa estes dados recarregar. */
+  onSalvo?: () => void
+}) {
   const [f, setF] = useState<Partial<Campos>>({})
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -104,7 +111,8 @@ export function DadosDocumentosEmpresaCard({ empresaId }: { empresaId: string })
         numero_cno: f.numero_cno || '',
         avcb_clcb: f.avcb_clcb || '',
       })
-      toast.success('Dados para os documentos salvos')
+      toast.success('Dados do estabelecimento salvos')
+      onSalvo?.()
     } catch (error) {
       toast.error('Não foi possível salvar', { description: getErrorMessage(error) })
     } finally {
@@ -119,11 +127,11 @@ export function DadosDocumentosEmpresaCard({ empresaId }: { empresaId: string })
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="h-4 w-4 text-muted-foreground" />
-          Dados do estabelecimento para os documentos
+          Dados do estabelecimento
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Entram na capa e nos capítulos fixos do PGR, do LTCAT e dos laudos. O que ficar em branco
-          aparece como pendência no documento; nada é preenchido por suposição.
+          Valem para o PGR, o LTCAT e os laudos desta empresa. O que ficar em branco aparece como
+          pendência no documento.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -228,7 +236,7 @@ export function DadosDocumentosEmpresaCard({ empresaId }: { empresaId: string })
         </div>
         <div className="flex justify-end">
           <Button onClick={salvar} disabled={salvando}>
-            Salvar dados para os documentos
+            Salvar
           </Button>
         </div>
       </CardContent>

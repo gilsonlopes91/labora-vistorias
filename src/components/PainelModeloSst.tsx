@@ -56,6 +56,8 @@ interface Props {
   onChange: (patch: Partial<DocumentoSst>) => void
   /** Chamado quando o técnico pede para regenerar as seções a partir do modelo. */
   onReaplicarTexto: (secoes: SecaoDocumento[]) => void
+  /** Conteúdo extra mostrado dentro de "Personalizar texto" (editor de capítulos). */
+  avancado?: ReactNode
 }
 
 const SEM_COORDENADOR = '__nenhum__'
@@ -172,6 +174,7 @@ export function PainelModeloSst({
   rts,
   onChange,
   onReaplicarTexto,
+  avancado,
 }: Props) {
   const tipo = documento.tipo || 'pgr'
   const modelo = useMemo(() => carregarModelo(tipo), [tipo])
@@ -364,27 +367,8 @@ export function PainelModeloSst({
             <Eye className="mr-2 h-4 w-4" />
             Pré-visualizar
           </Button>
-          {!travado && (
-            <Button
-              size="sm"
-              variant={alternativasMudaram ? 'default' : 'outline'}
-              onClick={reaplicar}
-              disabled={!dados}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Reaplicar texto do modelo
-            </Button>
-          )}
         </div>
       </div>
-      {alternativasMudaram && !travado && (
-        <p className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Você mudou alternativas ou trechos condicionais. O texto das seções só muda quando você
-          clicar em "Reaplicar texto do modelo" — isso substitui o texto atual das seções (edições
-          feitas à mão nas seções serão perdidas).
-        </p>
-      )}
 
       <SecaoPainel
         aberto={!!abertos['dados']}
@@ -465,77 +449,9 @@ export function PainelModeloSst({
       </SecaoPainel>
 
       <SecaoPainel
-        aberto={!!abertos['alternativas']}
-        onToggle={() => alternar('alternativas')}
-        titulo="Alternativas e trechos condicionais do texto"
-        resumo={
-          <>
-            {alternativas.length} alternativa(s) · {condicoes.length} trecho(s)
-          </>
-        }
-      >
-        <p className="mb-3 text-xs text-muted-foreground">
-          O app sugere a opção pelos dados da empresa (marcadas como "automática"). Você pode
-          trocar; depois clique em "Reaplicar texto do modelo".
-        </p>
-        <div className="space-y-3">
-          {alternativas.map((a) => (
-            <div
-              key={a.id}
-              className="grid grid-cols-1 gap-1 md:grid-cols-[220px_minmax(0,1fr)] md:items-center"
-            >
-              <Label className="text-xs">
-                {a.secao}
-                {a.automatica && (
-                  <Badge variant="outline" className="ml-1 text-[10px]">
-                    automática
-                  </Badge>
-                )}
-              </Label>
-              <Select
-                value={a.escolhida}
-                onValueChange={(v) => escolher(a.id, v)}
-                disabled={travado}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {a.opcoes.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.rotulo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-          {condicoes.length > 0 && <div className="border-t pt-3" />}
-          {condicoes.map((c) => (
-            <label key={c.id} className="flex items-start gap-3 text-sm">
-              <Switch
-                checked={c.ativa}
-                disabled={travado}
-                onCheckedChange={(v) => escolher(c.id, v ? 'sim' : 'nao')}
-              />
-              <span>
-                <span className="text-xs text-muted-foreground">{c.secao} · </span>
-                {c.condicao}
-                {c.automatica && (
-                  <Badge variant="outline" className="ml-1 text-[10px]">
-                    automática
-                  </Badge>
-                )}
-              </span>
-            </label>
-          ))}
-        </div>
-      </SecaoPainel>
-
-      <SecaoPainel
         aberto={!!abertos['pendencias']}
         onToggle={() => alternar('pendencias')}
-        titulo="Pendências e campos manuais"
+        titulo="Pendências"
         icone={<ListChecks className="h-4 w-4 text-muted-foreground" />}
         resumo={
           <>
@@ -578,8 +494,8 @@ export function PainelModeloSst({
                 <li key={`${p.campo}-${p.local}`} data-campo={p.campo}>
                   {p.descricao}{' '}
                   <span className="text-muted-foreground">
-                    — origem: {p.origem}; em: {p.local}
-                    {p.vezes > 1 ? ` (${p.vezes}×)` : ''}
+                    (origem: {p.origem}; em: {p.local}
+                    {p.vezes > 1 ? `, ${p.vezes}×` : ''})
                   </span>
                 </li>
               ))}
@@ -589,65 +505,163 @@ export function PainelModeloSst({
       </SecaoPainel>
 
       <SecaoPainel
-        aberto={!!abertos['blocos']}
-        onToggle={() => alternar('blocos')}
-        titulo="Blocos de dados (tabelas geradas pelo app)"
-        icone={<Table2 className="h-4 w-4 text-muted-foreground" />}
-        resumo={<>{blocos.length} bloco(s)</>}
+        aberto={!!abertos['personalizar']}
+        onToggle={() => alternar('personalizar')}
+        titulo="Personalizar texto"
+        resumo={<>opções de texto, tabelas e capítulos</>}
       >
-        <div className="space-y-2">
-          {blocos.map((b) => {
-            const cfg = (documento.blocos_config || {})[b.id] || {}
-            const incluir = cfg.incluir !== false
-            return (
-              <div key={b.id} className="rounded border p-2">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <Switch
-                    checked={incluir}
-                    disabled={travado}
-                    onCheckedChange={(v) =>
-                      onChange({
-                        blocos_config: {
-                          ...(documento.blocos_config || {}),
-                          [b.id]: { ...cfg, incluir: v },
-                        },
-                      })
-                    }
-                  />
-                  <span className="font-medium">{b.titulo}</span>
-                  <span className="text-xs text-muted-foreground">{b.secao}</span>
-                  <Badge
-                    variant={b.linhas > 0 ? 'secondary' : 'outline'}
-                    className="ml-auto text-[10px]"
-                  >
-                    {b.manual ? 'manual (em branco)' : `${b.linhas} linha(s)`}
-                  </Badge>
-                </div>
-                {incluir && (
-                  <Input
-                    className="mt-2 text-xs"
-                    placeholder="Observação que sai abaixo da tabela (opcional)"
-                    disabled={travado}
-                    value={cfg.observacao || ''}
-                    onChange={(e) =>
-                      onChange({
-                        blocos_config: {
-                          ...(documento.blocos_config || {}),
-                          [b.id]: { ...cfg, observacao: e.target.value },
-                        },
-                      })
-                    }
-                  />
-                )}
-              </div>
-            )
-          })}
-          {blocos.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Nenhum bloco encontrado nas seções atuais. Se você apagou os marcadores de bloco ao
-              editar, use "Reaplicar texto do modelo".
+        <div className="space-y-3">
+          {!travado && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                O documento já sai pronto com o texto do modelo. Mexa aqui só se precisar ajustar.
+              </p>
+              <Button
+                size="sm"
+                variant={alternativasMudaram ? 'default' : 'outline'}
+                onClick={reaplicar}
+                disabled={!dados}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Reaplicar texto do modelo
+              </Button>
+            </div>
+          )}
+          {alternativasMudaram && !travado && (
+            <p className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              Você mudou opções de texto. Os capítulos só mudam quando você clicar em "Reaplicar
+              texto do modelo". Isso substitui o texto atual, e o que foi editado à mão nos
+              capítulos se perde.
             </p>
           )}
+          <SecaoPainel
+            aberto={!!abertos['alternativas']}
+            onToggle={() => alternar('alternativas')}
+            titulo="Opções de texto"
+            resumo={<>{alternativas.length + condicoes.length} opção(ões)</>}
+          >
+            <p className="mb-3 text-xs text-muted-foreground">
+              As opções marcadas como "automática" foram escolhidas pelos dados da empresa. Você
+              pode trocar.
+            </p>
+            <div className="space-y-3">
+              {alternativas.map((a) => (
+                <div
+                  key={a.id}
+                  className="grid grid-cols-1 gap-1 md:grid-cols-[220px_minmax(0,1fr)] md:items-center"
+                >
+                  <Label className="text-xs">
+                    {a.secao}
+                    {a.automatica && (
+                      <Badge variant="outline" className="ml-1 text-[10px]">
+                        automática
+                      </Badge>
+                    )}
+                  </Label>
+                  <Select
+                    value={a.escolhida}
+                    onValueChange={(v) => escolher(a.id, v)}
+                    disabled={travado}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {a.opcoes.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.rotulo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+              {condicoes.length > 0 && <div className="border-t pt-3" />}
+              {condicoes.map((c) => (
+                <label key={c.id} className="flex items-start gap-3 text-sm">
+                  <Switch
+                    checked={c.ativa}
+                    disabled={travado}
+                    onCheckedChange={(v) => escolher(c.id, v ? 'sim' : 'nao')}
+                  />
+                  <span>
+                    <span className="text-xs text-muted-foreground">{c.secao} · </span>
+                    {c.condicao}
+                    {c.automatica && (
+                      <Badge variant="outline" className="ml-1 text-[10px]">
+                        automática
+                      </Badge>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </SecaoPainel>
+
+          <SecaoPainel
+            aberto={!!abertos['blocos']}
+            onToggle={() => alternar('blocos')}
+            titulo="Tabelas do documento"
+            icone={<Table2 className="h-4 w-4 text-muted-foreground" />}
+            resumo={<>{blocos.length} tabela(s)</>}
+          >
+            <div className="space-y-2">
+              {blocos.map((b) => {
+                const cfg = (documento.blocos_config || {})[b.id] || {}
+                const incluir = cfg.incluir !== false
+                return (
+                  <div key={b.id} className="rounded border p-2">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Switch
+                        checked={incluir}
+                        disabled={travado}
+                        onCheckedChange={(v) =>
+                          onChange({
+                            blocos_config: {
+                              ...(documento.blocos_config || {}),
+                              [b.id]: { ...cfg, incluir: v },
+                            },
+                          })
+                        }
+                      />
+                      <span className="font-medium">{b.titulo}</span>
+                      <span className="text-xs text-muted-foreground">{b.secao}</span>
+                      <Badge
+                        variant={b.linhas > 0 ? 'secondary' : 'outline'}
+                        className="ml-auto text-[10px]"
+                      >
+                        {b.manual ? 'manual (em branco)' : `${b.linhas} linha(s)`}
+                      </Badge>
+                    </div>
+                    {incluir && (
+                      <Input
+                        className="mt-2 text-xs"
+                        placeholder="Observação que sai abaixo da tabela (opcional)"
+                        disabled={travado}
+                        value={cfg.observacao || ''}
+                        onChange={(e) =>
+                          onChange({
+                            blocos_config: {
+                              ...(documento.blocos_config || {}),
+                              [b.id]: { ...cfg, observacao: e.target.value },
+                            },
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                )
+              })}
+              {blocos.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma tabela encontrada nos capítulos atuais. Se os marcadores foram apagados na
+                  edição, use "Reaplicar texto do modelo".
+                </p>
+              )}
+            </div>
+          </SecaoPainel>
+          {avancado}
         </div>
       </SecaoPainel>
 

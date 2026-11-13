@@ -396,7 +396,8 @@ export function RiscosOcupacionaisPainel({
   const nomesS = dimensao === 5 ? NOMES_SEVERIDADE_5 : NOMES_3
 
   const salvar = async () => {
-    if (!f.trilha_probabilidade) return toast.error('Selecione a trilha de probabilidade')
+    if (!f.trilha_probabilidade)
+      return toast.error('Informe como a probabilidade foi estimada (seção 4)')
     const dados: Partial<AvaliacaoRiscoInput> = {
       ...f,
       ghe_id: gheId || undefined,
@@ -448,7 +449,7 @@ export function RiscosOcupacionaisPainel({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Cadastre os riscos baseados no Catálogo Mestre.
+          Riscos desta {funcaoId ? 'função' : 'unidade'}.
         </p>
         <div className="flex items-center gap-2">
           <Select
@@ -485,7 +486,7 @@ export function RiscosOcupacionaisPainel({
           </Select>
           <Button type="button" size="sm" onClick={() => abrir(null)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Adicionar Risco
+            Adicionar risco
           </Button>
         </div>
       </div>
@@ -603,7 +604,7 @@ export function RiscosOcupacionaisPainel({
                       <SelectItem value="__nenhum">Sem agente (perigo avulso)</SelectItem>
                       {agentes.map((ag) => (
                         <SelectItem key={ag.id} value={ag.id}>
-                          {ag.tipo} — {ag.nome}
+                          {ag.tipo}: {ag.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -646,16 +647,11 @@ export function RiscosOcupacionaisPainel({
             <SecaoRisco numero={2} titulo="Caracterização do Risco" defaultOpen>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                  Puxe os textos do catálogo e ajuste ao caso: tudo continua editável.
+                  Puxe os textos do catálogo e ajuste ao caso.
                 </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-green-700 text-white hover:bg-green-800"
-                  onClick={puxarDoCatalogo}
-                >
+                <Button type="button" size="sm" variant="outline" onClick={puxarDoCatalogo}>
                   <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-                  Puxar do Catálogo
+                  Puxar do catálogo
                 </Button>
               </div>
               <div>
@@ -726,7 +722,7 @@ export function RiscosOcupacionaisPainel({
               <div className="rounded-lg border bg-muted/40 p-4">
                 <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
                   <AlertTriangle className="h-4 w-4" />
-                  Grau de Risco (Cálculo Automático)
+                  Grau de risco
                 </div>
                 {celulaAtual && pAtual != null && sAtual != null ? (
                   <div className="flex flex-wrap items-center gap-3">
@@ -805,9 +801,7 @@ export function RiscosOcupacionaisPainel({
                 risco foi levantado, requisito de NR, controles existentes e efeito à saúde.
               </p>
               <div className="rounded-lg border p-3">
-                <Label className="mb-2 block text-sm font-semibold">
-                  Levantamento preliminar (manual do MTE, item 9)
-                </Label>
+                <Label className="mb-2 block text-sm font-semibold">Levantamento preliminar</Label>
                 <div className="grid grid-cols-3 gap-3">
                   <label className="flex items-center gap-2 text-sm">
                     <Checkbox
@@ -835,8 +829,7 @@ export function RiscosOcupacionaisPainel({
                   <div className="mt-3">
                     <div className="mb-2 flex items-start gap-1.5 text-xs text-amber-700">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Risco evidente exige ação imediata, antes da conclusão da avaliação formal
-                      pela matriz (não espera a categoria de P × S).
+                      Risco evidente exige ação imediata, antes de concluir a avaliação pela matriz.
                     </div>
                     <Label className="text-xs">Ação imediata adotada</Label>
                     <Textarea
@@ -852,7 +845,7 @@ export function RiscosOcupacionaisPainel({
 
               <div className="rounded-lg border p-3">
                 <Label className="mb-2 block text-sm font-semibold">
-                  Requisito específico de NR (manual do MTE, item 11.4)
+                  Requisito específico de NR
                 </Label>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
@@ -885,8 +878,7 @@ export function RiscosOcupacionaisPainel({
                     {!f.nr_especifica_atendida && (
                       <div className="flex items-start gap-1.5 text-xs text-amber-700">
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        Requisito não atendido: a probabilidade é elevada ao teto da matriz,
-                        independente da trilha escolhida (exemplo dos assentos da NR-17 no manual).
+                        Requisito não atendido: a probabilidade vai para o máximo da matriz.
                       </div>
                     )}
                     <div>
@@ -904,7 +896,9 @@ export function RiscosOcupacionaisPainel({
               </div>
 
               <div className="rounded-lg border p-3">
-                <Label className="mb-2 block text-sm font-semibold">Trilha de probabilidade</Label>
+                <Label className="mb-2 block text-sm font-semibold">
+                  Como a probabilidade foi estimada
+                </Label>
                 <Select
                   value={f.trilha_probabilidade}
                   onValueChange={(v) =>
@@ -925,9 +919,7 @@ export function RiscosOcupacionaisPainel({
                 </Select>
                 {TRILHAS_DESLIGADAS.includes(f.trilha_probabilidade as TrilhaProbabilidade) && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    A análise psicossocial ainda não é feita pelo Labora Vistorias — o campo já
-                    existe para reservar o lugar dela no inventário, e será habilitado em uma versão
-                    futura.
+                    A análise psicossocial ainda não está disponível no Labora Vistorias.
                   </p>
                 )}
 
@@ -1069,9 +1061,8 @@ export function RiscosOcupacionaisPainel({
                 {f.trilha_probabilidade === 'Sem dados suficientes' && (
                   <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    Sem base para avaliar ainda (nem medição, nem julgamento sobre um controle
-                    existente). A probabilidade fica no teto da matriz até essa trilha ser trocada
-                    por uma das outras, com dado de apoio.
+                    Sem medição nem avaliação do controle existente, a probabilidade fica no máximo
+                    da matriz.
                   </div>
                 )}
 
