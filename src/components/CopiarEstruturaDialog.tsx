@@ -4,8 +4,9 @@
    parecidas; o técnico revisa depois.
 
    O que NÃO é copiado, porque é próprio de cada empresa: número de
-   trabalhadores, medições, fotos e as conclusões de insalubridade,
-   periculosidade e aposentadoria especial. */
+   trabalhadores, medições, fotos, a probabilidade e a severidade de cada
+   risco e as conclusões de insalubridade, periculosidade e aposentadoria
+   especial. */
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -55,6 +56,21 @@ const CAMPOS_FORA_DA_COPIA = [
   'formulario_origem_id',
   'resposta_vistoria_origem_id',
   'categoria_aiha_exposicao',
+  // avaliação do risco: probabilidade e severidade vêm em branco, e também o
+  // que faria o sistema sugeri-las sozinho
+  'probabilidade_sugerida',
+  'probabilidade_final',
+  'severidade_sugerida',
+  'severidade_final',
+  'justificativa_ajuste',
+  'controle_nivel',
+  'resultado_aep_aet',
+  'efeito_saude_aiha',
+  'incerteza',
+  'nr_especifica_aplicavel',
+  'nr_especifica_referencia',
+  'nr_especifica_atendida',
+  'nr_especifica_justificativa',
   'insalubridade_sugerida',
   'insalubridade_final',
   'insalubridade_justificativa',
@@ -202,8 +218,7 @@ export function CopiarEstruturaDialog({
               <span>
                 Copiar também os riscos
                 <span className="block text-xs text-muted-foreground">
-                  A probabilidade e a severidade vêm da empresa de origem. Revise cada risco antes
-                  de emitir.
+                  Os riscos vêm sem probabilidade e sem severidade, para você avaliar nesta empresa.
                 </span>
               </span>
             </label>
