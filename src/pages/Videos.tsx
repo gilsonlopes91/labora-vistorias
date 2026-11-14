@@ -1,12 +1,14 @@
 /* Vídeos — tutoriais da plataforma. Todo usuário logado assiste; o administrador
- * da plataforma cadastra o link do YouTube e pode apagar. */
+ * da plataforma cadastra o link do YouTube e pode apagar. A reprodução acontece
+ * no player GLOBAL (src/hooks/use-video-player.tsx): este painel apenas o abre,
+ * e o vídeo continua tocando minimizado quando o usuário navega para outra rota. */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Play, Plus, Trash2, Video } from 'lucide-react'
 
 import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { VideoVisualizador } from '@/components/VideoVisualizador'
+import { useVideoPlayer } from '@/hooks/use-video-player'
 import {
   apagarVideo,
   cadastrarVideo,
@@ -36,8 +38,7 @@ export default function Videos() {
   const [descricao, setDescricao] = useState('')
   const [link, setLink] = useState('')
   const [salvando, setSalvando] = useState(false)
-  const [assistindo, setAssistindo] = useState<VideoItem | null>(null)
-  const idAssistindo = youtubeId(assistindo?.url || '')
+  const { video: videoNoPlayer, abrir: abrirNoPlayer } = useVideoPlayer()
 
   const idDoLink = youtubeId(link)
 
@@ -117,7 +118,7 @@ export default function Videos() {
                 {id ? (
                   <button
                     type="button"
-                    onClick={() => setAssistindo(v)}
+                    onClick={() => abrirNoPlayer(v, id)}
                     className="group relative block aspect-video w-full bg-black"
                     aria-label={`Assistir: ${v.titulo}`}
                   >
@@ -166,13 +167,14 @@ export default function Videos() {
         </div>
       )}
 
-      <Dialog open={!!assistindo} onOpenChange={(v) => !v && setAssistindo(null)}>
-        <DialogContent className="w-[96vw] max-w-5xl gap-0 rounded-2xl p-0 shadow-2xl max-h-[92vh] overflow-y-auto">
-          {assistindo && idAssistindo && (
-            <VideoVisualizador key={assistindo.id} video={assistindo} videoId={idAssistindo} />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Quando o vídeo em reprodução é um dos listados, indica no cartão que ele
+          está aberto no player (modal completo ou mini player flutuante). */}
+      {videoNoPlayer && (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Reproduzindo agora:{' '}
+          <span className="font-medium text-foreground">{videoNoPlayer.titulo}</span>
+        </p>
+      )}
 
       <Dialog open={aberto} onOpenChange={(v) => !salvando && setAberto(v)}>
         <DialogContent>

@@ -62,6 +62,8 @@ import ClienteAgenda from './pages/cliente/ClienteAgenda'
 import { trackPublicPageView } from '@/lib/analytics'
 import AvisoCookies from '@/components/AvisoCookies'
 import TituloPorRota from '@/components/TituloPorRota'
+import { VideoPlayerProvider } from '@/hooks/use-video-player'
+import { VideoPlayerHost } from '@/components/video/VideoPlayerHost'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
@@ -107,6 +109,11 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        {/* Player global de vídeo: fica fora das rotas para o vídeo continuar
+            tocando (modo minimizado) em qualquer página do painel. */}
+        <VideoPlayerProvider>
+          <VideoPlayerHost />
+        </VideoPlayerProvider>
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<PublicHome />} />

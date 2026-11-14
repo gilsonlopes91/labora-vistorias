@@ -1,11 +1,15 @@
 /* Player do YouTube controlado pela API oficial (IFrame API): permite ler o momento
-   atual e levar o vídeo a um tempo específico. O iframe é criado dentro de um
-   elemento filho do contêiner, para o React não disputar o nó que o YouTube troca. */
+   atual, levar o vídeo a um tempo específico e reproduzir/pausar. O iframe é criado
+   dentro de um elemento filho do contêiner, para o React não disputar o nó que o
+   YouTube troca. */
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 export interface YoutubePlayer {
   getCurrentTime(): number
   seekTo(segundos: number, permitirNova: boolean): void
+  playVideo(): void
+  pauseVideo(): void
+  getPlayerState(): number
   destroy(): void
 }
 
@@ -57,6 +61,7 @@ const carregarYoutubeApi = (): Promise<void> => {
 export function useYoutubePlayer(wrapperRef: RefObject<HTMLDivElement>, videoId: string | null) {
   const playerRef = useRef<YoutubePlayer | null>(null)
   const [pronto, setPronto] = useState(false)
+  const [tocando, setTocando] = useState(false)
 
   useEffect(() => {
     const wrapper = wrapperRef.current
@@ -98,16 +103,32 @@ export function useYoutubePlayer(wrapperRef: RefObject<HTMLDivElement>, videoId:
     return () => {
       cancelado = true
       setPronto(false)
+      setTocando(false)
       playerRef.current = null
       player?.destroy()
       elemento.remove()
     }
   }, [wrapperRef, videoId])
 
+  // Acompanha o estado do player (1 = tocando) para os controles do mini player.
+  useEffect(() => {
+    if (!pronto) return
+    const id = window.setInterval(() => {
+      setTocando(playerRef.current?.getPlayerState() === 1)
+    }, 500)
+    return () => window.clearInterval(id)
+  }, [pronto])
+
   const getTempo = useCallback(() => playerRef.current?.getCurrentTime() ?? 0, [])
   const irPara = useCallback((segundos: number) => {
     playerRef.current?.seekTo(segundos, true)
   }, [])
+  const alternar = useCallback(() => {
+    const p = playerRef.current
+    if (!p) return
+    if (p.getPlayerState() === 1) p.pauseVideo()
+    else p.playVideo()
+  }, [])
 
-  return { pronto, getTempo, irPara }
+  return { pronto, tocando, getTempo, irPara, alternar }
 }

@@ -130,7 +130,9 @@ export default function FormularioPreenchivel({
   const versaoRef = useRef(0)
   const [registro, setRegistro] = useState<Formulario | null>(registroExistente || null)
   const registroRef = useRef<Formulario | null>(registroExistente || null)
-  const clientUuid = useRef(crypto.randomUUID())
+  // `string` (não o literal de template do crypto.randomUUID): pode vir de uma
+  // pendência guardada no aparelho, lida do IndexedDB como string comum.
+  const clientUuid = useRef<string>(crypto.randomUUID())
 
   // O que está guardado neste aparelho (sem internet) e as miniaturas das
   // fotos que ainda não subiram.

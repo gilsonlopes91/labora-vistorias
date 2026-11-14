@@ -130,7 +130,9 @@ export function CopiarEstruturaDialog({
 
       const mapaSetor: Record<string, string> = {}
       for (const s of setores) {
-        const novo = await createSetor({ ...paraCopia(s), ...base } as SetorInput)
+        // paraCopia devolve Record<string, unknown> (campos removidos dinamicamente);
+        // os criadores esperam o tipo de entrada da coleção — mesma forma em runtime.
+        const novo = await createSetor({ ...paraCopia(s), ...base } as unknown as SetorInput)
         mapaSetor[s.id] = novo.id
       }
       const mapaGhe: Record<string, string> = {}
@@ -140,7 +142,7 @@ export function CopiarEstruturaDialog({
           ...base,
           nome: g.nome,
           setor_id: g.setor_id ? mapaSetor[g.setor_id] : undefined,
-        } as GheInput)
+        } as unknown as GheInput)
         mapaGhe[g.id] = novo.id
       }
       const mapaFuncao: Record<string, string> = {}
@@ -150,7 +152,7 @@ export function CopiarEstruturaDialog({
           ...base,
           setor_id: f.setor_id ? mapaSetor[f.setor_id] : undefined,
           ghe_id: f.ghe_id ? mapaGhe[f.ghe_id] : undefined,
-        } as FuncaoSstInput)
+        } as unknown as FuncaoSstInput)
         mapaFuncao[f.id] = novo.id
       }
       for (const a of avaliacoes) {
@@ -160,7 +162,7 @@ export function CopiarEstruturaDialog({
           ghe_id: a.ghe_id ? mapaGhe[a.ghe_id] : undefined,
           funcao_id: a.funcao_id ? mapaFuncao[a.funcao_id] : undefined,
           ativo: true,
-        } as AvaliacaoRiscoInput)
+        } as unknown as AvaliacaoRiscoInput)
       }
       toast.success(
         `Copiado: ${setores.length} ambiente(s), ${ghes.length} GHE(s), ${funcoes.length} função(ões) e ${avaliacoes.length} risco(s)`,
