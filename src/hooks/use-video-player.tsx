@@ -39,21 +39,26 @@ export function VideoPlayerProvider({ children }: { children: ReactNode }) {
   const [video, setVideo] = useState<VideoItem | null>(null)
   const [videoId, setVideoId] = useState<string | null>(null)
   const [expandido, setExpandido] = useState(true)
+  // Espelho do estado "video" para decidir sem efeitos colaterais no updater.
+  const videoRef = useRef<VideoItem | null>(null)
 
   const trocarVideo = useCallback((novo: VideoItem, id: string) => {
-    setVideo((atual) => {
-      // Mesmo vídeo reaberto: NÃO troca o videoId, para o hook não destruir
-      // e recriar o iframe (o vídeo continuaria de onde parou).
-      if (atual?.id === novo.id) return atual
-      setVideoId(id)
-      return novo
-    })
+    // Mesmo vídeo reaberto: NÃO troca o videoId, para o hook não destruir
+    // e recriar o iframe (o vídeo continuaria de onde parou).
+    if (videoRef.current?.id === novo.id) {
+      setExpandido(true)
+      return
+    }
+    videoRef.current = novo
+    setVideo(novo)
+    setVideoId(id)
     setExpandido(true)
   }, [])
 
   const abrir = useCallback(trocarVideo, [trocarVideo])
 
   const fechar = useCallback(() => {
+    videoRef.current = null
     setVideo(null)
     setVideoId(null)
     setExpandido(true)

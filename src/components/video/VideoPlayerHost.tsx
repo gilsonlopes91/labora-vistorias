@@ -67,6 +67,16 @@ export function VideoPlayerHost() {
           <Button
             size="icon"
             variant="ghost"
+            className="h-8 w-8 shrink-0 text-muted-foreground"
+            onClick={alternar}
+            aria-label={tocando ? 'Pausar' : 'Reproduzir'}
+            title={tocando ? 'Pausar' : 'Reproduzir'}
+          >
+            {tocando ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
             className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
             onClick={fechar}
             aria-label="Fechar"

@@ -109,291 +109,292 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {/* Player global de vídeo: fica fora das rotas para o vídeo continuar
-            tocando (modo minimizado) em qualquer página do painel. */}
+        {/* Player global de vídeo: envolve TODAS as rotas para que as páginas
+            (ex.: /videos) possam abrir o player com useVideoPlayer() e o vídeo
+            continue tocando (modo minimizado) em qualquer página do painel. */}
         <VideoPlayerProvider>
           <VideoPlayerHost />
-        </VideoPlayerProvider>
-        <Routes>
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<PublicHome />} />
-            <Route path="/calculadora" element={<CalculadoraPublica />} />
-            <Route path="/beta" element={<QuizBeta />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<ArtigoDetalhe />} />
-            <Route path="/em-breve" element={<EmBreve />} />
-            <Route path="/termos" element={<DocumentoLegal tipo="termos" />} />
-            <Route path="/privacidade" element={<DocumentoLegal tipo="privacidade" />} />
-          </Route>
-          <Route path="/login" element={<Login />} />
-          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
-          {/* /reset-password é o endereço do link no e-mail do Skip Cloud */}
-          <Route path="/reset-password" element={<RedefinirSenha />} />
-          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
-          {/* Link da proposta que o cliente abre sem login */}
-          <Route path="/proposta/:token" element={<PropostaPublica />} />
-          {/* Verificação pública da assinatura eletrônica de um documento */}
-          <Route path="/verificar/:chave" element={<VerificarDocumento />} />
-          <Route element={<Layout />}>
-            <Route
-              path="/painel"
-              element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/empresas"
-              element={
-                <ProtectedRoute>
-                  <Empresas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/empresas/:id"
-              element={
-                <ProtectedRoute>
-                  <EmpresaDetalhe />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vistorias"
-              element={
-                <ProtectedRoute>
-                  <Vistorias />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vistorias/:id"
-              element={
-                <ProtectedRoute>
-                  <VistoriaDetalhe />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/auditoria-formularios"
-              element={
-                <ProtectedRoute>
-                  <AuditoriaEFormularios />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/documentacao"
-              element={
-                <ProtectedRoute>
-                  <DocumentacaoSst />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/modelos"
-              element={
-                <ProtectedRoute>
-                  <ModelosVistoria />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/formularios"
-              element={
-                <ProtectedRoute>
-                  <Formularios />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/formularios/novo"
-              element={
-                <ProtectedRoute>
-                  <BuilderFormulario />
-                </ProtectedRoute>
-              }
-            />
-            {/* Formulário só se preenche dentro de uma vistoria: o endereço
+          <Routes>
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<PublicHome />} />
+              <Route path="/calculadora" element={<CalculadoraPublica />} />
+              <Route path="/beta" element={<QuizBeta />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<ArtigoDetalhe />} />
+              <Route path="/em-breve" element={<EmBreve />} />
+              <Route path="/termos" element={<DocumentoLegal tipo="termos" />} />
+              <Route path="/privacidade" element={<DocumentoLegal tipo="privacidade" />} />
+            </Route>
+            <Route path="/login" element={<Login />} />
+            <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+            {/* /reset-password é o endereço do link no e-mail do Skip Cloud */}
+            <Route path="/reset-password" element={<RedefinirSenha />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+            {/* Link da proposta que o cliente abre sem login */}
+            <Route path="/proposta/:token" element={<PropostaPublica />} />
+            {/* Verificação pública da assinatura eletrônica de um documento */}
+            <Route path="/verificar/:chave" element={<VerificarDocumento />} />
+            <Route element={<Layout />}>
+              <Route
+                path="/painel"
+                element={
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresas"
+                element={
+                  <ProtectedRoute>
+                    <Empresas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empresas/:id"
+                element={
+                  <ProtectedRoute>
+                    <EmpresaDetalhe />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vistorias"
+                element={
+                  <ProtectedRoute>
+                    <Vistorias />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vistorias/:id"
+                element={
+                  <ProtectedRoute>
+                    <VistoriaDetalhe />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/auditoria-formularios"
+                element={
+                  <ProtectedRoute>
+                    <AuditoriaEFormularios />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/documentacao"
+                element={
+                  <ProtectedRoute>
+                    <DocumentacaoSst />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/modelos"
+                element={
+                  <ProtectedRoute>
+                    <ModelosVistoria />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/formularios"
+                element={
+                  <ProtectedRoute>
+                    <Formularios />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/formularios/novo"
+                element={
+                  <ProtectedRoute>
+                    <BuilderFormulario />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Formulário só se preenche dentro de uma vistoria: o endereço
                 antigo de preenchimento avulso leva à biblioteca. */}
+              <Route
+                path="/formularios/:id/preencher"
+                element={<Navigate to="/auditoria-formularios?aba=formularios" replace />}
+              />
+              <Route
+                path="/agenda"
+                element={
+                  <ProtectedRoute>
+                    <Agenda />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orcamentos"
+                element={
+                  <ProtectedRoute>
+                    <Orcamentos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orcamentos/modelos"
+                element={
+                  <ProtectedRoute gestorOnly>
+                    <ModelosProposta />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/multas" element={<Navigate to="/painel" replace />} />
+              <Route
+                path="/artigos"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminArtigos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/configuracoes"
+                element={
+                  <ProtectedRoute gestorOnly>
+                    <Configuracoes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/equipe"
+                element={
+                  <ProtectedRoute gestorOnly>
+                    <Equipe />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminVisaoGeral />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/organizacoes"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminOrganizacoes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/organizacoes/:id"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminOrganizacaoDetalhe />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/staff"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminStaff />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/lista-espera"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminListaEspera />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/quiz-beta"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminQuizBeta />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/feedbacks"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminFeedbacks />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/galeria-documento"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <GaleriaDocumento />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/normas"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminNormas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/trocar-senha"
+                element={
+                  <ProtectedRoute>
+                    <TrocarSenha />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/conteudo"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <EditorConteudo />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/conteudo" element={<Navigate to="/admin/conteudo" replace />} />
+              <Route
+                path="/videos"
+                element={
+                  <ProtectedRoute>
+                    <Videos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/certificados"
+                element={
+                  <ProtectedRoute>
+                    <Certificados />
+                  </ProtectedRoute>
+                }
+              />
+              {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
+            </Route>
+            {/* Portal do cliente (empresa vistoriada) — casca própria, sem o menu do app interno */}
             <Route
-              path="/formularios/:id/preencher"
-              element={<Navigate to="/auditoria-formularios?aba=formularios" replace />}
-            />
-            <Route
-              path="/agenda"
+              path="/cliente"
               element={
-                <ProtectedRoute>
-                  <Agenda />
-                </ProtectedRoute>
+                <ProtectedRouteCliente>
+                  <LayoutCliente />
+                </ProtectedRouteCliente>
               }
-            />
-            <Route
-              path="/orcamentos"
-              element={
-                <ProtectedRoute>
-                  <Orcamentos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/orcamentos/modelos"
-              element={
-                <ProtectedRoute gestorOnly>
-                  <ModelosProposta />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/multas" element={<Navigate to="/painel" replace />} />
-            <Route
-              path="/artigos"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminArtigos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/configuracoes"
-              element={
-                <ProtectedRoute gestorOnly>
-                  <Configuracoes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/equipe"
-              element={
-                <ProtectedRoute gestorOnly>
-                  <Equipe />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminVisaoGeral />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/organizacoes"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminOrganizacoes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/organizacoes/:id"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminOrganizacaoDetalhe />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/staff"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminStaff />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/lista-espera"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminListaEspera />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/quiz-beta"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminQuizBeta />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/feedbacks"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminFeedbacks />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/galeria-documento"
-              element={
-                <ProtectedRoute adminOnly>
-                  <GaleriaDocumento />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/normas"
-              element={
-                <ProtectedRoute adminOnly>
-                  <AdminNormas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/trocar-senha"
-              element={
-                <ProtectedRoute>
-                  <TrocarSenha />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/conteudo"
-              element={
-                <ProtectedRoute adminOnly>
-                  <EditorConteudo />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/conteudo" element={<Navigate to="/admin/conteudo" replace />} />
-            <Route
-              path="/videos"
-              element={
-                <ProtectedRoute>
-                  <Videos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/certificados"
-              element={
-                <ProtectedRoute>
-                  <Certificados />
-                </ProtectedRoute>
-              }
-            />
-            {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
-          </Route>
-          {/* Portal do cliente (empresa vistoriada) — casca própria, sem o menu do app interno */}
-          <Route
-            path="/cliente"
-            element={
-              <ProtectedRouteCliente>
-                <LayoutCliente />
-              </ProtectedRouteCliente>
-            }
-          >
-            <Route index element={<ClienteInicio />} />
-            <Route path="documentos" element={<ClienteDocumentos />} />
-            <Route path="plano-acao" element={<ClientePlanoAcao />} />
-            <Route path="orcamentos" element={<ClienteOrcamentos />} />
-            <Route path="agenda" element={<ClienteAgenda />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            >
+              <Route index element={<ClienteInicio />} />
+              <Route path="documentos" element={<ClienteDocumentos />} />
+              <Route path="plano-acao" element={<ClientePlanoAcao />} />
+              <Route path="orcamentos" element={<ClienteOrcamentos />} />
+              <Route path="agenda" element={<ClienteAgenda />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </VideoPlayerProvider>
       </TooltipProvider>
     </AuthProvider>
   </BrowserRouter>
