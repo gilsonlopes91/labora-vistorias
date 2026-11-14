@@ -1,6 +1,6 @@
-/* Anotações e marcações privadas do usuário logado, agora ABAIXO do vídeo
-   dentro do modal: criar nota/marcação importante, editar, apagar e pular o
-   vídeo para o momento anotado. O mesmo painel do modal completo; ao
+/* Anotações e marcações privadas do usuário logado, no painel ao lado direito
+   do vídeo dentro do modal: criar nota/marcação importante, editar, apagar e
+   pular o vídeo para o momento anotado. O mesmo painel do modal completo; ao
    minimizar ele fica escondido (o player continua tocando). */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
