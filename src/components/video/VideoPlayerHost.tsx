@@ -12,8 +12,18 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export function VideoPlayerHost() {
-  const { video, videoId, expandido, tocando, wrapperRef, fechar, minimizar, expandir, alternar } =
-    useVideoPlayer()
+  const {
+    video,
+    videoId,
+    expandido,
+    tocando,
+    erro,
+    wrapperRef,
+    fechar,
+    minimizar,
+    expandir,
+    alternar,
+  } = useVideoPlayer()
 
   // Esc fecha o modal completo (mantém o comportamento esperado de um diálogo).
   useEffect(() => {
@@ -59,8 +69,8 @@ export function VideoPlayerHost() {
             variant="ghost"
             className="h-8 w-8 shrink-0 text-muted-foreground"
             onClick={minimizar}
-            aria-label="Minimizar (continuar ouvindo)"
-            title="Minimizar (continuar ouvindo)"
+            aria-label="Minimizar (continuar assistindo em miniatura)"
+            title="Minimizar (continuar assistindo em miniatura)"
           >
             <Minimize2 className="h-4 w-4" />
           </Button>
@@ -86,9 +96,30 @@ export function VideoPlayerHost() {
           </Button>
         </div>
 
-        {/* VÍDEO — nó persistente: o iframe criado pelo hook nunca sai daqui. */}
-        <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-black">
-          <div ref={wrapperRef} className="absolute inset-0" />
+        {/* VÍDEO — nó persistente: o iframe criado pelo hook nunca sai daqui.
+            Altura garantida (aspect-video + min-h) para nunca colapsar a zero,
+            com fundo preto visível enquanto o YouTube carrega. Fica SEMPRE
+            acima das anotações, no modal e no mini player. */}
+        <div
+          className={cn(
+            'relative w-full shrink-0 overflow-hidden bg-black aspect-video min-h-[140px]',
+          )}
+        >
+          <div ref={wrapperRef} className="absolute inset-0 h-full w-full" />
+          {/* Fallback quando a API do YouTube não carrega (rede bloqueada,
+              extensão etc.): em vez de uma caixa preta muda, oferecemos o
+              caminho direto para o vídeo. */}
+          {erro && (
+            <a
+              href={`https://www.youtube.com/watch?v=${videoId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 p-4 text-center text-sm text-white"
+            >
+              <span>Não foi possível carregar o player aqui.</span>
+              <span className="font-semibold underline">Assistir no YouTube</span>
+            </a>
+          )}
         </div>
 
         {/* Controles do mini player. */}

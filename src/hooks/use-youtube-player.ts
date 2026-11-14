@@ -10,6 +10,7 @@ export interface YoutubePlayer {
   playVideo(): void
   pauseVideo(): void
   getPlayerState(): number
+  getIframe(): HTMLIFrameElement
   destroy(): void
 }
 
@@ -62,6 +63,7 @@ export function useYoutubePlayer(wrapperRef: RefObject<HTMLDivElement>, videoId:
   const playerRef = useRef<YoutubePlayer | null>(null)
   const [pronto, setPronto] = useState(false)
   const [tocando, setTocando] = useState(false)
+  const [erro, setErro] = useState(false)
 
   useEffect(() => {
     const wrapper = wrapperRef.current
@@ -91,19 +93,38 @@ export function useYoutubePlayer(wrapperRef: RefObject<HTMLDivElement>, videoId:
             onReady: () => {
               if (cancelado) return
               playerRef.current = player
+              // A API troca o <div> do elemento por um <iframe>. Blindamos
+              // tamanho e posição DIRETO no atributo (style do React não
+              // alcança esse nó), para o vídeo nunca aparecer com altura
+              // zerada, escondido ou atrás do resto — inclusive no mini
+              // player flutuante, que só troca classes do antepassado.
+              const iframe = player.getIframe()
+              iframe.style.position = 'absolute'
+              iframe.style.inset = '0'
+              iframe.style.width = '100%'
+              iframe.style.height = '100%'
+              iframe.style.minHeight = '1px'
+              iframe.style.border = '0'
+              iframe.style.opacity = '1'
+              iframe.style.visibility = 'visible'
+              iframe.setAttribute('title', 'Player de vídeo do YouTube')
               setPronto(true)
             },
           },
         })
       })
       .catch(() => {
-        // Sem a API o vídeo não carrega; o usuário continua vendo o cabeçalho.
+        if (cancelado) return
+        // Sem a API o vídeo não carrega; sinalizamos para a UI mostrar o
+        // fallback (link para assistir no YouTube) em vez de uma caixa preta.
+        setErro(true)
       })
 
     return () => {
       cancelado = true
       setPronto(false)
       setTocando(false)
+      setErro(false)
       playerRef.current = null
       player?.destroy()
       elemento.remove()
@@ -130,5 +151,5 @@ export function useYoutubePlayer(wrapperRef: RefObject<HTMLDivElement>, videoId:
     else p.playVideo()
   }, [])
 
-  return { pronto, tocando, getTempo, irPara, alternar }
+  return { pronto, tocando, erro, getTempo, irPara, alternar }
 }

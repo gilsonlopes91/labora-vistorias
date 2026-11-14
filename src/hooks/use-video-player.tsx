@@ -22,6 +22,8 @@ interface PlayerContexto {
   expandido: boolean
   tocando: boolean
   pronto: boolean
+  /** true quando a API do YouTube não carregou (mostrar fallback com link). */
+  erro: boolean
   wrapperRef: RefObject<HTMLDivElement>
   abrir: (video: VideoItem, id: string) => void
   fechar: () => void
@@ -67,7 +69,10 @@ export function VideoPlayerProvider({ children }: { children: ReactNode }) {
   const minimizar = useCallback(() => setExpandido(false), [])
   const expandir = useCallback(() => setExpandido(true), [])
 
-  const { pronto, tocando, getTempo, irPara, alternar } = useYoutubePlayer(wrapperRef, videoId)
+  const { pronto, tocando, erro, getTempo, irPara, alternar } = useYoutubePlayer(
+    wrapperRef,
+    videoId,
+  )
 
   const valor = useMemo<PlayerContexto>(
     () => ({
@@ -76,6 +81,7 @@ export function VideoPlayerProvider({ children }: { children: ReactNode }) {
       expandido,
       tocando,
       pronto,
+      erro,
       wrapperRef,
       abrir,
       fechar,
@@ -91,6 +97,7 @@ export function VideoPlayerProvider({ children }: { children: ReactNode }) {
       expandido,
       tocando,
       pronto,
+      erro,
       abrir,
       fechar,
       minimizar,
