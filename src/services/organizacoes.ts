@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { reduzirLogo } from '@/lib/reduzirImagem'
 
 /** Dados da organização que saem nos documentos (propostas e relatórios). */
 export interface DadosDocumentos {
@@ -57,9 +58,9 @@ export const getMinhaOrganizacao = () => {
 export const atualizarNomeOrganizacao = (id: string, nome: string) =>
   pb.collection('organizacoes').update<Organizacao>(id, { nome })
 
-export const atualizarLogoOrganizacao = (id: string, logo: File) => {
+export const atualizarLogoOrganizacao = async (id: string, logo: File) => {
   const fd = new FormData()
-  fd.append('logo', logo)
+  fd.append('logo', await reduzirLogo(logo))
   return pb.collection('organizacoes').update<Organizacao>(id, fd)
 }
 

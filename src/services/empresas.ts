@@ -1,5 +1,6 @@
 import type { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
+import { reduzirLogo } from '@/lib/reduzirImagem'
 
 export interface Empresa extends RecordModel {
   id: string
@@ -104,9 +105,9 @@ export const updateEmpresa = (id: string, data: Partial<EmpresaInput>) =>
 
 export const deleteEmpresa = (id: string) => pb.collection('empresas').delete(id)
 
-export const atualizarLogoEmpresa = (id: string, logo: File) => {
+export const atualizarLogoEmpresa = async (id: string, logo: File) => {
   const fd = new FormData()
-  fd.append('logo', logo)
+  fd.append('logo', await reduzirLogo(logo))
   return pb.collection('empresas').update<Empresa>(id, fd)
 }
 
