@@ -104,12 +104,7 @@ export function VideoPlayerHost() {
               nunca colapsar a zero, com fundo preto visível enquanto o YouTube
               carrega. */}
           <div className={cn('flex min-h-0 min-w-0 flex-col', expandido ? 'flex-1' : 'w-full')}>
-            <div
-              className={cn(
-                'relative w-full shrink-0 overflow-hidden bg-black aspect-video min-h-[140px]',
-                expandido && 'max-h-[calc(100dvh-9rem)]',
-              )}
-            >
+            <div className="relative w-full shrink-0 overflow-hidden bg-black h-0 pb-[56.25%]">
               <div ref={wrapperRef} className="absolute inset-0 h-full w-full" />
               {/* Fallback quando a API do YouTube não carrega (rede bloqueada,
                   extensão etc.): em vez de uma caixa preta muda, oferecemos o
