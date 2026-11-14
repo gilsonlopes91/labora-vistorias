@@ -6,6 +6,7 @@ import { Play, Plus, Trash2, Video } from 'lucide-react'
 
 import { getPapelUsuarioLogado } from '@/services/equipe'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { VideoVisualizador } from '@/components/VideoVisualizador'
 import {
   apagarVideo,
   cadastrarVideo,
@@ -166,30 +167,9 @@ export default function Videos() {
       )}
 
       <Dialog open={!!assistindo} onOpenChange={(v) => !v && setAssistindo(null)}>
-        <DialogContent className="flex flex-col w-[96vw] max-w-2xl gap-4 p-5 sm:p-6 rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader className="space-y-1 pr-8 text-left">
-            <DialogTitle className="text-lg font-semibold leading-snug tracking-tight text-foreground">
-              {assistindo?.titulo}
-            </DialogTitle>
-            <DialogDescription className="sr-only">Reprodução do vídeo</DialogDescription>
-          </DialogHeader>
-          {idAssistindo && (
-            <div className="mx-auto w-full max-w-xl">
-              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black shadow-inner">
-                <iframe
-                  className="absolute inset-0 h-full w-full border-0"
-                  src={`https://www.youtube-nocookie.com/embed/${idAssistindo}?autoplay=1&rel=0`}
-                  title={assistindo?.titulo || 'Vídeo do YouTube'}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          )}
-          {assistindo?.descricao && (
-            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-              {assistindo.descricao}
-            </p>
+        <DialogContent className="flex w-[96vw] max-w-5xl flex-col gap-0 rounded-2xl p-0 shadow-2xl max-h-[92vh] overflow-y-auto">
+          {assistindo && idAssistindo && (
+            <VideoVisualizador key={assistindo.id} video={assistindo} videoId={idAssistindo} />
           )}
         </DialogContent>
       </Dialog>

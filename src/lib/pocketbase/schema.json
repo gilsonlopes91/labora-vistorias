@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T17:58:29.941Z",
+  "generatedAt": "2026-11-14T13:13:50.663Z",
   "collections": [
     {
       "name": "users",
@@ -5298,6 +5298,67 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_videos_created ON videos (created)"]
+    },
+    {
+      "name": "video_notes",
+      "type": "base",
+      "apiRules": {
+        "list": "usuario = @request.auth.id",
+        "view": "usuario = @request.auth.id",
+        "create": "@request.auth.id != '' && usuario = @request.auth.id",
+        "update": "usuario = @request.auth.id && @request.body.usuario:changed = false && @request.body.video:changed = false",
+        "delete": "usuario = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "usuario",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "video",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "videos"
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segundos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["nota", "marcacao"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_video_notes_usuario_video ON video_notes (usuario, video)"]
     }
   ]
 }
