@@ -407,8 +407,13 @@ export default function Layout() {
         <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-card px-3">
           <SidebarTrigger />
           {currentLabel && (
-            <span className="text-sm font-medium text-muted-foreground">{currentLabel}</span>
+            <span className="truncate text-sm font-medium text-muted-foreground">
+              {currentLabel}
+            </span>
           )}
+          <div className="ml-auto">
+            <FeedbackFlutuante />
+          </div>
         </header>
         <BarraOffline />
         {visaoCliente && (
@@ -429,7 +434,6 @@ export default function Layout() {
           <Outlet />
         </div>
       </SidebarInset>
-      <FeedbackFlutuante />
     </SidebarProvider>
   )
 }

@@ -104,6 +104,7 @@ export default function LayoutCliente() {
                 </SelectContent>
               </Select>
             )}
+            <FeedbackFlutuante />
             <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
             <Button variant="ghost" size="icon" onClick={signOut} title="Sair">
               <LogOut className="h-4 w-4" />
@@ -133,7 +134,6 @@ export default function LayoutCliente() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         {empresaAtual && <Outlet context={{ empresa: empresaAtual } as ClientePortalContexto} />}
       </main>
-      <FeedbackFlutuante />
     </div>
   )
 }

@@ -1,4 +1,5 @@
-/* Botão flutuante de sugestões, presente em todas as páginas do app logado.
+/* Botão de sugestões, presente em todas as páginas do app logado. Fica na barra
+   do topo (não flutua mais sobre a página, porque cobria o conteúdo das listas).
    O envio cai na caixa de sugestões do administrador (console > Sugestões).
    Pode levar um anexo: print da tela como está no momento ou uma foto/imagem. */
 import { useEffect, useRef, useState } from 'react'
@@ -79,10 +80,11 @@ export default function FeedbackFlutuante() {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-elevation transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
+        className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
         aria-label="Enviar sugestão, dica ou relatar um problema"
+        title="Enviar sugestão, dica ou relatar um problema"
       >
-        <MessageSquarePlus className="h-5 w-5" />
+        <MessageSquarePlus className="h-4 w-4" />
         <span className="hidden sm:inline">Sugestões e problemas</span>
       </button>
 
