@@ -125,10 +125,8 @@ export function VideoVisualizador({ video, videoId }: Props) {
 
       <div className="grid min-h-0 md:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col gap-3 p-5">
-          <div className="mx-auto w-full max-w-[min(100%,62vh)]">
-            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black shadow-inner">
-              <div ref={wrapperRef} className="absolute inset-0" />
-            </div>
+          <div className="relative h-[min(52vh,420px)] w-full overflow-hidden rounded-xl bg-black shadow-inner">
+            <div ref={wrapperRef} className="absolute inset-0" />
           </div>
           {video.descricao && (
             <p className="whitespace-pre-wrap text-sm text-muted-foreground">{video.descricao}</p>

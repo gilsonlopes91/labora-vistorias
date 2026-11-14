@@ -167,7 +167,7 @@ export default function Videos() {
       )}
 
       <Dialog open={!!assistindo} onOpenChange={(v) => !v && setAssistindo(null)}>
-        <DialogContent className="flex w-[96vw] max-w-5xl flex-col gap-0 rounded-2xl p-0 shadow-2xl max-h-[92vh] overflow-y-auto">
+        <DialogContent className="w-[96vw] max-w-5xl gap-0 rounded-2xl p-0 shadow-2xl max-h-[92vh] overflow-y-auto">
           {assistindo && idAssistindo && (
             <VideoVisualizador key={assistindo.id} video={assistindo} videoId={idAssistindo} />
           )}

@@ -138,6 +138,7 @@ export function CopiarEstruturaDialog({
         const novo = await createGhe({
           ...paraCopia(g),
           ...base,
+          nome: g.nome,
           setor_id: g.setor_id ? mapaSetor[g.setor_id] : undefined,
         } as GheInput)
         mapaGhe[g.id] = novo.id
